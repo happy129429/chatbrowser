@@ -2,21 +2,29 @@ import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
+  IconCloseOutline16,
+  IconFolderOutline16,
+  IconManageOutline16,
   IconPanelLeftOutline16,
+  IconPinFill16,
   IconSearchOutline16,
   IconSettingsOutline16,
+  IconTrashOutline16,
   IconUploadOutline14,
 } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
 import {
+  createGroup,
   dissolveGroup,
   mergeGroups,
   moveSessionsToGroup,
   removeGroup,
   removeSession,
+  removeSessions,
   renameGroup,
   setGroupColor,
+  setSessionsPinned,
   useChatStore,
 } from '../../services/chat/store.js'
 import { exportGroupArchive, importArchiveFiles } from '../../services/chat/backup.js'
@@ -27,7 +35,7 @@ import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import { openSettings } from '../settings/settingsDialogState.js'
 import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
-import { GroupHeader } from './GroupHeader.js'
+import { colorDotClass, GroupHeader } from './GroupHeader.js'
 import { openSearchOverlay } from './searchOverlayState.js'
 import { SessionItem } from './SessionItem.js'
 import styles from './Sider.module.css'
@@ -57,12 +65,58 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const inputRef = useRef<HTMLInputElement>(null)
   /** 正在拖拽的会话 id；组头成为放下目标 */
   const [draggingSession, setDraggingSession] = useState<string | null>(null)
+  /** 多选模式：groupId 为 null 表示未分组范围 */
+  const [selecting, setSelecting] = useState<{ groupId: string | null } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [pinConfirm, setPinConfirm] = useState<boolean | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [selectionBusy, setSelectionBusy] = useState(false)
 
   const ungrouped = useMemo(
     () => sessions.filter((session) => session.groupId === null),
     [sessions]
   )
-  const timeGroups = useMemo(() => groupSessions(ungrouped, now, t), [ungrouped, now, t])
+
+  /** 多选范围内展示的分区：置顶小分组 + 日期小分组。 */
+  const selectionSections = useMemo(() => {
+    if (!selecting) {
+      return []
+    }
+    const scope = sessions.filter((session) =>
+      selecting.groupId === null ? session.groupId === null : session.groupId === selecting.groupId
+    )
+    const pinnedList = scope.filter((session) => session.pinned)
+    const rest = scope.filter((session) => !session.pinned)
+    const sections: { key: string; label: string; sessions: SessionSummary[] }[] = []
+    if (pinnedList.length > 0) {
+      sections.push({ key: 'pinned', label: t('pinnedSection'), sessions: pinnedList })
+    }
+    sections.push(...groupSessions(rest, now, t))
+    return sections
+  }, [selecting, sessions, now, t])
+
+  const toggleSelected = (id: string) =>
+    setSelected((previous) => {
+      const next = new Set(previous)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+
+  const exitSelection = () => {
+    setSelecting(null)
+    setSelected(new Set())
+  }
+
+  const enterSelection = (groupId: string | null) => {
+    setSelecting({ groupId })
+    setSelected(new Set())
+  }
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
@@ -148,20 +202,35 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const renderSession = (session: SessionSummary) => (
-    <SessionItem
-      key={session.id}
-      session={session}
-      active={session.id === activeId}
-      moveTargets={archiveGroups.filter((item) => item.id !== session.groupId)}
-      onMove={
-        archiveGroups.length > 0 ? (groupId) => moveSessions([session.id], groupId) : undefined
-      }
-      onDragStart={() => setDraggingSession(session.id)}
-      onDragEnd={() => setDraggingSession(null)}
-      onDelete={() => setDeleting(session)}
-    />
-  )
+  const renderSession = (session: SessionSummary) =>
+    selecting &&
+    (selecting.groupId === null
+      ? session.groupId === null
+      : session.groupId === selecting.groupId) ? (
+      <SessionItem
+        key={session.id}
+        session={session}
+        active={session.id === activeId}
+        selection={{
+          checked: selected.has(session.id),
+          onToggle: () => toggleSelected(session.id),
+        }}
+        onDelete={() => setDeleting(session)}
+      />
+    ) : (
+      <SessionItem
+        key={session.id}
+        session={session}
+        active={session.id === activeId}
+        moveTargets={archiveGroups.filter((item) => item.id !== session.groupId)}
+        onMove={
+          archiveGroups.length > 0 ? (groupId) => moveSessions([session.id], groupId) : undefined
+        }
+        onDragStart={() => setDraggingSession(session.id)}
+        onDragEnd={() => setDraggingSession(null)}
+        onDelete={() => setDeleting(session)}
+      />
+    )
 
   return (
     <div className={clsx(styles.sider, mobile && styles.mobile)}>
@@ -212,21 +281,73 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
         }}
       />
       <div className={styles.listWrap}>
-        {' '}
+        {selecting ? (
+          <div className={styles.selectionBar}>
+            <span className={styles.selectionBarLabel}>
+              {t('selectionCount', { count: selected.size })}
+            </span>
+            <IconButton
+              icon={<IconCloseOutline16 />}
+              aria-label={t('cancel')}
+              onClick={exitSelection}
+            />
+          </div>
+        ) : null}
         <div className={styles.list}>
           {sessions.length === 0 ? (
             <div className={styles.searchState}>{t('listEmpty')}</div>
+          ) : selecting ? (
+            selectionSections.map((section) => (
+              <div key={section.key} className={styles.section}>
+                <div className={styles.sectionHeader}>{section.label}</div>
+                {section.sessions.map((session) => renderSession(session))}
+              </div>
+            ))
           ) : (
             <>
-              {timeGroups.map((group) => (
-                <div key={group.key} className={styles.section}>
-                  <div className={styles.sectionHeader}>{group.label}</div>
-                  {group.sessions.map((session) => renderSession(session))}
-                </div>
-              ))}
+              {(() => {
+                const pinnedList = ungrouped.filter((session) => session.pinned)
+                const rest = ungrouped.filter((session) => !session.pinned)
+                const groups = groupSessions(rest, now, t)
+                return (
+                  <>
+                    {pinnedList.length > 0 ? (
+                      <div className={styles.section}>
+                        <div className={styles.sectionHeader}>{t('pinnedSection')}</div>
+                        {pinnedList.map((session) => renderSession(session))}
+                      </div>
+                    ) : null}
+                    {groups.map((group, index) => (
+                      <div key={group.key} className={styles.section}>
+                        <div
+                          className={clsx(
+                            styles.sectionHeader,
+                            index === 0 && ungrouped.length > 0 && styles.headerRow
+                          )}
+                        >
+                          {group.label}
+                          {index === 0 && ungrouped.length > 0 ? (
+                            <span className={styles.manageIcon}>
+                              <IconButton
+                                icon={<IconManageOutline16 />}
+                                tooltip={t('multiSelect')}
+                                tooltipPlacement="bottom"
+                                onClick={() => enterSelection(null)}
+                              />
+                            </span>
+                          ) : null}
+                        </div>
+                        {group.sessions.map((session) => renderSession(session))}
+                      </div>
+                    ))}
+                  </>
+                )
+              })()}
               {archiveGroups.map((group) => {
                 const list = sessions.filter((session) => session.groupId === group.id)
-                const inner = groupSessions(list, now, t)
+                const pinnedList = list.filter((session) => session.pinned)
+                const rest = list.filter((session) => !session.pinned)
+                const inner = groupSessions(rest, now, t)
                 return (
                   <div key={group.id} className={styles.section}>
                     <GroupHeader
@@ -255,18 +376,29 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                         )
                       }}
                       onExport={() => void exportGroup(group)}
+                      onMultiSelect={() => enterSelection(group.id)}
                       onDelete={() => setDeletingGroup(group)}
                     />
-                    {!collapsedIds.has(group.id)
-                      ? inner.map((sub) => (
+                    {!collapsedIds.has(group.id) ? (
+                      <>
+                        {pinnedList.length > 0 ? (
+                          <div className={styles.subSection}>
+                            <div className={clsx(styles.sectionHeader, styles.groupSubHeader)}>
+                              {t('pinnedSection')}
+                            </div>
+                            {pinnedList.map((session) => renderSession(session))}
+                          </div>
+                        ) : null}
+                        {inner.map((sub) => (
                           <div key={sub.key} className={styles.subSection}>
                             <div className={clsx(styles.sectionHeader, styles.groupSubHeader)}>
                               {sub.label}
                             </div>
                             {sub.sessions.map((session) => renderSession(session))}
                           </div>
-                        ))
-                      : null}
+                        ))}
+                      </>
+                    ) : null}
                   </div>
                 )
               })}
@@ -274,6 +406,43 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           )}
         </div>
       </div>
+      {selecting ? (
+        <div className={styles.selectionActions}>
+          <button
+            type="button"
+            className={styles.selectionButton}
+            disabled={selected.size === 0 || archiveGroups.length === 0}
+            onClick={() => setMoveOpen(true)}
+          >
+            <IconFolderOutline16 />
+            {t('moveToGroup')}
+          </button>
+          {(() => {
+            const chosen = sessions.filter((session) => selected.has(session.id))
+            const allPinned = chosen.length > 0 && chosen.every((session) => session.pinned)
+            return (
+              <button
+                type="button"
+                className={styles.selectionButton}
+                disabled={selected.size === 0}
+                onClick={() => setPinConfirm(!allPinned)}
+              >
+                <IconPinFill16 />
+                {allPinned ? t('unpin') : t('pin')}
+              </button>
+            )
+          })()}
+          <button
+            type="button"
+            className={clsx(styles.selectionButton, styles.selectionButtonDanger)}
+            disabled={selected.size === 0}
+            onClick={() => setDeleteConfirm(true)}
+          >
+            <IconTrashOutline16 />
+            {t('delete')}
+          </button>
+        </div>
+      ) : null}
       <div className={styles.bottom}>
         <button type="button" className={styles.settings} onClick={() => openSettings('general')}>
           <span className={styles.settingsIcon}>
@@ -360,6 +529,169 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           {t('deleteGroupModalDescription', {
             count: sessions.filter((session) => session.groupId === deletingGroup.id).length,
           })}
+        </Modal>
+      ) : null}
+      {moveOpen ? (
+        <Modal
+          title={t('moveToGroup')}
+          onClose={() => {
+            if (!selectionBusy) {
+              setMoveOpen(false)
+              setNewGroupName('')
+            }
+          }}
+        >
+          <div className={styles.moveGroupList}>
+            {archiveGroups.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                className={styles.moveGroupItem}
+                disabled={selectionBusy}
+                onClick={async () => {
+                  setSelectionBusy(true)
+                  try {
+                    await moveSessionsToGroup([...selected], group.id)
+                    setMoveOpen(false)
+                    setNewGroupName('')
+                    exitSelection()
+                  } catch {
+                    showToast({ key: 'groupOperationFailed', type: 'error' })
+                  } finally {
+                    setSelectionBusy(false)
+                  }
+                }}
+              >
+                <span className={clsx(styles.groupDot, colorDotClass(group.color))} />
+                <span className={styles.moveGroupName}>{group.name}</span>
+              </button>
+            ))}
+            <div className={styles.moveGroupCreate}>
+              <input
+                type="text"
+                className={styles.moveGroupInput}
+                value={newGroupName}
+                placeholder={t('groupNamePlaceholder')}
+                onChange={(event) => setNewGroupName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.currentTarget.blur()
+                  }
+                }}
+              />
+              <Button
+                variant="outlined"
+                size="s"
+                disabled={selectionBusy || newGroupName.trim() === ''}
+                onClick={async () => {
+                  setSelectionBusy(true)
+                  try {
+                    const group = await createGroup(newGroupName.trim())
+                    await moveSessionsToGroup([...selected], group.id)
+                    setMoveOpen(false)
+                    setNewGroupName('')
+                    exitSelection()
+                  } catch {
+                    showToast({ key: 'groupOperationFailed', type: 'error' })
+                  } finally {
+                    setSelectionBusy(false)
+                  }
+                }}
+              >
+                {t('createGroup')}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+      {pinConfirm !== null ? (
+        <Modal
+          title={
+            pinConfirm
+              ? t('pinConfirmTitle', { count: selected.size })
+              : t('unpinConfirmTitle', { count: selected.size })
+          }
+          onClose={() => {
+            if (!selectionBusy) {
+              setPinConfirm(null)
+            }
+          }}
+          footer={
+            <>
+              <Button
+                variant="outlined"
+                disabled={selectionBusy}
+                onClick={() => setPinConfirm(null)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={selectionBusy}
+                onClick={async () => {
+                  setSelectionBusy(true)
+                  const count = selected.size
+                  try {
+                    await setSessionsPinned([...selected], pinConfirm)
+                    showToast({
+                      key: pinConfirm ? 'pinnedToast' : 'unpinnedToast',
+                      params: { count },
+                    })
+                    setPinConfirm(null)
+                    exitSelection()
+                  } catch {
+                    showToast({ key: 'groupOperationFailed', type: 'error' })
+                  } finally {
+                    setSelectionBusy(false)
+                  }
+                }}
+              >
+                {pinConfirm ? t('pin') : t('unpin')}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+      {deleteConfirm ? (
+        <Modal
+          title={t('deleteSelectedTitle', { count: selected.size })}
+          onClose={() => {
+            if (!selectionBusy) {
+              setDeleteConfirm(false)
+            }
+          }}
+          footer={
+            <>
+              <Button
+                variant="outlined"
+                disabled={selectionBusy}
+                onClick={() => setDeleteConfirm(false)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={selectionBusy}
+                onClick={async () => {
+                  setSelectionBusy(true)
+                  try {
+                    if (await removeSessions([...selected])) {
+                      setDeleteConfirm(false)
+                      exitSelection()
+                    } else {
+                      showToast({ key: 'sessionDeleteFailed', type: 'error' })
+                    }
+                  } finally {
+                    setSelectionBusy(false)
+                  }
+                }}
+              >
+                {t('delete')}
+              </Button>
+            </>
+          }
+        >
+          {t('deleteSelectedDesc')}
         </Modal>
       ) : null}
     </div>

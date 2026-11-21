@@ -278,6 +278,8 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
     updatedAt: time(file.updated_at),
     // 导入流程会在暂存前打上目标组的 ID。
     groupId: null,
+    // 归档里的置顶标记照实还原（旧版导出恒为 false）。
+    pinned: file.pinned,
     ...buildTree(file),
   }
   const images = new Map<string, string>()

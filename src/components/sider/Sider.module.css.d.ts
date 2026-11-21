@@ -34,6 +34,18 @@ declare const styles: {
   readonly settingsLabel: string
   readonly collapsed: string
   readonly collapsedGroup: string
+  readonly selectionBar: string
+  readonly selectionBarLabel: string
+  readonly selectionActions: string
+  readonly selectionButton: string
+  readonly selectionButtonDanger: string
+  readonly headerRow: string
+  readonly manageIcon: string
+  readonly moveGroupList: string
+  readonly moveGroupItem: string
+  readonly moveGroupName: string
+  readonly moveGroupCreate: string
+  readonly moveGroupInput: string
   readonly drawer: string
   readonly drawerMask: string
   readonly mobile: string

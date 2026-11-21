@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { createId } from '../../utils/id.js'
 import { normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
 import {
@@ -538,6 +539,46 @@ export const moveSessionsToGroup = async (ids: string[], groupId: string | null)
   }
 }
 
+/** 批量设置置顶。 */
+export const setSessionsPinned = async (ids: string[], pinned: boolean) => {
+  if (get().importingHistory || ids.length === 0) {
+    return
+  }
+  try {
+    await db.pinSessions(ids, pinned)
+    const idSet = new Set(ids)
+    set((state) => ({
+      sessions: state.sessions.map((session) =>
+        idSet.has(session.id) ? { ...session, pinned } : session
+      ),
+      sessionCache: Object.fromEntries(
+        Object.entries(state.sessionCache).map(([id, session]) =>
+          idSet.has(id) ? [id, { ...session, pinned }] : [id, session]
+        )
+      ),
+    }))
+  } catch (error) {
+    db.reportStorageError('pin sessions')(error)
+    throw error
+  }
+}
+
+/** 新建空归档组，返回组记录（已入库并入列表）。 */
+export const createGroup = async (name: string): Promise<SessionGroup> => {
+  const group: SessionGroup = {
+    id: createId(),
+    name,
+    color: null,
+    sourceName: '',
+    createdAt: Date.now(),
+  }
+  await db.saveGroup(group)
+  set((state) => ({
+    groups: [...state.groups, group].sort((a, b) => b.createdAt - a.createdAt),
+  }))
+  return group
+}
+
 /** 合并组：源组的会话并入目标组后删除源组。 */
 export const mergeGroups = async (sourceId: string, targetId: string) => {
   if (get().importingHistory || sourceId === targetId) {
@@ -566,6 +607,39 @@ export const dissolveGroup = async (id: string) => {
   set((state) => ({
     groups: state.groups.filter((group) => group.id !== id),
   }))
+}
+
+/** 批量删除会话；本地原件仅在没有其他会话引用时清理。 */
+export const removeSessions = async (ids: string[]): Promise<boolean> => {
+  if (get().importingHistory || deletingSessions.size > 0) {
+    return false
+  }
+  const idSet = new Set(ids)
+  try {
+    await db.deleteSessions(ids)
+    for (const id of ids) {
+      sessionLoads.delete(id)
+      sessionAccess.delete(id)
+      unsavedSessions.delete(id)
+    }
+    set((state) => ({
+      sessions: state.sessions.filter((session) => !idSet.has(session.id)),
+      sessionCache: Object.fromEntries(
+        Object.entries(state.sessionCache).filter(([key]) => !idSet.has(key))
+      ),
+      sessionLoadErrors: Object.fromEntries(
+        Object.entries(state.sessionLoadErrors).filter(([key]) => !idSet.has(key))
+      ),
+      sessionSaveErrors: Object.fromEntries(
+        Object.entries(state.sessionSaveErrors).filter(([key]) => !idSet.has(key))
+      ),
+      activeId: state.activeId !== null && idSet.has(state.activeId) ? null : state.activeId,
+    }))
+    return true
+  } catch (error) {
+    db.reportStorageError('delete sessions')(error)
+    return false
+  }
 }
 
 /** 删除组及其全部会话；本地原件仅在没有其他会话引用时清理。 */

@@ -9,6 +9,7 @@ import {
   IconDownloadOutline16,
   IconEditOutline16,
   IconEllipsisOutline16,
+  IconManageOutline16,
   IconTrashOutline16,
 } from '../base/icons.js'
 import { IconButton } from '../base/IconButton.js'
@@ -52,6 +53,7 @@ export const GroupHeader = ({
   onMerge,
   onDissolve,
   onExport,
+  onMultiSelect,
   onDelete,
 }: {
   group: SessionGroup
@@ -67,6 +69,8 @@ export const GroupHeader = ({
   onMerge: (targetId: string) => void
   onDissolve: () => void
   onExport: () => void
+  /** 进入该组的多选管理模式 */
+  onMultiSelect: () => void
   onDelete: () => void
 }) => {
   const t = useTranslate()
@@ -132,6 +136,12 @@ export const GroupHeader = ({
       </span>
       <span className={styles.groupCount}>{count}</span>
       <span className={styles.groupMenu} onClick={(event) => event.stopPropagation()}>
+        <IconButton
+          icon={<IconManageOutline16 />}
+          tooltip={t('multiSelect')}
+          tooltipPlacement="bottom"
+          onClick={onMultiSelect}
+        />
         <Menu
           options={[
             {
@@ -139,6 +149,12 @@ export const GroupHeader = ({
               label: t('sessionItemMenuRenameOption'),
               icon: <IconEditOutline16 />,
               onSelect: () => setEditing(true),
+            },
+            {
+              key: 'multiselect',
+              label: t('multiSelect'),
+              icon: <IconManageOutline16 />,
+              onSelect: onMultiSelect,
             },
             ...GROUP_COLORS.map((color) => ({
               key: `color-${color}`,

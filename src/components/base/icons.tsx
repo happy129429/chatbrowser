@@ -532,3 +532,31 @@ export const IconChatBubbleOutline16 = () => (
     />
   </svg>
 )
+
+export const IconManageOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="3.2" cy="4.4" r="1.5" fill="currentColor" />
+    <rect x="6.4" y="3.4" width="8.1" height="2" rx="1" fill="currentColor" />
+    <circle cx="3.2" cy="11.6" r="1.5" fill="currentColor" />
+    <rect x="6.4" y="10.6" width="8.1" height="2" rx="1" fill="currentColor" />
+  </svg>
+)
+
+export const IconPinFill16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M9.9 1.3L14.7 6.1C15 6.4 14.9 6.9 14.5 7.1L12.2 8L10.1 10.1L9.9 12.4C9.9 12.7 9.7 12.9 9.5 13L8.9 13.2C8.7 13.3 8.4 13.2 8.3 13.1L5.6 10.4L2.5 13.5L2 13L5.1 9.9L2.4 7.2C2.3 7.1 2.2 6.8 2.3 6.6L2.5 6C2.6 5.8 2.8 5.6 3.1 5.6L5.4 5.4L7.5 3.3L8.4 1C8.5 0.6 9.1 0.5 9.4 0.8Z"
+      fill="currentColor"
+      transform="translate(0 1.5)"
+    />
+  </svg>
+)
+
+export const IconFolderOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M2.2 4.4C2.2 3.5 2.9 2.8 3.8 2.8H6.1C6.5 2.8 6.8 2.9 7.1 3.2L8.2 4.3H12.2C13.1 4.3 13.8 5 13.8 5.9V11.6C13.8 12.5 13.1 13.2 12.2 13.2H3.8C2.9 13.2 2.2 12.5 2.2 11.6V4.4ZM3.8 3.8C3.5 3.8 3.2 4.1 3.2 4.4V11.6C3.2 11.9 3.5 12.2 3.8 12.2H12.2C12.5 12.2 12.8 11.9 12.8 11.6V5.9C12.8 5.6 12.5 5.3 12.2 5.3H7.8L6.4 3.8H3.8Z"
+      fill="currentColor"
+    />
+  </svg>
+)

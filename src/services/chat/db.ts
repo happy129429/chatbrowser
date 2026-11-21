@@ -137,6 +137,33 @@ export const moveSessionsToGroup = async (
   return summaries
 }
 
+/** 批量设置置顶，返回更新后的摘要。 */
+export const pinSessions = async (ids: string[], pinned: boolean): Promise<SessionSummary[]> => {
+  const tx = (await getDB()).transaction(['sessions', 'sessionSummaries'], 'readwrite')
+  const summaries: SessionSummary[] = []
+  await Promise.all([
+    (async () => {
+      try {
+        for (const id of ids) {
+          const session = await tx.objectStore('sessions').get(id)
+          if (session) {
+            session.pinned = pinned
+            const summary = storedSummary(session)
+            await tx.objectStore('sessions').put(session)
+            await tx.objectStore('sessionSummaries').put(summary)
+            summaries.push(toSessionSummary(summary))
+          }
+        }
+      } catch (error) {
+        abortTransaction(tx)
+        throw error
+      }
+    })(),
+    tx.done,
+  ])
+  return summaries
+}
+
 /** 批量删除会话；仅清理已无会话引用的本地原件。 */
 export const deleteSessions = async (ids: string[]): Promise<void> => {
   const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
