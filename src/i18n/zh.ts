@@ -129,6 +129,10 @@ export const zh = {
   colorRed: '红色',
   colorPurple: '紫色',
   colorCyan: '青色',
+  searchPlaceholder: '搜索对话',
+  searchNoResults: '没有找到相关对话',
+  searchScanning: '正在搜索…',
+  searchClear: '清除搜索',
   historyImportFailed:
     '文件导入失败，可能是文件格式错误或使用了旧版的对话导出 ZIP 文件，请前往 DeepSeek 重新导出历史对话文件后再次导入。',
   historyExportFailed: '导出失败：{message}',

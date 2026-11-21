@@ -2,16 +2,20 @@ import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
+  IconCloseOutline16,
   IconPanelLeftOutline16,
+  IconSearchOutline16,
   IconSettingsOutline16,
   IconUploadOutline14,
 } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
+import { searchSessions, type SearchHit } from '../../services/chat/search.js'
 import {
   dissolveGroup,
   mergeGroups,
   moveSessionsToGroup,
+  openSessionMessage,
   removeGroup,
   removeSession,
   renameGroup,
@@ -39,6 +43,18 @@ const downloadBlob = (name: string, blob: Blob) => {
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
+/** 高亮片段：\x00 包裹的命中词渲染为 mark。 */
+const Snippet = ({ text }: { text: string }) => {
+  const [before, marked, after] = text.split('\x00')
+  return (
+    <span className={styles.searchHitSnippet}>
+      {before}
+      {marked !== undefined ? <mark>{marked}</mark> : null}
+      {after}
+    </span>
+  )
+}
+
 /** 展开的侧边栏：名称与收起按钮、打开归档、未分组会话（按时间）+ 归档组（标签页组风格）；移动端放在抽屉里 */
 export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const t = useTranslate()
@@ -53,6 +69,45 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const [importBusy, setImportBusy] = useState(false)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set())
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const [query, setQuery] = useState('')
+  const [hits, setHits] = useState<SearchHit[]>([])
+  const [scanning, setScanning] = useState(false)
+  const searchAbortRef = useRef<AbortController | null>(null)
+
+  // 搜索防抖；新查询中止上一轮扫描。
+  useEffect(() => {
+    const trimmed = query.trim()
+    searchAbortRef.current?.abort()
+    if (trimmed === '') {
+      setHits([])
+      setScanning(false)
+      return
+    }
+    setScanning(true)
+    setHits([])
+    const controller = new AbortController()
+    searchAbortRef.current = controller
+    const timer = setTimeout(() => {
+      void searchSessions(useChatStore.getState().sessions, trimmed, {
+        signal: controller.signal,
+        onProgress: ({ hits: progressHits, scanned, total }) => {
+          if (!controller.signal.aborted) {
+            setHits([...progressHits])
+            setScanning(scanned < total)
+          }
+        },
+      }).finally(() => {
+        if (!controller.signal.aborted) {
+          setScanning(false)
+        }
+      })
+    }, 250)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [query])
 
   const ungrouped = useMemo(
     () => sessions.filter((session) => session.groupId === null),
@@ -181,44 +236,105 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           void importFiles(files)
         }}
       />
+      <div className={styles.searchBox}>
+        <span className={styles.searchBoxIcon}>
+          <IconSearchOutline16 />
+        </span>
+        <input
+          type="text"
+          className={styles.searchInput}
+          value={query}
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('searchPlaceholder')}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setQuery('')
+            }
+          }}
+        />
+        {query ? (
+          <span className={styles.searchClear}>
+            <IconButton
+              icon={<IconCloseOutline16 />}
+              aria-label={t('searchClear')}
+              onClick={() => setQuery('')}
+            />
+          </span>
+        ) : null}
+      </div>
       <div className={styles.listWrap}>
-        <div className={styles.list}>
-          {timeGroups.map((group) => (
-            <div key={group.key} className={styles.section}>
-              <div className={styles.sectionHeader}>{group.label}</div>
-              {group.sessions.map((session) => renderSession(session))}
-            </div>
-          ))}
-          {archiveGroups.map((group) => {
-            const list = sessions.filter((session) => session.groupId === group.id)
-            return (
-              <div key={group.id} className={styles.section}>
-                <GroupHeader
-                  group={group}
-                  count={list.length}
-                  collapsed={collapsedIds.has(group.id)}
-                  otherGroups={archiveGroups.filter((item) => item.id !== group.id)}
-                  onToggle={() => toggleCollapsed(group.id)}
-                  onRename={(name) => renameGroup(group.id, name)}
-                  onSetColor={(color) => setGroupColor(group.id, color)}
-                  onMerge={(targetId) => {
-                    void mergeGroups(group.id, targetId).catch(() =>
-                      showToast({ key: 'groupOperationFailed', type: 'error' })
-                    )
-                  }}
-                  onDissolve={() => {
-                    void dissolveGroup(group.id).catch(() =>
-                      showToast({ key: 'groupOperationFailed', type: 'error' })
-                    )
-                  }}
-                  onExport={() => void exportGroup(group)}
-                  onDelete={() => setDeletingGroup(group)}
-                />
-                {!collapsedIds.has(group.id) ? list.map((session) => renderSession(session)) : null}
+        {query.trim() !== '' ? (
+          <div className={styles.list}>
+            {hits.length === 0 ? (
+              <div className={styles.searchState}>
+                {scanning ? t('searchScanning') : t('searchNoResults')}
               </div>
-            )
-          })}
-        </div>
+            ) : (
+              <div className={styles.searchResults}>
+                {hits.map((hit) => {
+                  const summary = sessions.find((session) => session.id === hit.sessionId)
+                  return (
+                    <button
+                      key={`${hit.sessionId}-${hit.messageId}`}
+                      type="button"
+                      className={styles.searchHit}
+                      onClick={() => {
+                        openSessionMessage(hit.sessionId, hit.messageId)
+                        closeMobileSider()
+                      }}
+                    >
+                      <span className={styles.searchHitTitle}>
+                        {summary?.title || t('untitledChat')}
+                      </span>
+                      <Snippet text={hit.snippet} />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={styles.list}>
+            {timeGroups.map((group) => (
+              <div key={group.key} className={styles.section}>
+                <div className={styles.sectionHeader}>{group.label}</div>
+                {group.sessions.map((session) => renderSession(session))}
+              </div>
+            ))}
+            {archiveGroups.map((group) => {
+              const list = sessions.filter((session) => session.groupId === group.id)
+              return (
+                <div key={group.id} className={styles.section}>
+                  <GroupHeader
+                    group={group}
+                    count={list.length}
+                    collapsed={collapsedIds.has(group.id)}
+                    otherGroups={archiveGroups.filter((item) => item.id !== group.id)}
+                    onToggle={() => toggleCollapsed(group.id)}
+                    onRename={(name) => renameGroup(group.id, name)}
+                    onSetColor={(color) => setGroupColor(group.id, color)}
+                    onMerge={(targetId) => {
+                      void mergeGroups(group.id, targetId).catch(() =>
+                        showToast({ key: 'groupOperationFailed', type: 'error' })
+                      )
+                    }}
+                    onDissolve={() => {
+                      void dissolveGroup(group.id).catch(() =>
+                        showToast({ key: 'groupOperationFailed', type: 'error' })
+                      )
+                    }}
+                    onExport={() => void exportGroup(group)}
+                    onDelete={() => setDeletingGroup(group)}
+                  />
+                  {!collapsedIds.has(group.id)
+                    ? list.map((session) => renderSession(session))
+                    : null}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
       <div className={styles.bottom}>
         <button type="button" className={styles.settings} onClick={() => openSettings('general')}>

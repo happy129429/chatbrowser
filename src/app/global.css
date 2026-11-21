@@ -52,3 +52,19 @@ body.change-theme *::after {
     overscroll-behavior-y: none;
   }
 }
+
+/* 搜索结果跳转定位：命中消息短暂闪烁 */
+.ds-jump-flash {
+  animation: ds-jump-flash 1.2s ease;
+  border-radius: 12px;
+}
+
+@keyframes ds-jump-flash {
+  0% {
+    background-color: var(--dsw-alias-fill-brand-light);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}

@@ -135,6 +135,10 @@ export const en = {
   colorRed: 'Red',
   colorPurple: 'Purple',
   colorCyan: 'Cyan',
+  searchPlaceholder: 'Search chats',
+  searchNoResults: 'No matching chats',
+  searchScanning: 'Searching…',
+  searchClear: 'Clear search',
   historyImportFailed:
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
   historyExportFailed: 'Export failed: {message}',

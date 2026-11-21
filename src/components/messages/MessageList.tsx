@@ -5,7 +5,7 @@ import {
   getVisibleMessages,
   type MessageVersions,
 } from '../../services/chat/branches.js'
-import { selectMessageVersion } from '../../services/chat/store.js'
+import { selectMessageVersion, clearPendingJump, useChatStore } from '../../services/chat/store.js'
 import type { Session } from '../../services/chat/types.js'
 import { closeSearchPanel } from '../search/searchPanelState.js'
 import { AssistantMessage } from './AssistantMessage.js'
@@ -82,6 +82,26 @@ export const MessageList = ({
   }, [session.id, lastMessageId, scrollToBottom])
 
   useEffect(closeSearchPanel, [session.id, lastMessageId])
+
+  // 搜索结果的跳转定位：滚动到命中消息并短暂闪烁。
+  const pendingJump = useChatStore((state) => state.pendingJump)
+  useEffect(() => {
+    if (!pendingJump || pendingJump.sessionId !== session.id) {
+      return
+    }
+    clearPendingJump()
+    requestAnimationFrame(() => {
+      const target = contentRef.current?.querySelector<HTMLElement>(
+        `[data-message-id="${CSS.escape(pendingJump.messageId)}"]`
+      )
+      if (!target) {
+        return
+      }
+      target.scrollIntoView({ block: 'center' })
+      target.classList.add('ds-jump-flash')
+      setTimeout(() => target.classList.remove('ds-jump-flash'), 1200)
+    })
+  }, [pendingJump, session.id])
 
   const selectVersion = useCallback(
     (messageId: string, anchorTop: number) => {

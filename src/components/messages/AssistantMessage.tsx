@@ -42,7 +42,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   const copyText = responseText || notice?.text
   const summaryEntry = `${message.id}-summary`
   return (
-    <div className={styles.message}>
+    <div className={styles.message} data-message-id={message.id}>
       {refused ? null : <ReplyArea message={message} view={view} hasResponse={!!responseText} />}
       {answer ? (
         <Markdown

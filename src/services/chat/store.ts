@@ -26,6 +26,8 @@ type ChatState = {
   sessionSaveErrors: Record<string, boolean>
   /** null 表示欢迎页 */
   activeId: string | null
+  /** 搜索结果请求的定位：打开会话后滚动到该消息 */
+  pendingJump: { sessionId: string; messageId: string } | null
 }
 
 export const useChatStore = create<ChatState>(() => ({
@@ -38,6 +40,7 @@ export const useChatStore = create<ChatState>(() => ({
   sessionLoadErrors: {},
   sessionSaveErrors: {},
   activeId: null,
+  pendingJump: null,
 }))
 
 const { getState: get, setState: set } = useChatStore
@@ -380,6 +383,24 @@ export const selectSession = (id: string) => {
     set({ activeId: id })
     void ensureSessionLoaded(id)
     trimSessionCache()
+  }
+}
+
+/** 从搜索结果打开会话并定位到命中消息。 */
+export const openSessionMessage = (sessionId: string, messageId: string) => {
+  if (get().importingHistory || !get().sessions.some((session) => session.id === sessionId)) {
+    return
+  }
+  touchSession(sessionId)
+  set({ activeId: sessionId, pendingJump: { sessionId, messageId } })
+  void ensureSessionLoaded(sessionId)
+  trimSessionCache()
+}
+
+/** 定位已消费（或会话已切换）后清除。 */
+export const clearPendingJump = () => {
+  if (get().pendingJump !== null) {
+    set({ pendingJump: null })
   }
 }
 
