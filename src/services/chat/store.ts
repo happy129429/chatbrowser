@@ -5,6 +5,7 @@ import {
   toSessionSummary,
   type AssistantMessage,
   type Session,
+  type SessionGroup,
   type SessionSummary,
 } from './types.js'
 
@@ -16,6 +17,8 @@ type ChatState = {
   initError: boolean
   /** 历史导入或全部删除期间锁定交互，提交成功前仍展示原有记录。 */
   importingHistory: boolean
+  /** 归档组，按导入时间降序。 */
+  groups: SessionGroup[]
   /** 仅列表元数据，按 updatedAt 降序。 */
   sessions: SessionSummary[]
   sessionCache: Record<string, Session>
@@ -29,6 +32,7 @@ export const useChatStore = create<ChatState>(() => ({
   ready: false,
   initError: false,
   importingHistory: false,
+  groups: [],
   sessions: [],
   sessionCache: {},
   sessionLoadErrors: {},
@@ -206,9 +210,13 @@ export const initChat = (): Promise<void> => {
   set({ initError: false })
   initTask = (async () => {
     try {
-      const summaries = await db.loadSessionSummaries()
+      const [summaries, groups] = await Promise.all([db.loadSessionSummaries(), db.loadGroups()])
       if (epoch === historyEpoch) {
-        set({ ready: true, sessions: sortSessions(summaries) })
+        set({
+          ready: true,
+          sessions: sortSessions(summaries),
+          groups: groups.sort((a, b) => b.createdAt - a.createdAt),
+        })
       }
     } catch (error) {
       if (epoch === historyEpoch) {
@@ -274,16 +282,19 @@ const ensureSessionLoaded = (id: string): Promise<void> => {
 }
 
 /**
- * 替换历史对话：先写入暂存，成功后原子替换旧记录；写入为空即删除全部会话与附件。
- * 期间禁止修改会话；失败时清除暂存，保留原有记录。
+ * 增量导入：先写入暂存，成功后按新组提交；失败时清除暂存，不影响已有数据。
+ * 期间禁止修改会话；提交后清空详情缓存并合并列表。
  */
-export const replaceHistory = async (write: () => Promise<void>): Promise<number> => {
+export const addHistoryGroup = async (
+  group: SessionGroup,
+  write: () => Promise<void>
+): Promise<number> => {
   if (get().importingHistory) {
-    throw new Error('History replacement is already in progress')
+    throw new Error('History import is already in progress')
   }
   set({ importingHistory: true })
   try {
-    // 已开始的单条删除先同步到内存，避免本次替换失败后列表残留已被删除的记录。
+    // 已开始的单条删除先同步到内存，避免列表残留已被删除的记录。
     await Promise.all(deletionTasks)
     historyEpoch += 1
     initTask = undefined
@@ -292,28 +303,61 @@ export const replaceHistory = async (write: () => Promise<void>): Promise<number
     let summaries: SessionSummary[]
     try {
       await write()
-      summaries = await db.commitStaging()
+      summaries = await db.commitStagedGroup(group)
     } catch (error) {
-      await db.clearStaging().catch(db.reportStorageError('clear unfinished history replacement'))
+      await db.clearStaging().catch(db.reportStorageError('clear unfinished history import'))
       throw error
     }
     sessionAccess.clear()
     unsavedSessions.clear()
-    set({
+    set((state) => ({
       ready: true,
       initError: false,
-      sessions: sortSessions(summaries),
+      groups: [...state.groups, group].sort((a, b) => b.createdAt - a.createdAt),
+      sessions: sortSessions([...state.sessions, ...summaries]),
+      sessionCache: {},
+      sessionLoadErrors: {},
+      sessionSaveErrors: {},
+    }))
+    return summaries.length
+  } finally {
+    set({ importingHistory: false })
+    retrySaveSessions()
+    const { activeId } = get()
+    // 当前会话的详情缓存已清空，重新加载。
+    if (activeId !== null) {
+      void ensureSessionLoaded(activeId)
+    }
+  }
+}
+
+/** 删除全部会话、归档组与附件，保留语言主题等设置。 */
+export const clearAllHistory = async (): Promise<void> => {
+  if (get().importingHistory) {
+    throw new Error('History import is already in progress')
+  }
+  set({ importingHistory: true })
+  try {
+    await Promise.all(deletionTasks)
+    historyEpoch += 1
+    initTask = undefined
+    sessionLoads.clear()
+    sessionAccess.clear()
+    unsavedSessions.clear()
+    await db.clearAllData()
+    set({
+      ready: true,
+      sessions: [],
+      groups: [],
       sessionCache: {},
       sessionLoadErrors: {},
       sessionSaveErrors: {},
       activeId: null,
     })
-    return summaries.length
   } finally {
     set({ importingHistory: false })
     retrySaveSessions()
     const { activeId, ready } = get()
-    // 替换失败时恢复被取消的详情读取，原有记录继续可用。
     if (activeId !== null) {
       void ensureSessionLoaded(activeId)
     } else if (!ready) {

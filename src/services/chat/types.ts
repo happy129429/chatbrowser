@@ -96,11 +96,27 @@ export type AssistantMessage = MessageBranch & {
 
 export type Message = UserMessage | AssistantMessage
 
+/**
+ * 归档组：一次导入的导出 ZIP 对应一个组，会话通过 groupId 归入组下。
+ * 本地整理（改名、删除、移动会话）只影响本地库，不改变源文件。
+ */
+export type SessionGroup = {
+  id: string
+  name: string
+  /** 标签页组风格的颜色标识；null 表示未配色 */
+  color: string | null
+  /** 导入时的 ZIP 文件名 */
+  sourceName: string
+  createdAt: number
+}
+
 export type Session = {
   id: string
   title: string
   createdAt: number
   updatedAt: number
+  /** 所属归档组；null 表示未分组 */
+  groupId: string | null
   /** 包含所有分支的消息，按创建顺序存储。 */
   messages: Message[]
   /** undefined 表示线性消息列表；null 表示空会话。 */
@@ -108,7 +124,7 @@ export type Session = {
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */
-export type SessionSummary = Pick<Session, 'id' | 'title' | 'createdAt' | 'updatedAt'>
+export type SessionSummary = Pick<Session, 'id' | 'title' | 'createdAt' | 'updatedAt' | 'groupId'>
 
 /** 显式提取字段，避免将完整会话的消息带进列表。 */
 export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
@@ -116,4 +132,5 @@ export const toSessionSummary = (session: SessionSummary): SessionSummary => ({
   title: session.title,
   createdAt: session.createdAt,
   updatedAt: session.updatedAt,
+  groupId: session.groupId,
 })

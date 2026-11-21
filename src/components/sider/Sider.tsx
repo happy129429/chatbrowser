@@ -1,10 +1,15 @@
 import clsx from 'clsx'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
-import { IconPanelLeftOutline16, IconSettingsOutline16, NewChatIcon } from '../base/icons.js'
+import {
+  IconPanelLeftOutline16,
+  IconSettingsOutline16,
+  IconUploadOutline14,
+} from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
-import { newChat, removeSession, useChatStore } from '../../services/chat/store.js'
+import { removeSession, useChatStore } from '../../services/chat/store.js'
+import { importArchiveFiles } from '../../services/chat/backup.js'
 import type { SessionSummary } from '../../services/chat/types.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
@@ -15,7 +20,7 @@ import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
 import { SessionItem } from './SessionItem.js'
 import styles from './Sider.module.css'
 
-/** 展开的侧边栏：名称与收起按钮、开启新对话、按时间分组的会话列表、底部设置；移动端放在抽屉里，收起按钮关闭抽屉 */
+/** 展开的侧边栏：名称与收起按钮、打开归档、按时间分组的会话列表、底部设置；移动端放在抽屉里，收起按钮关闭抽屉 */
 export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const t = useTranslate()
   const sessions = useChatStore((state) => state.sessions)
@@ -24,6 +29,30 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
   const [deletePending, setDeletePending] = useState(false)
+  const [importBusy, setImportBusy] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const importFiles = async (files: File[]) => {
+    if (files.length === 0 || importBusy) {
+      return
+    }
+    setImportBusy(true)
+    try {
+      const outcomes = await importArchiveFiles(files)
+      const imported = outcomes.reduce((count, outcome) => count + outcome.sessions, 0)
+      const failed = outcomes.filter((outcome) => outcome.error).length
+      if (failed === 0) {
+        showToast({
+          key: imported === 1 ? 'historyImportedOne' : 'historyImported',
+          params: { count: imported },
+        })
+      } else {
+        showToast({ key: 'archiveImportPartial', params: { failed, total: outcomes.length } })
+      }
+    } finally {
+      setImportBusy(false)
+    }
+  }
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
@@ -64,16 +93,27 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
       <button
         type="button"
         className={styles.newChat}
-        onClick={() => {
-          newChat()
-          closeMobileSider()
-        }}
+        disabled={importBusy}
+        onClick={() => inputRef.current?.click()}
       >
         <span className={styles.newChatIcon}>
-          <NewChatIcon />
+          <IconUploadOutline14 />
         </span>
-        {t('newChat')}
+        {t('openArchive')}
       </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".zip,application/zip,application/x-zip-compressed"
+        multiple
+        hidden
+        onChange={(event) => {
+          const files = [...(event.target.files ?? [])]
+          event.target.value = ''
+          closeMobileSider()
+          void importFiles(files)
+        }}
+      />
       <div className={styles.listWrap}>
         <div className={styles.list}>
           {groups.map((group) => (

@@ -276,6 +276,8 @@ export const toLocalSession = (file: SessionFile): LocalSession => {
     title: file.title ?? '',
     createdAt: time(file.inserted_at),
     updatedAt: time(file.updated_at),
+    // 导入流程会在暂存前打上目标组的 ID。
+    groupId: null,
     ...buildTree(file),
   }
   const images = new Map<string, string>()

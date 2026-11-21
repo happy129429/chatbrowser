@@ -22,7 +22,7 @@ export const CollapsedSider = () => {
           size="m"
           tone="primary"
           icon={<NewChatIcon />}
-          tooltip={t('newChat')}
+          tooltip={t('openArchive')}
           onClick={newChat}
         />
       </div>

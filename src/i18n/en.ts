@@ -111,14 +111,14 @@ export const en = {
   apiKeyInvalid: 'Invalid API Key. Please check it and try again.',
   apiKeyVerificationFailed: 'Verification failed: {message}',
   historyImport: 'Import chat history',
-  historyImportConfirm: 'Import',
-  historyImportConfirmTitle: 'Import chat history?',
-  historyImportConfirmDescription:
-    'The uploaded chat history will replace all your current chats. Import anyway?',
   historyImportDescription:
-    'Importing chat history replaces all local chats and attachments. Supports ZIP files exported from DeepSeek.',
+    'Import a history ZIP exported from DeepSeek as a new archive group. Existing chats are kept.',
   historyImportedOne: 'Imported 1 chat',
   historyImported: 'Imported {count} chats',
+  openArchive: 'Open archives',
+  archiveDropHint: 'Drop exported history ZIP files here, or click to browse',
+  archiveImporting: 'Importing…',
+  archiveImportPartial: 'Import finished, {failed}/{total} file(s) failed',
   historyImportFailed:
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
   historyExportFailed: 'Export failed: {message}',

@@ -13,7 +13,7 @@ import {
   BackupError,
   clearHistory,
   exportHistory,
-  importHistory,
+  importArchiveFile,
 } from '../../services/chat/backup.js'
 import { useChatStore } from '../../services/chat/store.js'
 import {
@@ -114,7 +114,6 @@ const SettingsContent = () => {
           )}
         </div>
       </Modal>
-      {historyImport.file ? <ImportConfirm historyImport={historyImport} /> : null}
       {historyDelete.opened ? <DeleteAllConfirm historyDelete={historyDelete} /> : null}
     </>
   )
@@ -215,34 +214,6 @@ const LocaleSetting = () => {
   )
 }
 
-/** 覆盖导入的二次确认，叠在设置弹窗上 */
-const ImportConfirm = ({
-  historyImport,
-}: {
-  historyImport: ReturnType<typeof useHistoryImport>
-}) => {
-  const t = useTranslate()
-  return (
-    <Modal
-      title={t('historyImportConfirmTitle')}
-      className={styles.importConfirm}
-      onClose={historyImport.cancel}
-      footer={
-        <>
-          <Button variant="outlined" size="m" autoFocus onClick={historyImport.cancel}>
-            {t('cancel')}
-          </Button>
-          <Button variant="dangerOutlined" size="m" onClick={() => void historyImport.confirm()}>
-            {t('historyImportConfirm')}
-          </Button>
-        </>
-      }
-    >
-      <div className={styles.importConfirmText}>{t('historyImportConfirmDescription')}</div>
-    </Modal>
-  )
-}
-
 const themeOptions: { value: ThemePreference; label: TranslationKey; icon: ReactNode }[] = [
   {
     value: 'light',
@@ -337,36 +308,38 @@ const SettingCell = ({
   )
 }
 
-/** 选文件后先提示覆盖；确认后才检查文件并执行导入，任何错误都提示导入失败。 */
+/** 选文件后直接增量导入为归档组；任何错误都提示导入失败及原因。 */
 const useHistoryImport = () => {
-  const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<Status>(null)
   const importing = useRef(false)
 
-  const confirm = async () => {
-    if (!file || importing.current) {
+  const select = async (file: File) => {
+    if (importing.current) {
       return
     }
     importing.current = true
-    setFile(null)
     setBusy(true)
     setStatus(null)
     try {
-      const count = await importHistory(file)
+      const count = await importArchiveFile(file)
       setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
-    } catch {
-      setStatus({ key: 'historyImportFailed', error: true })
+    } catch (error) {
+      setStatus(
+        error instanceof BackupError
+          ? { key: 'historyImportFailed', error: true, reason: error.key }
+          : { key: 'historyImportFailed', error: true }
+      )
     } finally {
       importing.current = false
       setBusy(false)
     }
   }
 
-  return { file, busy, status, select: setFile, cancel: () => setFile(null), confirm }
+  return { busy, status, select }
 }
 
-/** 导入 = 覆盖：用选中文件替换本地全部会话与附件。 */
+/** 导入 = 新增归档组：选中的 ZIP 追加为一个新的会话组，不影响已有数据。 */
 const ImportHistory = ({
   historyImport,
   disabled,
@@ -403,7 +376,7 @@ const ImportHistory = ({
               const file = event.target.files?.[0]
               event.target.value = ''
               if (file) {
-                historyImport.select(file)
+                void historyImport.select(file)
               }
             }}
           />
