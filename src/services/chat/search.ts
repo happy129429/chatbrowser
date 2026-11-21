@@ -50,17 +50,24 @@ const normalizeMapped = (text: string) => {
   return { normalized, map }
 }
 
-/** 依次出现即可命中（在归一化文本上比较） */
-const isSubsequence = (needle: string, haystack: string) => {
+/** 依次出现即可命中（在归一化文本上比较），返回首尾字符的归一化位置。 */
+const subsequenceRange = (
+  needle: string,
+  haystack: string
+): { start: number; end: number } | null => {
+  let first = -1
   let start = 0
   for (const char of needle) {
     const index = haystack.indexOf(char, start)
     if (index === -1) {
-      return false
+      return null
+    }
+    if (first === -1) {
+      first = index
     }
     start = index + 1
   }
-  return true
+  return { start: first, end: start }
 }
 
 /** 归一化位置换算回原文位置。 */
@@ -95,6 +102,7 @@ const searchableTexts = (
 const matchText = (text: string, terms: string[]): string | null => {
   const { normalized, map } = normalizeMapped(text)
   let matched: { start: number; end: number } | null = null
+  let fuzzy: { start: number; end: number } | null = null
   for (const term of terms) {
     const index = normalized.indexOf(term)
     if (index !== -1) {
@@ -104,27 +112,41 @@ const matchText = (text: string, terms: string[]): string | null => {
         const end = toOriginalIndex(map, index + term.length, text.length)
         matched = { start, end }
       }
-    } else if (!isSubsequence(term, normalized)) {
-      // 有一个词连子序列都不匹配，整条文本不命中。
-      return null
+    } else {
+      const range = subsequenceRange(term, normalized)
+      if (!range) {
+        // 有一个词连子序列都不匹配，整条文本不命中。
+        return null
+      }
+      if (!fuzzy) {
+        fuzzy = range
+      }
     }
   }
-  if (!matched) {
-    // 子串无命中，但每个词都是子序列：模糊命中，摘录取文本开头，不高亮。
-    const head = text
-      .slice(0, SNIPPET_CONTEXT * 2)
-      .replace(/\s+/g, ' ')
-      .trim()
-    return text.length > SNIPPET_CONTEXT * 2 ? `${head}…` : head
+  // 子串命中的摘录以命中词为中心，加粗标记；仅模糊命中时锚定到匹配区间，不高亮。
+  const anchor =
+    matched ??
+    (fuzzy
+      ? {
+          start: toOriginalIndex(map, fuzzy.start, 0),
+          end: toOriginalIndex(map, fuzzy.end, text.length),
+        }
+      : null)
+  if (!anchor) {
+    return null
   }
-  const start = Math.max(0, matched.start - SNIPPET_CONTEXT)
-  const end = Math.min(text.length, matched.end + SNIPPET_CONTEXT)
+  const start = Math.max(0, anchor.start - SNIPPET_CONTEXT)
+  const end = Math.min(text.length, anchor.end + SNIPPET_CONTEXT)
   let snippet = text.slice(start, end).replace(/\s+/g, ' ').trim()
   if (start > 0) {
     snippet = `…${snippet}`
   }
   if (end < text.length) {
     snippet = `${snippet}…`
+  }
+  if (!matched) {
+    // 模糊命中无法连续高亮，摘录只保证覆盖匹配位置。
+    return snippet
   }
   // 折叠空白会移动位置，标记前重新对齐：把 \x00 插在两端，再裁掉错位部分。
   const prefix = snippet.startsWith('…') ? 1 : 0
@@ -183,10 +205,10 @@ export const searchSessions = async (
       }
       const texts = searchableTexts(session)
       const pushed = new Set<string>()
-      // 标题参与匹配：标题命中但没有消息命中时，摘录展示第一条消息的开头作为入口。
+      // 标题参与匹配：标题命中但没有消息命中时，摘录展示第一条消息的开头作为入口（不高亮）。
       const titleHit = terms.every((term) => {
         const { normalized } = normalizeMapped(session.title)
-        return normalized.includes(term) || isSubsequence(term, normalized)
+        return normalized.includes(term) || subsequenceRange(term, normalized) !== null
       })
       if (titleHit && texts.length > 0) {
         const first = texts[0]
@@ -199,7 +221,7 @@ export const searchSessions = async (
           sessionId: session.id,
           messageId: first.messageId,
           role: first.role,
-          snippet: `${MARK}${head}${MARK}`,
+          snippet: head,
         })
       }
       for (const { messageId, role, text } of texts) {
