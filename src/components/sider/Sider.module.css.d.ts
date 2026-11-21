@@ -36,6 +36,7 @@ declare const styles: {
   readonly collapsedGroup: string
   readonly selectionBar: string
   readonly selectionBarLabel: string
+  readonly selectAllButton: string
   readonly selectionActions: string
   readonly selectionButton: string
   readonly selectionButtonDanger: string

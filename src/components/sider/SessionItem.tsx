@@ -5,6 +5,7 @@ import {
   IconCheckedOutline14,
   IconEditOutline16,
   IconEllipsisOutline16,
+  IconPinFill16,
   IconTrashOutline16,
 } from '../base/icons.js'
 import { renameSession, selectSession } from '../../services/chat/store.js'
@@ -23,6 +24,7 @@ export const SessionItem = memo(function SessionItem({
   onDragStart,
   onDragEnd,
   selection,
+  onPin,
   onDelete,
 }: {
   session: SessionSummary
@@ -35,6 +37,8 @@ export const SessionItem = memo(function SessionItem({
   onDragEnd?: () => void
   /** 多选模式：提供后隐藏菜单与拖拽，行点击切换选中 */
   selection?: { checked: boolean; onToggle: () => void }
+  /** 单项置顶切换；参数为置顶后的状态 */
+  onPin?: (pinned: boolean) => void
   onDelete: () => void
 }) {
   const t = useTranslate()
@@ -126,6 +130,12 @@ export const SessionItem = memo(function SessionItem({
               label: t('sessionItemMenuRenameOption'),
               icon: <IconEditOutline16 />,
               onSelect: () => setEditing(true),
+            },
+            {
+              key: 'pin',
+              label: session.pinned ? t('unpin') : t('pin'),
+              icon: <IconPinFill16 />,
+              onSelect: () => onPin?.(!session.pinned),
             },
             ...moveOptions,
             ...ungroupOption,

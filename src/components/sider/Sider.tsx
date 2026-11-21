@@ -228,6 +228,11 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
         }
         onDragStart={() => setDraggingSession(session.id)}
         onDragEnd={() => setDraggingSession(null)}
+        onPin={(pinned) => {
+          void setSessionsPinned([session.id], pinned).catch(() =>
+            showToast({ key: 'groupOperationFailed', type: 'error' })
+          )
+        }}
         onDelete={() => setDeleting(session)}
       />
     )
@@ -284,8 +289,31 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
         {selecting ? (
           <div className={styles.selectionBar}>
             <span className={styles.selectionBarLabel}>
-              {t('selectionCount', { count: selected.size })}
+              {selected.size === 1
+                ? t('selectionCountOne')
+                : t('selectionCount', { count: selected.size })}
             </span>
+            <button
+              type="button"
+              className={styles.selectAllButton}
+              disabled={selectionSections.length === 0}
+              onClick={() => {
+                const all = selectionSections.flatMap((section) =>
+                  section.sessions.map((session) => session.id)
+                )
+                const allSelected = all.length > 0 && all.every((id) => selected.has(id))
+                setSelected(allSelected ? new Set() : new Set(all))
+              }}
+            >
+              {(() => {
+                const all = selectionSections.flatMap((section) =>
+                  section.sessions.map((session) => session.id)
+                )
+                return all.length > 0 && all.every((id) => selected.has(id))
+                  ? t('deselectAll')
+                  : t('selectAll')
+              })()}
+            </button>
             <IconButton
               icon={<IconCloseOutline16 />}
               aria-label={t('cancel')}
