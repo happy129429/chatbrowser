@@ -1,7 +1,7 @@
 {
-  "name": "chat-demo",
-  "version": "0.1.3",
-  "description": "基于 DeepSeek API 的静态聊天示例。",
+  "name": "chatbrowser",
+  "version": "0.2.0",
+  "description": "本地浏览 DeepSeek 历史对话导出的静态应用。",
   "license": "MIT",
   "private": true,
   "type": "module",

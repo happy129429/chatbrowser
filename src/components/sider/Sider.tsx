@@ -296,43 +296,49 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           </div>
         ) : (
           <div className={styles.list}>
-            {timeGroups.map((group) => (
-              <div key={group.key} className={styles.section}>
-                <div className={styles.sectionHeader}>{group.label}</div>
-                {group.sessions.map((session) => renderSession(session))}
-              </div>
-            ))}
-            {archiveGroups.map((group) => {
-              const list = sessions.filter((session) => session.groupId === group.id)
-              return (
-                <div key={group.id} className={styles.section}>
-                  <GroupHeader
-                    group={group}
-                    count={list.length}
-                    collapsed={collapsedIds.has(group.id)}
-                    otherGroups={archiveGroups.filter((item) => item.id !== group.id)}
-                    onToggle={() => toggleCollapsed(group.id)}
-                    onRename={(name) => renameGroup(group.id, name)}
-                    onSetColor={(color) => setGroupColor(group.id, color)}
-                    onMerge={(targetId) => {
-                      void mergeGroups(group.id, targetId).catch(() =>
-                        showToast({ key: 'groupOperationFailed', type: 'error' })
-                      )
-                    }}
-                    onDissolve={() => {
-                      void dissolveGroup(group.id).catch(() =>
-                        showToast({ key: 'groupOperationFailed', type: 'error' })
-                      )
-                    }}
-                    onExport={() => void exportGroup(group)}
-                    onDelete={() => setDeletingGroup(group)}
-                  />
-                  {!collapsedIds.has(group.id)
-                    ? list.map((session) => renderSession(session))
-                    : null}
-                </div>
-              )
-            })}
+            {sessions.length === 0 ? (
+              <div className={styles.searchState}>{t('listEmpty')}</div>
+            ) : (
+              <>
+                {timeGroups.map((group) => (
+                  <div key={group.key} className={styles.section}>
+                    <div className={styles.sectionHeader}>{group.label}</div>
+                    {group.sessions.map((session) => renderSession(session))}
+                  </div>
+                ))}
+                {archiveGroups.map((group) => {
+                  const list = sessions.filter((session) => session.groupId === group.id)
+                  return (
+                    <div key={group.id} className={styles.section}>
+                      <GroupHeader
+                        group={group}
+                        count={list.length}
+                        collapsed={collapsedIds.has(group.id)}
+                        otherGroups={archiveGroups.filter((item) => item.id !== group.id)}
+                        onToggle={() => toggleCollapsed(group.id)}
+                        onRename={(name) => renameGroup(group.id, name)}
+                        onSetColor={(color) => setGroupColor(group.id, color)}
+                        onMerge={(targetId) => {
+                          void mergeGroups(group.id, targetId).catch(() =>
+                            showToast({ key: 'groupOperationFailed', type: 'error' })
+                          )
+                        }}
+                        onDissolve={() => {
+                          void dissolveGroup(group.id).catch(() =>
+                            showToast({ key: 'groupOperationFailed', type: 'error' })
+                          )
+                        }}
+                        onExport={() => void exportGroup(group)}
+                        onDelete={() => setDeletingGroup(group)}
+                      />
+                      {!collapsedIds.has(group.id)
+                        ? list.map((session) => renderSession(session))
+                        : null}
+                    </div>
+                  )
+                })}
+              </>
+            )}
           </div>
         )}
       </div>
