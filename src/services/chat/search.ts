@@ -19,8 +19,8 @@ export type SearchHit = {
 
 export type SearchProgress = { hits: SearchHit[]; scanned: number; total: number }
 
-const MAX_HITS = 200
-const MAX_HITS_PER_SESSION = 3
+const MAX_HITS = 300
+
 /** 摘录窗口：命中词前后各取的字符数 */
 const SNIPPET_CONTEXT = 48
 const MARK = '\x00'
@@ -182,33 +182,34 @@ export const searchSessions = async (
         continue
       }
       const texts = searchableTexts(session)
-      let sessionHits = 0
+      const pushed = new Set<string>()
       // 标题参与匹配：标题命中但没有消息命中时，摘录展示第一条消息的开头作为入口。
       const titleHit = terms.every((term) => {
         const { normalized } = normalizeMapped(session.title)
         return normalized.includes(term) || isSubsequence(term, normalized)
       })
       if (titleHit && texts.length > 0) {
-        const head = texts[0].text
+        const first = texts[0]
+        pushed.add(first.messageId)
+        const head = first.text
           .slice(0, SNIPPET_CONTEXT * 2)
           .replace(/\s+/g, ' ')
           .trim()
         hits.push({
           sessionId: session.id,
-          messageId: texts[0].messageId,
-          role: texts[0].role,
+          messageId: first.messageId,
+          role: first.role,
           snippet: `${MARK}${head}${MARK}`,
         })
-        sessionHits += 1
       }
       for (const { messageId, role, text } of texts) {
-        if (sessionHits >= MAX_HITS_PER_SESSION || hits.length >= MAX_HITS) {
+        if (hits.length >= MAX_HITS) {
           break
         }
         const snippet = matchText(text, terms)
-        if (snippet !== null) {
+        if (snippet !== null && !pushed.has(messageId)) {
+          pushed.add(messageId)
           hits.push({ sessionId: session.id, messageId, role, snippet })
-          sessionHits += 1
         }
       }
     } catch (error) {

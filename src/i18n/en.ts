@@ -114,6 +114,8 @@ export const en = {
   searchNoResults: 'No matching chats',
   searchScanning: 'Searching…',
   searchClear: 'Clear search',
+  searchMatchOne: '1 match',
+  searchMatchCount: '{count} matches',
   listEmpty: 'No chats yet. Import a history archive first.',
   historyImportFailed:
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',

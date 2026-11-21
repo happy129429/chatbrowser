@@ -70,13 +70,13 @@
   scrollbar-color: var(--scroll-color) transparent;
 }
 
-.hit {
+.groupRow {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   margin: 0;
-  padding: 10px 12px;
+  padding: 8px 8px 8px 4px;
   border: none;
   border-radius: 14px;
   background: none;
@@ -89,6 +89,13 @@
   }
 }
 
+.groupChevron {
+  display: flex;
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .hitIcon {
   display: flex;
   flex-shrink: 0;
@@ -96,7 +103,6 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  margin-top: 1px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 50%;
   color: var(--dsw-alias-label-tertiary);
@@ -112,7 +118,7 @@
 .hitTitleRow {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 8px;
 }
 
 .hitTitle {
@@ -126,6 +132,16 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.hitBadge {
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: 100px;
+  background: var(--dsw-alias-fill-secondary);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
 .hitDate {
   flex-shrink: 0;
   font-size: 12px;
@@ -133,9 +149,31 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+.subHits {
+  display: flex;
+  flex-direction: column;
+  margin: -2px 0 2px;
+}
+
+.subHit {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 5px 12px 5px 60px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--dsw-specific-sidebar-nav-item-hover);
+  }
+}
+
 .snippet {
   display: block;
-  margin-top: 2px;
   overflow: hidden;
   font-size: 13px;
   line-height: 18px;
