@@ -79,96 +79,40 @@
   margin-right: 6px;
 }
 
-.searchBox {
-  position: relative;
-  flex-shrink: 0;
-  margin-top: 12px;
-}
-
-.searchBoxIcon {
-  position: absolute;
-  top: 50%;
-  left: 12px;
+.searchTrigger {
   display: flex;
-  color: var(--dsw-alias-label-tertiary);
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.searchInput {
+  align-items: center;
+  flex-shrink: 0;
   box-sizing: border-box;
   width: 100%;
-  height: 36px;
-  padding: 0 30px 0 34px;
+  height: 38px;
+  margin-top: 12px;
+  padding: 0 14px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 100px;
   background: var(--dsw-alias-bg-layer-3);
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-tertiary);
   font: inherit;
   font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
   outline: none;
 
-  &::placeholder {
-    color: var(--dsw-alias-label-tertiary);
+  &:hover {
+    border-color: var(--dsw-alias-border-l3);
+    color: var(--dsw-alias-label-secondary);
   }
 
-  &:focus {
+  &:focus-visible {
     border-color: var(--dsw-alias-border-brand);
   }
 }
 
-.searchClear {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
-}
-
-.searchHit {
-  display: block;
-  width: 100%;
-  margin: 0 -2px;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 10px;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background-color: var(--dsw-specific-sidebar-nav-item-hover);
-  }
-}
-
-.searchHitTitle {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 13px;
-  line-height: 20px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--dsw-alias-label-primary);
-}
-
-.searchHitSnippet {
-  display: -webkit-box;
-  margin-top: 2px;
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 17px;
-  word-break: break-all;
-  color: var(--dsw-alias-label-tertiary);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-
-  mark {
-    background: var(--dsw-alias-fill-brand-light);
-    color: var(--dsw-alias-brand-text);
-    border-radius: 2px;
-    padding: 0 1px;
-  }
+.searchTriggerIcon {
+  display: flex;
+  flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .searchState {
@@ -238,6 +182,11 @@
 
 .groupHeaderCollapsed {
   margin-bottom: 2px;
+}
+
+.groupHeaderDroppable {
+  outline: 1.5px dashed var(--dsw-alias-border-brand);
+  outline-offset: -1.5px;
 }
 
 .groupChevron {

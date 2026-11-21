@@ -23,37 +23,9 @@
   color: var(--dsw-alias-brand-primary);
 }
 
-.stoppedIcon {
-  color: var(--dsw-alias-label-tertiary);
-}
-
 .titleText {
   margin-right: 6px;
   font: var(--dsw-font-markdown-base);
-}
-
-.shimmer {
-  color: transparent;
-  background: linear-gradient(
-      90deg,
-      var(--dsw-alias-label-secondary) 0%,
-      var(--dsw-alias-label-secondary) 40%,
-      var(--dsw-alias-label-caption) 50%,
-      var(--dsw-alias-label-secondary) 60%,
-      var(--dsw-alias-label-secondary) 100%
-    )
-    0 0 / 300% 100%;
-  background-clip: text;
-  animation: shimmer 2s ease-out infinite;
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
 }
 
 .withLine,
@@ -182,20 +154,6 @@
   &.active {
     --search-row-site-logo-color: var(--dsw-alias-interactive-bg-hover);
   }
-}
-
-.prefix,
-.summary {
-  flex-shrink: 0;
-  font-variant: tabular-nums;
-}
-
-.query {
-  margin-left: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  animation: fadeIn 0.3s ease-in;
 }
 
 @keyframes fadeIn {

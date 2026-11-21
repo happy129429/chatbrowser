@@ -21,6 +21,7 @@ import { stopReadAloud } from '../services/speech/readAloud.js'
 import { CollapsedSider } from '../components/sider/CollapsedSider.js'
 import { closeMobileSider } from '../components/sider/mobileSiderState.js'
 import { MobileSider, Sider } from '../components/sider/Sider.js'
+import { SearchOverlay } from '../components/sider/SearchOverlay.js'
 import styles from './App.module.css'
 
 export const App = () => {
@@ -117,6 +118,7 @@ export const App = () => {
           </div>
         </main>
         <SearchPanel />
+        <SearchOverlay />
       </div>
       <SettingsDialog />
       <Toast />

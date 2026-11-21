@@ -4,10 +4,29 @@ declare const styles: {
   readonly appName: string
   readonly newChat: string
   readonly newChatIcon: string
+  readonly searchTrigger: string
+  readonly searchTriggerIcon: string
+  readonly searchState: string
   readonly listWrap: string
   readonly list: string
   readonly section: string
   readonly sectionHeader: string
+  readonly groupHeader: string
+  readonly groupHeaderCollapsed: string
+  readonly groupHeaderDroppable: string
+  readonly groupChevron: string
+  readonly groupDot: string
+  readonly groupDotNone: string
+  readonly colorBlue: string
+  readonly colorGreen: string
+  readonly colorYellow: string
+  readonly colorRed: string
+  readonly colorPurple: string
+  readonly colorCyan: string
+  readonly groupName: string
+  readonly groupCount: string
+  readonly groupMenu: string
+  readonly groupRenameInput: string
   readonly bottom: string
   readonly settings: string
   readonly settingsIcon: string

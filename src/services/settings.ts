@@ -2,11 +2,16 @@ import { create } from 'zustand'
 
 export type Locale = 'zh-CN' | 'en-US'
 
+/** 语言偏好；默认跟随浏览器语言 */
+export type LocalePreference = 'system' | Locale
+
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
 /** 本机设置，存 localStorage：语言、主题、侧边栏收起状态 */
 type Settings = {
+  /** 语言偏好；locale 为其解析结果，翻译统一读取 locale */
+  localePreference: LocalePreference
   locale: Locale
   themePreference: ThemePreference
   siderCollapsed: boolean
@@ -38,16 +43,18 @@ const write = (key: string, value: string | null) => {
   }
 }
 
-/** 位置选择模式跟随浏览器语言，与应用内选择的界面语言无关。 */
-export const isChineseBrowser = (): boolean =>
-  (typeof navigator === 'undefined' ? 'zh' : navigator.language).toLowerCase().startsWith('zh')
+/** 浏览器语言解析为界面语言；中文浏览器为简体中文，其余为英文。 */
+const browserLocale = (): Locale =>
+  (typeof navigator === 'undefined' ? 'en' : navigator.language).toLowerCase().startsWith('zh')
+    ? 'zh-CN'
+    : 'en-US'
 
-const initialLocale = (): Locale => {
+const resolveLocale = (preference: LocalePreference): Locale =>
+  preference === 'system' ? browserLocale() : preference
+
+const initialLocalePreference = (): LocalePreference => {
   const saved = read(KEYS.locale)
-  if (saved === 'zh-CN' || saved === 'en-US') {
-    return saved
-  }
-  return isChineseBrowser() ? 'zh-CN' : 'en-US'
+  return saved === 'zh-CN' || saved === 'en-US' ? saved : 'system'
 }
 
 /** 未保存过时跟随系统 */
@@ -56,15 +63,18 @@ const initialThemePreference = (): ThemePreference => {
   return saved === 'light' || saved === 'dark' ? saved : 'system'
 }
 
+const initialPreference = initialLocalePreference()
+
 export const useSettings = create<Settings>(() => ({
-  locale: initialLocale(),
+  localePreference: initialPreference,
+  locale: resolveLocale(initialPreference),
   themePreference: initialThemePreference(),
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
 }))
 
-export const setLocale = (locale: Locale) => {
-  write(KEYS.locale, locale)
-  useSettings.setState({ locale })
+export const setLocalePreference = (preference: LocalePreference) => {
+  write(KEYS.locale, preference)
+  useSettings.setState({ localePreference: preference, locale: resolveLocale(preference) })
 }
 
 export const setThemePreference = (themePreference: ThemePreference) => {

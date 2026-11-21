@@ -15,6 +15,8 @@ export const SessionItem = memo(function SessionItem({
   active,
   moveTargets,
   onMove,
+  onDragStart,
+  onDragEnd,
   onDelete,
 }: {
   session: SessionSummary
@@ -22,6 +24,9 @@ export const SessionItem = memo(function SessionItem({
   /** 可移动到的目标组；不提供时只显示重命名与删除 */
   moveTargets?: SessionGroup[]
   onMove?: (groupId: string | null) => void
+  /** 拖拽移动会话到组 */
+  onDragStart?: () => void
+  onDragEnd?: () => void
   onDelete: () => void
 }) {
   const t = useTranslate()
@@ -74,6 +79,13 @@ export const SessionItem = memo(function SessionItem({
   return (
     <div
       className={clsx(styles.item, active && styles.active)}
+      draggable={!!onDragStart}
+      onDragStart={(event) => {
+        event.dataTransfer.setData('text/plain', session.id)
+        event.dataTransfer.effectAllowed = 'move'
+        onDragStart?.()
+      }}
+      onDragEnd={onDragEnd}
       onClick={() => {
         selectSession(session.id)
         closeMobileSider()

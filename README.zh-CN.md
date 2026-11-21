@@ -4,6 +4,8 @@
 
 基于 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) fork 的**本地对话历史浏览器**：不再连接 DeepSeek API，而是加载官方客户端导出的**历史对话 ZIP**（`deepseek_data-*.zip`），沿用原界面完整渲染，完全本地运行，无需 API Key。
 
+> **致谢**：本项目由 **GLM-5.3-Flash（Z.ai）** 开发，人类参与者仅提出原始想法与反馈。饮水思源——界面上大量优秀的 UI 与消息渲染管线来自上游 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo)，特此致谢。
+
 ## 快速开始
 
 安装 Node.js 22.12+ 与 pnpm：
@@ -30,7 +32,7 @@ pnpm build
 - 归档组如同浏览器标签页组：重命名、配色、折叠、在组间移动会话、合并、解散、导出组为 ZIP、删除。所有整理只改本地库，**不动源文件**。
 - 全局文本搜索：覆盖标题、提问与回答正文，摘录高亮，点击跳转定位；归一化匹配（大小写、全半角、空白）并带子序列模糊降级。
 - 使用浏览器内置语音合成朗读回答，无需 TTS 服务。
-- 简体中文与英文、明暗主题、移动端布局。
+- 界面语言默认跟随浏览器（可手动选简体中文 / English）、明暗主题、移动端布局。
 
 ## 数据与存储
 
@@ -63,4 +65,4 @@ src/
 
 ## 许可证
 
-[MIT](LICENSE)。构建会把许可证复制到 `dist/LICENSE`，分发时请一并包含。第三方依赖遵循其各自许可证。
+本项目以 [GPL-3.0-or-later](LICENSE) 再发布。它 fork 自 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo)（DeepSeek 以 MIT 许可发布），按 MIT 条款要求，原 MIT 声明已保留在 [LICENSE](LICENSE) 中。第三方依赖遵循其各自许可证。

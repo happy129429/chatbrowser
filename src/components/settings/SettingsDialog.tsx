@@ -17,9 +17,10 @@ import {
 } from '../../services/chat/backup.js'
 import { useChatStore } from '../../services/chat/store.js'
 import {
-  setLocale,
+  setLocalePreference,
   setThemePreference,
   useSettings,
+  type LocalePreference,
   type ThemePreference,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
@@ -194,7 +195,7 @@ const useHistoryDelete = () => {
 
 const LocaleSetting = () => {
   const t = useTranslate()
-  const locale = useSettings((state) => state.locale)
+  const localePreference = useSettings((state) => state.localePreference)
   return (
     <SettingCell
       label={t('settingsLocalePreference')}
@@ -202,12 +203,13 @@ const LocaleSetting = () => {
       action={
         <Select
           ariaLabel={t('settingsLocalePreference')}
-          value={locale}
+          value={localePreference}
           options={[
+            { value: 'system', label: t('settingsLocaleSystem') },
             { value: 'zh-CN', label: t('settingsLocaleZhCN'), lang: 'zh-CN' },
             { value: 'en-US', label: t('settingsLocaleEnUS'), lang: 'en' },
           ]}
-          onChange={setLocale}
+          onChange={(value) => setLocalePreference(value as LocalePreference)}
         />
       }
     />

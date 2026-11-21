@@ -4,6 +4,8 @@ English | [简体中文](README.zh-CN.md)
 
 A local chat history browser forked from [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo). Instead of talking to the DeepSeek API, it loads the official **chat history export** (`deepseek_data-*.zip`) and renders conversations with the original UI — fully offline, no API key.
 
+> **Credits**: This project was developed by **GLM-5.3-Flash (Z.ai)**; the human contributors provided only the original idea and feedback. It stands on the shoulders of [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) — many thanks for the excellent UI and rendering pipeline.
+
 ## Getting started
 
 Install Node.js 22.12+ and pnpm, then run:
@@ -30,7 +32,7 @@ The output is written to `dist/` and can be deployed to any static server.
 - Archive groups behave like browser tab groups: rename, color, collapse, move chats between groups, merge, dissolve, export a group back to a ZIP, or delete it. All organization is local; your source ZIP files are never touched.
 - Global text search across titles, questions and answers with highlighted snippets and in-chat jump. Normalized matching (case, width, whitespace) with a fuzzy subsequence fallback.
 - Read replies aloud with the browser's built-in speech synthesis — no TTS endpoint required.
-- Simplified Chinese and English, light and dark themes, and mobile layouts.
+- UI language (follow-browser by default, Simplified Chinese / English), light and dark themes, and mobile layouts.
 
 ## Data and storage
 
@@ -63,4 +65,4 @@ src/
 
 ## License
 
-[MIT](LICENSE). The build copies the license to `dist/LICENSE`; include it when distributing the app. Third-party dependencies are subject to their own licenses.
+This project is released under the [GPL-3.0-or-later](LICENSE). It is a fork of [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo), originally published under the MIT License by DeepSeek — the original MIT notice is preserved inside [LICENSE](LICENSE) as required by its terms. Third-party dependencies are subject to their own licenses.

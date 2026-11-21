@@ -44,6 +44,8 @@ export const GroupHeader = ({
   count,
   collapsed,
   otherGroups,
+  droppable,
+  onDropSession,
   onToggle,
   onRename,
   onSetColor,
@@ -56,6 +58,9 @@ export const GroupHeader = ({
   count: number
   collapsed: boolean
   otherGroups: SessionGroup[]
+  /** 有会话正在拖拽时成为放下目标 */
+  droppable?: boolean
+  onDropSession?: () => void
   onToggle: () => void
   onRename: (name: string) => void
   onSetColor: (color: string | null) => void
@@ -95,8 +100,28 @@ export const GroupHeader = ({
 
   return (
     <div
-      className={clsx(styles.groupHeader, collapsed && styles.groupHeaderCollapsed)}
+      className={clsx(
+        styles.groupHeader,
+        collapsed && styles.groupHeaderCollapsed,
+        droppable && styles.groupHeaderDroppable
+      )}
       onClick={onToggle}
+      onDragOver={
+        droppable && onDropSession
+          ? (event) => {
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'move'
+            }
+          : undefined
+      }
+      onDrop={
+        droppable && onDropSession
+          ? (event) => {
+              event.preventDefault()
+              onDropSession()
+            }
+          : undefined
+      }
     >
       <span className={styles.groupChevron}>
         {collapsed ? <IconChevronRightOutline14 /> : <IconChevronDownOutline14 />}
