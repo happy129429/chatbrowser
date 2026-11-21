@@ -1,15 +1,16 @@
 declare const styles: {
   readonly sider: string
   readonly top: string
+  readonly topActions: string
   readonly appName: string
   readonly newChat: string
   readonly newChatIcon: string
-  readonly searchTrigger: string
-  readonly searchTriggerIcon: string
   readonly searchState: string
+  readonly groupSubHeader: string
   readonly listWrap: string
   readonly list: string
   readonly section: string
+  readonly subSection: string
   readonly sectionHeader: string
   readonly groupHeader: string
   readonly groupHeaderCollapsed: string

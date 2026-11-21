@@ -111,6 +111,7 @@ export const en = {
   colorPurple: 'Purple',
   colorCyan: 'Cyan',
   searchPlaceholder: 'Search chats…',
+  openSearch: 'Search Ctrl K',
   searchNoResults: 'No matching chats',
   searchScanning: 'Searching…',
   searchClear: 'Clear search',

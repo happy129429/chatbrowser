@@ -136,6 +136,18 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
       return next
     })
 
+  // Ctrl / Cmd + K 打开搜索浮层
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        openSearchOverlay()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   const renderSession = (session: SessionSummary) => (
     <SessionItem
       key={session.id}
@@ -155,13 +167,25 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
     <div className={clsx(styles.sider, mobile && styles.mobile)}>
       <div className={styles.top}>
         <div className={styles.appName}>{t('appName')}</div>
-        <IconButton
-          size="m"
-          icon={<IconPanelLeftOutline16 />}
-          tooltip={t('collapseSiderbarButton')}
-          tooltipPlacement="bottom"
-          onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
-        />
+        <div className={styles.topActions}>
+          <IconButton
+            size="m"
+            icon={<IconSearchOutline16 />}
+            tooltip={t('openSearch')}
+            tooltipPlacement="bottom"
+            onClick={() => {
+              openSearchOverlay()
+              closeMobileSider()
+            }}
+          />
+          <IconButton
+            size="m"
+            icon={<IconPanelLeftOutline16 />}
+            tooltip={t('collapseSiderbarButton')}
+            tooltipPlacement="bottom"
+            onClick={() => (mobile ? closeMobileSider() : setSiderCollapsed(true))}
+          />
+        </div>
       </div>
       <button
         type="button"
@@ -187,20 +211,8 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           void importFiles(files)
         }}
       />
-      <button
-        type="button"
-        className={styles.searchTrigger}
-        onClick={() => {
-          openSearchOverlay()
-          closeMobileSider()
-        }}
-      >
-        <span className={styles.searchTriggerIcon}>
-          <IconSearchOutline16 />
-        </span>
-        {t('searchPlaceholder')}
-      </button>
       <div className={styles.listWrap}>
+        {' '}
         <div className={styles.list}>
           {sessions.length === 0 ? (
             <div className={styles.searchState}>{t('listEmpty')}</div>
@@ -214,6 +226,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
               ))}
               {archiveGroups.map((group) => {
                 const list = sessions.filter((session) => session.groupId === group.id)
+                const inner = groupSessions(list, now, t)
                 return (
                   <div key={group.id} className={styles.section}>
                     <GroupHeader
@@ -245,7 +258,14 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                       onDelete={() => setDeletingGroup(group)}
                     />
                     {!collapsedIds.has(group.id)
-                      ? list.map((session) => renderSession(session))
+                      ? inner.map((sub) => (
+                          <div key={sub.key} className={styles.subSection}>
+                            <div className={clsx(styles.sectionHeader, styles.groupSubHeader)}>
+                              {sub.label}
+                            </div>
+                            {sub.sessions.map((session) => renderSession(session))}
+                          </div>
+                        ))
                       : null}
                   </div>
                 )
