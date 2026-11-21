@@ -97,6 +97,71 @@ export const loadSessionSummaries = async (): Promise<SessionSummary[]> =>
 export const loadGroups = async (): Promise<SessionGroup[]> =>
   (await await getDB()).getAll('groups')
 
+export const saveGroup = async (group: SessionGroup): Promise<void> => {
+  const tx = (await await getDB()).transaction('groups', 'readwrite')
+  await Promise.all([tx.store.put(group), tx.done])
+}
+
+export const deleteGroupRecord = async (id: string): Promise<void> => {
+  const tx = (await await getDB()).transaction('groups', 'readwrite')
+  await Promise.all([tx.store.delete(id), tx.done])
+}
+
+/** 批量调整会话的所属组，返回更新后的摘要。 */
+export const moveSessionsToGroup = async (
+  ids: string[],
+  groupId: string | null
+): Promise<SessionSummary[]> => {
+  const tx = (await getDB()).transaction(['sessions', 'sessionSummaries'], 'readwrite')
+  const summaries: SessionSummary[] = []
+  await Promise.all([
+    (async () => {
+      try {
+        for (const id of ids) {
+          const session = await tx.objectStore('sessions').get(id)
+          if (session) {
+            session.groupId = groupId
+            const summary = storedSummary(session)
+            await tx.objectStore('sessions').put(session)
+            await tx.objectStore('sessionSummaries').put(summary)
+            summaries.push(toSessionSummary(summary))
+          }
+        }
+      } catch (error) {
+        abortTransaction(tx)
+        throw error
+      }
+    })(),
+    tx.done,
+  ])
+  return summaries
+}
+
+/** 批量删除会话；仅清理已无会话引用的本地原件。 */
+export const deleteSessions = async (ids: string[]): Promise<void> => {
+  const tx = (await getDB()).transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite')
+  await Promise.all([
+    (async () => {
+      try {
+        for (const id of ids) {
+          const summary = await tx.objectStore('sessionSummaries').get(id)
+          await tx.objectStore('sessions').delete(id)
+          await tx.objectStore('sessionSummaries').delete(id)
+          for (const fileId of summary?.fileIds ?? []) {
+            if ((await tx.objectStore('sessionSummaries').index('fileIds').count(fileId)) === 0) {
+              await tx.objectStore('files').delete(fileId)
+            }
+          }
+        }
+      } catch (error) {
+        abortTransaction(tx)
+        throw error
+      }
+    })(),
+    tx.done,
+  ])
+}
+
 export const loadSession = async (id: string): Promise<Session | undefined> =>
   (await await getDB()).get('sessions', id)
 

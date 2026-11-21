@@ -2,7 +2,7 @@ import { formatDate } from '../../utils/format.js'
 import { createId } from '../../utils/id.js'
 import * as db from './db.js'
 import { addHistoryGroup, clearAllHistory, useChatStore } from './store.js'
-import type { Session, SessionGroup } from './types.js'
+import type { Session, SessionGroup, SessionSummary } from './types.js'
 
 export { BackupError } from './history/errors.js'
 
@@ -17,13 +17,13 @@ const enqueueBackup = <T>(run: () => Promise<T>): Promise<T> => {
 
 const backupFileName = (date: Date) => `deepseek_data-${formatDate(date)}.zip`
 
-/** 导出为历史会话导出格式的 ZIP，可再次导入。 */
-export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
-  enqueueBackup(async () => {
-    // 列表和已加载内容保留导出开始时的快照；未打开的会话逐条读取，不填满详情缓存。
-    const { sessions, sessionCache } = useChatStore.getState()
-    async function* readSessions(): AsyncGenerator<Session> {
-      for (const summary of sessions) {
+/** 逐条读取要导出的会话：已加载的用缓存快照，未打开的逐条读取，不填满详情缓存。 */
+const sessionReader =
+  (list: SessionSummary[]): (() => AsyncGenerator<Session>) =>
+  () =>
+    (async function* () {
+      const { sessionCache } = useChatStore.getState()
+      for (const summary of list) {
         const session = Object.hasOwn(sessionCache, summary.id)
           ? sessionCache[summary.id]
           : await db.loadSession(summary.id)
@@ -33,17 +33,40 @@ export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
         // 详情读取期间可能重命名，归档标题与开始时的列表保持一致。
         yield { ...session, ...summary }
       }
+    })()
+
+const downloadName = (name: string) => name.replace(/[/\\]/g, '_') || 'archive'
+
+/** 导出全部会话为历史导出格式的 ZIP，可再次导入。 */
+export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
+  enqueueBackup(async () => {
+    const { sessions } = useChatStore.getState()
+    const { exportArchive } = await import('./history/exportArchive.js')
+    const blob = await exportArchive(sessionReader(sessions)())
+    return { name: backupFileName(new Date()), blob }
+  })
+
+/** 导出一个归档组为 ZIP；文件名取组名。 */
+export const exportGroupArchive = (groupId: string): Promise<{ name: string; blob: Blob }> =>
+  enqueueBackup(async () => {
+    const { sessions, groups } = useChatStore.getState()
+    const group = groups.find((item) => item.id === groupId)
+    const list = sessions.filter((session) => session.groupId === groupId)
+    if (!group) {
+      throw new Error(`Archive group is missing: ${groupId}`)
+    }
+    if (list.length === 0) {
+      throw new Error(`Archive group is empty: ${groupId}`)
     }
     const { exportArchive } = await import('./history/exportArchive.js')
-    const now = new Date()
-    const blob = await exportArchive(readSessions())
-    return { name: backupFileName(now), blob }
+    const blob = await exportArchive(sessionReader(list)())
+    return { name: `${downloadName(group.name)}.zip`, blob }
   })
 
 /** 组名取自 ZIP 文件名（去掉扩展名）。 */
 const groupName = (fileName: string) => fileName.replace(/\.zip$/i, '') || fileName
 
-/** 导入单个 ZIP 为一个新归档组；增量导入，失败时已有数据不变。 */
+/** 导入单个 ZIP 为一个新归档组；增量导入，失败时已有数据不变。返回导入的会话数。 */
 export const importArchiveFile = (file: File): Promise<number> =>
   enqueueBackup(async () => {
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')

@@ -8,51 +8,57 @@ import {
 } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
-import { removeSession, useChatStore } from '../../services/chat/store.js'
-import { importArchiveFiles } from '../../services/chat/backup.js'
-import type { SessionSummary } from '../../services/chat/types.js'
+import {
+  dissolveGroup,
+  mergeGroups,
+  moveSessionsToGroup,
+  removeGroup,
+  removeSession,
+  renameGroup,
+  setGroupColor,
+  useChatStore,
+} from '../../services/chat/store.js'
+import { exportGroupArchive, importArchiveFiles } from '../../services/chat/backup.js'
+import type { SessionGroup, SessionSummary } from '../../services/chat/types.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import { openSettings } from '../settings/settingsDialogState.js'
 import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
+import { GroupHeader } from './GroupHeader.js'
 import { SessionItem } from './SessionItem.js'
 import styles from './Sider.module.css'
 
-/** 展开的侧边栏：名称与收起按钮、打开归档、按时间分组的会话列表、底部设置；移动端放在抽屉里，收起按钮关闭抽屉 */
+const downloadBlob = (name: string, blob: Blob) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
+/** 展开的侧边栏：名称与收起按钮、打开归档、未分组会话（按时间）+ 归档组（标签页组风格）；移动端放在抽屉里 */
 export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const t = useTranslate()
   const sessions = useChatStore((state) => state.sessions)
+  const archiveGroups = useChatStore((state) => state.groups)
   const activeId = useChatStore((state) => state.activeId)
   const [now, setNow] = useState(Date.now)
-  const groups = useMemo(() => groupSessions(sessions, now, t), [sessions, now, t])
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
   const [deletePending, setDeletePending] = useState(false)
+  const [deletingGroup, setDeletingGroup] = useState<SessionGroup | null>(null)
+  const [deleteGroupPending, setDeleteGroupPending] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set())
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const importFiles = async (files: File[]) => {
-    if (files.length === 0 || importBusy) {
-      return
-    }
-    setImportBusy(true)
-    try {
-      const outcomes = await importArchiveFiles(files)
-      const imported = outcomes.reduce((count, outcome) => count + outcome.sessions, 0)
-      const failed = outcomes.filter((outcome) => outcome.error).length
-      if (failed === 0) {
-        showToast({
-          key: imported === 1 ? 'historyImportedOne' : 'historyImported',
-          params: { count: imported },
-        })
-      } else {
-        showToast({ key: 'archiveImportPartial', params: { failed, total: outcomes.length } })
-      }
-    } finally {
-      setImportBusy(false)
-    }
-  }
+  const ungrouped = useMemo(
+    () => sessions.filter((session) => session.groupId === null),
+    [sessions]
+  )
+  const timeGroups = useMemo(() => groupSessions(ungrouped, now, t), [ungrouped, now, t])
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
@@ -77,6 +83,67 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
       window.removeEventListener('focus', refresh)
     }
   }, [])
+
+  const importFiles = async (files: File[]) => {
+    if (files.length === 0 || importBusy) {
+      return
+    }
+    setImportBusy(true)
+    try {
+      const outcomes = await importArchiveFiles(files)
+      const imported = outcomes.reduce((count, outcome) => count + outcome.sessions, 0)
+      const failed = outcomes.filter((outcome) => outcome.error).length
+      if (failed === 0) {
+        showToast({
+          key: imported === 1 ? 'historyImportedOne' : 'historyImported',
+          params: { count: imported },
+        })
+      } else {
+        showToast({ key: 'archiveImportPartial', params: { failed, total: outcomes.length } })
+      }
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  const exportGroup = async (group: SessionGroup) => {
+    try {
+      const { name, blob } = await exportGroupArchive(group.id)
+      downloadBlob(name, blob)
+    } catch {
+      showToast({ key: 'groupOperationFailed', type: 'error' })
+    }
+  }
+
+  const moveSessions = (ids: string[], groupId: string | null) => {
+    void moveSessionsToGroup(ids, groupId).catch(() =>
+      showToast({ key: 'groupOperationFailed', type: 'error' })
+    )
+  }
+
+  const toggleCollapsed = (id: string) =>
+    setCollapsedIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+
+  const renderSession = (session: SessionSummary) => (
+    <SessionItem
+      key={session.id}
+      session={session}
+      active={session.id === activeId}
+      moveTargets={archiveGroups.filter((item) => item.id !== session.groupId)}
+      onMove={
+        archiveGroups.length > 0 ? (groupId) => moveSessions([session.id], groupId) : undefined
+      }
+      onDelete={() => setDeleting(session)}
+    />
+  )
 
   return (
     <div className={clsx(styles.sider, mobile && styles.mobile)}>
@@ -116,19 +183,41 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
       />
       <div className={styles.listWrap}>
         <div className={styles.list}>
-          {groups.map((group) => (
+          {timeGroups.map((group) => (
             <div key={group.key} className={styles.section}>
               <div className={styles.sectionHeader}>{group.label}</div>
-              {group.sessions.map((session) => (
-                <SessionItem
-                  key={session.id}
-                  session={session}
-                  active={session.id === activeId}
-                  onDelete={() => setDeleting(session)}
-                />
-              ))}
+              {group.sessions.map((session) => renderSession(session))}
             </div>
           ))}
+          {archiveGroups.map((group) => {
+            const list = sessions.filter((session) => session.groupId === group.id)
+            return (
+              <div key={group.id} className={styles.section}>
+                <GroupHeader
+                  group={group}
+                  count={list.length}
+                  collapsed={collapsedIds.has(group.id)}
+                  otherGroups={archiveGroups.filter((item) => item.id !== group.id)}
+                  onToggle={() => toggleCollapsed(group.id)}
+                  onRename={(name) => renameGroup(group.id, name)}
+                  onSetColor={(color) => setGroupColor(group.id, color)}
+                  onMerge={(targetId) => {
+                    void mergeGroups(group.id, targetId).catch(() =>
+                      showToast({ key: 'groupOperationFailed', type: 'error' })
+                    )
+                  }}
+                  onDissolve={() => {
+                    void dissolveGroup(group.id).catch(() =>
+                      showToast({ key: 'groupOperationFailed', type: 'error' })
+                    )
+                  }}
+                  onExport={() => void exportGroup(group)}
+                  onDelete={() => setDeletingGroup(group)}
+                />
+                {!collapsedIds.has(group.id) ? list.map((session) => renderSession(session)) : null}
+              </div>
+            )
+          })}
         </div>
       </div>
       <div className={styles.bottom}>
@@ -174,6 +263,49 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           }
         >
           {t('deleteSessionWithFilesDescription')}
+        </Modal>
+      ) : null}
+      {deletingGroup ? (
+        <Modal
+          title={t('deleteGroupModalTitle', { name: deletingGroup.name })}
+          onClose={() => {
+            if (!deleteGroupPending) {
+              setDeletingGroup(null)
+            }
+          }}
+          footer={
+            <>
+              <Button
+                variant="outlined"
+                disabled={deleteGroupPending}
+                onClick={() => setDeletingGroup(null)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={deleteGroupPending}
+                onClick={async () => {
+                  setDeleteGroupPending(true)
+                  try {
+                    if (await removeGroup(deletingGroup.id)) {
+                      setDeletingGroup(null)
+                    } else {
+                      showToast({ key: 'groupOperationFailed', type: 'error' })
+                    }
+                  } finally {
+                    setDeleteGroupPending(false)
+                  }
+                }}
+              >
+                {t('delete')}
+              </Button>
+            </>
+          }
+        >
+          {t('deleteGroupModalDescription', {
+            count: sessions.filter((session) => session.groupId === deletingGroup.id).length,
+          })}
         </Modal>
       ) : null}
     </div>

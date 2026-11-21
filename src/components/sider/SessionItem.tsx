@@ -3,19 +3,25 @@ import { memo, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { IconEditOutline16, IconEllipsisOutline16, IconTrashOutline16 } from '../base/icons.js'
 import { renameSession, selectSession } from '../../services/chat/store.js'
-import type { SessionSummary } from '../../services/chat/types.js'
+import type { SessionGroup, SessionSummary } from '../../services/chat/types.js'
 import { IconButton } from '../base/IconButton.js'
 import { Menu } from '../base/Menu.js'
 import { closeMobileSider } from './mobileSiderState.js'
+import { colorDotClass } from './GroupHeader.js'
 import styles from './SessionItem.module.css'
 
 export const SessionItem = memo(function SessionItem({
   session,
   active,
+  moveTargets,
+  onMove,
   onDelete,
 }: {
   session: SessionSummary
   active: boolean
+  /** 可移动到的目标组；不提供时只显示重命名与删除 */
+  moveTargets?: SessionGroup[]
+  onMove?: (groupId: string | null) => void
   onDelete: () => void
 }) {
   const t = useTranslate()
@@ -47,6 +53,24 @@ export const SessionItem = memo(function SessionItem({
     )
   }
 
+  const moveOptions = (moveTargets ?? []).map((group) => ({
+    key: `move-${group.id}`,
+    label: group.name,
+    icon: <span className={clsx(styles.moveDot, colorDotClass(group.color))} />,
+    onSelect: () => onMove?.(group.id),
+  }))
+  const ungroupOption =
+    session.groupId !== null && onMove
+      ? [
+          {
+            key: 'ungroup',
+            label: t('ungroupSession'),
+            icon: <span className={clsx(styles.moveDot, styles.moveDotNone)} />,
+            onSelect: () => onMove(null),
+          },
+        ]
+      : []
+
   return (
     <div
       className={clsx(styles.item, active && styles.active)}
@@ -65,6 +89,8 @@ export const SessionItem = memo(function SessionItem({
               icon: <IconEditOutline16 />,
               onSelect: () => setEditing(true),
             },
+            ...moveOptions,
+            ...ungroupOption,
             {
               key: 'delete',
               label: t('delete'),

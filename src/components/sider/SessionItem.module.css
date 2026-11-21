@@ -45,6 +45,25 @@
   margin-left: 4px;
 }
 
+.moveDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin: 0 3px;
+  border-radius: 3px;
+}
+
+.moveDotNone {
+  width: 14px;
+  height: 14px;
+  margin: 0 1px;
+  border-radius: 50%;
+  border: 1px dashed var(--dsw-alias-border-l3);
+}
+
 .renameInput {
   box-sizing: border-box;
   width: 100%;
