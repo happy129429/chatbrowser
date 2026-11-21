@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getFileViewType, isImage } from '../../services/attachments.js'
+import { getFileViewType, isImage } from '../../utils/file.js'
 import { loadFile } from '../../services/chat/db.js'
 
 const createViewUrl = (original: Blob, type: string) => {
@@ -16,14 +16,13 @@ const createViewUrl = (original: Blob, type: string) => {
   })
 }
 
-/** 草稿传 File，已发送的附件传 IndexedDB 原件 ID。 */
-export const useFileView = (source: File | string, name: string) => {
+/** 已发送的附件传 IndexedDB 原件 ID。 */
+export const useFileView = (source: string, name: string) => {
   const type = getFileViewType(name)
-  const [state, setState] = useState<{ source: File | string; type: string; url: string | null }>()
+  const [state, setState] = useState<{ source: string; type: string; url: string | null }>()
   useEffect(() => {
     let active = true
-    const original = typeof source === 'string' ? loadFile(source) : Promise.resolve(source)
-    const pending = original
+    const pending = loadFile(source)
       .then((blob) => (active && blob ? createViewUrl(blob, type) : null))
       .catch(() => null)
     void pending.then((url) => {

@@ -1,6 +1,6 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
-import { memo, useEffect, useState, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import {
   IconBrowseOutline16,
   IconBrowseWarningOutline16,
@@ -35,54 +35,36 @@ import { toggleSearchPanel, useSearchPanel } from '../search/searchPanelState.js
 import styles from './ReplyArea.module.css'
 import './thinking.markdown.css'
 
-/** 进行中时每秒刷新，用于思考用时与搜索词轮播 */
-const useTicker = (active: boolean, interval: number) => {
-  const [tick, setTick] = useState(0)
-  useEffect(() => {
-    if (!active) {
-      return
-    }
-    const timer = setInterval(() => setTick((value) => value + 1), interval)
-    return () => clearInterval(timer)
-  }, [active, interval])
-  return tick
-}
-
 /**
- * 思考与工具步骤的时间线：
- * 开启深度思考时带可折叠的标题（正在思考 / 正在搜索 / 正在浏览网页 / 已思考（用时 N 秒））；
+ * 思考与工具步骤的时间线（均为已归档内容，不再有进行态）：
+ * 开启深度思考时带可折叠的标题（已思考（用时 N 秒））；
  * 未开启时只有工具步骤（如普通搜索的「已阅读 N 个网页」）。
  */
 export const ReplyArea = memo(function ReplyArea({
   message,
   view,
-  streaming,
   hasResponse,
 }: {
   message: AssistantMessage
   view: ReplyView
-  streaming: boolean
   hasResponse: boolean
 }) {
   useTranslate()
   const [open, setOpen] = useState(true)
-  const titleActive = streaming && !hasResponse
-  useTicker(titleActive, 1000)
-  if (view.steps.length === 0 && !(message.thinking && streaming)) {
+  if (view.steps.length === 0) {
     return null
   }
   // 未记录请求开关时，按是否有思考内容显示标题。
   const thinking = message.thinking ?? view.steps.some((step) => step.type === 'thinking')
-  const title = thinking ? getAreaTitle(view, streaming, Date.now(), hasResponse) : null
-  const stopped = !streaming && !hasResponse
+  const title = thinking ? getAreaTitle(view, false, Date.now(), hasResponse) : null
   return (
     <div className={styles.area}>
       {title ? (
         <div className={styles.title} onClick={() => setOpen((value) => !value)}>
-          <span className={clsx(styles.titleIcon, stopped && styles.stoppedIcon)}>
+          <span className={styles.titleIcon}>
             <IconThinkOutline16 />
           </span>
-          <span className={clsx(styles.titleText, titleActive && styles.shimmer)}>{title}</span>
+          <span className={styles.titleText}>{title}</span>
           {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
         </div>
       ) : null}
@@ -94,7 +76,6 @@ export const ReplyArea = memo(function ReplyArea({
               step={step}
               message={message}
               sources={view.sources}
-              streaming={streaming}
               isLast={index === view.steps.length - 1}
             />
           ))}
@@ -113,37 +94,31 @@ const StepItem = ({
   step,
   message,
   sources,
-  streaming,
   isLast,
 }: {
   step: Step
   message: AssistantMessage
   sources: Source[]
-  streaming: boolean
   isLast: boolean
 }) => {
   switch (step.type) {
-    case 'thinking': {
-      const lastBlock = step.blocks.at(-1)
-      const thinking =
-        streaming && lastBlock?.startedAt !== undefined && lastBlock.endedAt === undefined
+    case 'thinking':
       return (
-        <ContentItem isLast={isLast} active={thinking}>
+        <ContentItem isLast={isLast} active={false}>
           <Markdown
             content={step.blocks.map((block) => block.thinking).join('')}
-            loading={thinking}
+            loading={false}
             cacheKey={`${message.id}-${step.key}`}
             disableLink
           />
         </ContentItem>
       )
-    }
     case 'text':
       return (
         <ContentItem isLast={isLast} active={false}>
           <Markdown
             content={step.markdown}
-            loading={streaming && isLast}
+            loading={false}
             cacheKey={`${message.id}-${step.key}`}
             disableLink={false}
             sources={sources}
@@ -151,7 +126,7 @@ const StepItem = ({
         </ContentItem>
       )
     case 'search':
-      return <SearchRow step={step} message={message} streaming={streaming} isLast={isLast} />
+      return <SearchRow step={step} message={message} isLast={isLast} />
     case 'open':
       return <OpenRow step={step} sources={sources} isLast={isLast} />
     case 'find':
@@ -185,37 +160,24 @@ const ContentItem = ({
 const SearchRow = ({
   step,
   message,
-  streaming,
   isLast,
 }: {
   step: SearchStep
   message: AssistantMessage
-  streaming: boolean
   isLast: boolean
 }) => {
   const t = useTranslate()
   const entry = useSearchPanel((state) => state.entry)
   const wip = step.status === 'wip'
-  const tick = useTicker(wip && step.queries.length > 1, 2000)
   const count = step.results.length
   const clickable = !wip && count > 0
   const panelEntry = `${message.id}-search-${step.key}`
   const failed = step.status === 'failed'
-  const interrupted = failed && !streaming && message.status === 'stopped'
+  const interrupted = failed && message.status === 'stopped'
 
   let body: ReactNode
   if (wip) {
-    body =
-      step.queries.length > 0 ? (
-        <>
-          <span className={styles.prefix}>{t('toolSearchIntro')}</span>
-          <span className={styles.query} key={tick}>
-            {step.queries[tick % step.queries.length]}
-          </span>
-        </>
-      ) : (
-        <span>{t(isImageSearchKind(step.kind) ? 'imageSearching' : 'messageSearching')}</span>
-      )
+    body = <span>{t(isImageSearchKind(step.kind) ? 'imageSearching' : 'messageSearching')}</span>
   } else if (interrupted) {
     body = <span>{t('searchStopped')}</span>
   } else if (failed) {
@@ -380,12 +342,12 @@ const FindRow = ({ step, isLast }: { step: FindStep; isLast: boolean }) => {
   )
 }
 
-/** 阅读用户消息中的链接：视图只保留仍在读取的链接。 */
+/** 阅读用户消息中的链接：归档数据不保留进行态，正常不展示。 */
 const ReadLinkRow = ({ step, isLast }: { step: ReadLinkStep; isLast: boolean }) => {
   const t = useTranslate()
   return (
     <ToolRow icon={<IconLinkOutline16 />} isLast={isLast}>
-      <span className={clsx(styles.intro, styles.shimmer)}>{t('readingLink')}</span>
+      <span className={styles.intro}>{t('readingLink')}</span>
       {step.links.map((link) => (
         <PageLink key={link.id} page={link} />
       ))}

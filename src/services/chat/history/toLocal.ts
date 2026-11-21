@@ -27,7 +27,6 @@ const time = (value: string) => Date.parse(value)
 
 const toFile = (file: FileEntry): FileAttachment => ({
   id: file.id,
-  serverId: null,
   name: file.file_name,
   size: file.file_size,
   isImage: file.is_image,
@@ -219,7 +218,6 @@ const toAssistant = (message: ChatMessage): AssistantMessage => {
     model: null,
     thinking: message.thinking_enabled,
     search: message.search_enabled,
-    prefix: false,
     status: replyStatus[message.status],
     // 拒绝回复丢弃模型正文和思考，保留模板提示与工具步骤。
     ...(refused ? { stopReason: 'refusal' as const } : {}),

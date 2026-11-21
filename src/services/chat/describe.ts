@@ -1,19 +1,33 @@
 import { isTranslationKey, translate } from '../../i18n/index.js'
-import { classifyStatus } from '../api/errors.js'
 import type { AssistantMessage } from './types.js'
 
 export type Notice = {
   text: string
   /** 模板答复使用正文样式；其余统一为红色错误提示。 */
   presentation?: 'response'
-  /** 需要用户处理的问题附带的操作 */
-  action?: 'apiKey' | 'topUp'
 }
 
 const getTemplateText = (reply: AssistantMessage) =>
   reply.blocks
     .map((block) => (block.type === 'text' && block.isTemplate ? block.text : ''))
     .join('')
+
+/** 旧客户端留下的请求错误按 HTTP 状态归类；归档导入的数据不含结构化错误。 */
+const classifyStatus = (status?: number) => {
+  if (status === 401 || status === 403) {
+    return 'unauthorized'
+  }
+  if (status === 402) {
+    return 'insufficientBalance'
+  }
+  if (status === 429) {
+    return 'rateLimited'
+  }
+  if (status !== undefined && status >= 500) {
+    return 'serverBusy'
+  }
+  return 'unknown'
+}
 
 /** 回复出错或未正常结束时展示的提示 */
 export const describeReply = (reply: AssistantMessage): Notice | null => {
@@ -24,7 +38,6 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
       localMessage && isTranslationKey(localMessage.key)
         ? translate(localMessage.key, localMessage.params)
         : reply.error.message
-    // 历史补传错误刷新后仍需说明原因，恢复沿用附件卡片或重新生成。
     if (kind === 'upload') {
       return { text: message || translate('uploadFileStatusFailed') }
     }
@@ -33,9 +46,9 @@ export const describeReply = (reply: AssistantMessage): Notice | null => {
     }
     switch (classifyStatus(status)) {
       case 'unauthorized':
-        return { text: translate('replyInvalidApiKey'), action: 'apiKey' }
+        return { text: translate('replyInvalidApiKey') }
       case 'insufficientBalance':
-        return { text: translate('replyInsufficientBalance'), action: 'topUp' }
+        return { text: translate('replyInsufficientBalance') }
       case 'rateLimited':
         return { text: translate('replyRateLimited') }
       case 'serverBusy':

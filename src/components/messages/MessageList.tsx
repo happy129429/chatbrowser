@@ -11,36 +11,18 @@ import { closeSearchPanel } from '../search/searchPanelState.js'
 import { AssistantMessage } from './AssistantMessage.js'
 import { ScrollToBottomContext } from './scrollContext.js'
 import { UserMessage } from './UserMessage.js'
-import type { Message } from '../../services/chat/types.js'
-
-/**
- * 会话共用可重试的附件上传失败入口，覆盖当前提问与历史消息中的附件。
- * 点击后按失败的回答重新补传附件并请求。
- */
-const getUploadRetryId = (messages: Message[], streaming: boolean) => {
-  const last = messages.at(-1)
-  return !streaming &&
-    last?.role === 'assistant' &&
-    last.status === 'error' &&
-    last.error?.kind === 'upload' &&
-    last.error.retryable
-    ? last.id
-    : null
-}
 import styles from './MessageList.module.css'
 
-/** 距底部小于该值时视为在底部，流式内容增长时跟随 */
+/** 距底部小于该值时视为在底部，内容增长时跟随 */
 const STICKY_THRESHOLD = 40
 const EMPTY_VERSIONS: MessageVersions = { ids: [], index: -1 }
 
 export const MessageList = ({
   session,
-  streaming,
   footer,
 }: {
   session: Session
-  streaming: boolean
-  footer: React.ReactNode
+  footer?: React.ReactNode
 }) => {
   const isMobile = useIsMobile()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -68,7 +50,7 @@ export const MessageList = ({
     }
   }, [])
 
-  // 内容、键盘和输入框高度变化时，继续遵循当前跟随状态。
+  // 内容变化时，继续遵循当前跟随状态。
   useLayoutEffect(() => {
     const content = contentRef.current
     const scroll = scrollRef.current
@@ -103,18 +85,15 @@ export const MessageList = ({
 
   const selectVersion = useCallback(
     (messageId: string, anchorTop: number) => {
-      if (streaming) {
-        return
-      }
       restoreScrollRef.current = { messageId, top: anchorTop }
       stickyRef.current = false
       closeSearchPanel()
       selectMessageVersion(session.id, messageId)
     },
-    [session.id, streaming]
+    [session.id]
   )
 
-  // 跨移动端断点时切换滚动层，并保持输入框及当前阅读位置。
+  // 跨移动端断点时切换滚动层，并保持当前阅读位置。
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) {
@@ -140,7 +119,6 @@ export const MessageList = ({
   }, [isMobile, scrollToBottom])
 
   const lastIndex = messages.length - 1
-  const uploadRetryId = getUploadRetryId(messages, streaming)
   return (
     <ScrollToBottomContext.Provider value={scrollToBottom}>
       <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
@@ -150,23 +128,17 @@ export const MessageList = ({
               message.role === 'user' ? (
                 <UserMessage
                   key={message.id}
-                  sessionId={session.id}
                   message={message}
-                  retryUploadId={uploadRetryId}
                   isFirst={index === 0}
                   isLast={index === lastIndex || index === lastIndex - 1}
-                  busy={streaming}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
                 />
               ) : (
                 <AssistantMessage
                   key={message.id}
-                  sessionId={session.id}
                   message={message}
                   isLast={index === lastIndex}
-                  streaming={streaming && index === lastIndex}
-                  busy={streaming}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
                 />

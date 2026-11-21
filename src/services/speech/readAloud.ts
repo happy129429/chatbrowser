@@ -1,14 +1,10 @@
 import { create } from 'zustand'
 import type { TranslationMessage } from '../../i18n/index.js'
-import { ApiError } from '../api/client.js'
-import { classifyApiError } from '../api/errors.js'
-import { synthesize, TTS_SAMPLE_RATE } from '../api/speech.js'
 import { useSettings } from '../settings.js'
 
 /**
- * 朗读：同一时间只读一条回复。
- * 请求 TTS 的裸 PCM 流，边收边用 AudioContext 按顺序排程播放，首帧到达即出声。
- * 状态：loading（已请求、未出声）→ playing → 结束回到 idle。
+ * 朗读：同一时间只读一条回复，使用浏览器内置的 speechSynthesis，完全本地、无需 API 服务。
+ * 正文按句子切段排队朗读，规避长文本截断；状态：loading（未出声）→ playing → 结束回到 idle。
  */
 export type ReadAloudStatus = 'idle' | 'loading' | 'playing'
 
@@ -20,62 +16,88 @@ type ReadAloudState = {
 
 export const useReadAloud = create<ReadAloudState>(() => ({ messageId: null, status: 'idle' }))
 
-/** 首帧前多缓冲一点，减少网络抖动造成的断续 */
-const START_DELAY = 0.1
+/** 单段朗读长度上限（字符），按句子边界切分，超出硬切 */
+const MAX_CHUNK = 200
 
-let current: { controller: AbortController; context: AudioContext } | null = null
+/** 当前朗读会话；切换或结束时置空，事件回调据此丢弃过期通知 */
+let current: { messageId: string; utterances: SpeechSynthesisUtterance[] } | null = null
 
-const finish = (controller: AbortController) => {
-  if (current?.controller !== controller) {
-    return
-  }
-  void current.context.close()
+const finish = () => {
   current = null
   useReadAloud.setState({ messageId: null, status: 'idle' })
 }
 
-/** 停止当前朗读（发送、停止生成、切换会话等场景调用） */
+/** 停止当前朗读（切换会话、再次点击等场景调用） */
 export const stopReadAloud = () => {
-  if (current) {
-    const { controller } = current
-    controller.abort()
-    finish(controller)
+  if (!current) {
+    return
   }
-}
-
-/** 16-bit 小端 PCM 转成 Float32；奇数字节留到下一段 */
-const toFloat32 = (bytes: Uint8Array) => {
-  const samples = new Float32Array(bytes.length >> 1)
-  const view = new DataView(bytes.buffer, bytes.byteOffset, samples.length * 2)
-  for (let i = 0; i < samples.length; i++) {
-    samples[i] = view.getInt16(i * 2, true) / 0x8000
-  }
-  return samples
+  current = null
+  window.speechSynthesis.cancel()
+  useReadAloud.setState({ messageId: null, status: 'idle' })
 }
 
 export const describeReadAloudError = (error: unknown): TranslationMessage | string => {
-  if (error instanceof ApiError && error.kind === 'protocol') {
-    return error.message
-  }
-  // 400 表示这段正文服务端无法合成，与其余失败区分开
-  if (error instanceof ApiError && error.status === 400) {
+  // 浏览器不支持或无法合成这段正文，与其余失败区分开
+  if (error instanceof Error && error.message === 'unsupported') {
     return { key: 'ttsUnavailable' }
   }
-  switch (classifyApiError(error)) {
-    case 'unauthorized':
-      return { key: 'apiKeyInvalidRetry' }
-    case 'insufficientBalance':
-      return { key: 'insufficientBalance' }
-    case 'rateLimited':
-      return { key: 'rateLimited' }
-    default:
-      return { key: 'ttsFailed' }
+  return { key: 'ttsFailed' }
+}
+
+/** 剥离 markdown 记号，只留可读文本 */
+const cleanText = (markdown: string) =>
+  markdown
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\[citation:\d+\]/g, ' ')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_~]{1,3}([^*_~]+)[*_~]{1,3}/g, '$1')
+    .replace(/\$\$([\s\S]*?)\$\$/g, '$1')
+    .replace(/\$([^$\n]+)\$/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+/** 按句子边界切分；找不到边界时在上限处硬切 */
+const splitChunks = (text: string): string[] => {
+  if (text.length <= MAX_CHUNK) {
+    return text ? [text] : []
   }
+  const chunks: string[] = []
+  let rest = text
+  while (rest.length > MAX_CHUNK) {
+    const window = rest.slice(0, MAX_CHUNK)
+    const index = Math.max(
+      ...['。', '！', '？', '；', '.', '!', '?', ';', '\n'].map((mark) => window.lastIndexOf(mark))
+    )
+    const cut = index > 0 ? index + 1 : MAX_CHUNK
+    chunks.push(rest.slice(0, cut).trim())
+    rest = rest.slice(cut)
+  }
+  if (rest.trim()) {
+    chunks.push(rest.trim())
+  }
+  return chunks
+}
+
+/** 按界面语言挑选浏览器语音；语音列表尚未就绪时交给浏览器默认发音 */
+const pickVoice = (locale: 'zh-CN' | 'en-US'): SpeechSynthesisVoice | undefined => {
+  const voices = window.speechSynthesis.getVoices()
+  if (voices.length === 0) {
+    return undefined
+  }
+  const prefix = locale === 'zh-CN' ? 'zh' : 'en'
+  return (
+    voices.find((voice) => voice.lang.replace('_', '-').toLowerCase() === locale.toLowerCase()) ??
+    voices.find((voice) => voice.lang.toLowerCase().startsWith(prefix))
+  )
 }
 
 /**
  * 开始朗读一条回复的正文；同一条正在朗读时调用等于停止。
- * 必须在点击事件中同步调用：AudioContext 需要用户手势才能出声。
+ * 必须在点击事件中同步调用：部分浏览器要求用户手势后才允许出声。
  */
 export const toggleReadAloud = (
   messageId: string,
@@ -87,58 +109,50 @@ export const toggleReadAloud = (
   if (reading === messageId) {
     return
   }
-  const controller = new AbortController()
-  const context = new AudioContext({ sampleRate: TTS_SAMPLE_RATE })
-  current = { controller, context }
-  useReadAloud.setState({ messageId, status: 'loading' })
-  // 音色在开始朗读时读取，设置中切换后下一次朗读生效
-  const { apiKey, ttsVoice } = useSettings.getState()
-
-  void (async () => {
-    let nextTime = 0
-    let lastSource: AudioBufferSourceNode | null = null
-    let rest = new Uint8Array(0)
-    try {
-      const stream = await synthesize(apiKey ?? '', text, ttsVoice, controller.signal)
-      const reader = stream.getReader()
-      controller.signal.addEventListener('abort', () => void reader.cancel().catch(() => {}))
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) {
-          break
-        }
-        const bytes = new Uint8Array(rest.length + value.length)
-        bytes.set(rest)
-        bytes.set(value, rest.length)
-        const samples = toFloat32(bytes)
-        rest = bytes.slice(samples.length * 2)
-        if (samples.length === 0) {
-          continue
-        }
-        const buffer = context.createBuffer(1, samples.length, TTS_SAMPLE_RATE)
-        buffer.copyToChannel(samples, 0)
-        const source = context.createBufferSource()
-        source.buffer = buffer
-        source.connect(context.destination)
-        // 网络慢于播放时从当前时间续上，不补播过去的时间
-        nextTime = Math.max(nextTime, context.currentTime + (lastSource ? 0 : START_DELAY))
-        source.start(nextTime)
-        nextTime += buffer.duration
-        lastSource = source
-        if (useReadAloud.getState().status === 'loading') {
-          useReadAloud.setState({ status: 'playing' })
-        }
-      }
-      if (lastSource) {
-        lastSource.onended = () => finish(controller)
-      } else {
-        finish(controller)
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        finish(controller)
-        onError(error)
+  const synth = window.speechSynthesis
+  if (!synth) {
+    onError(new Error('unsupported'))
+    return
+  }
+  const chunks = splitChunks(cleanText(text))
+  if (chunks.length === 0) {
+    return
+  }
+  const { locale } = useSettings.getState()
+  const voice = pickVoice(locale)
+  const utterances = chunks.map((content, index) => {
+    const utterance = new SpeechSynthesisUtterance(content)
+    if (voice) {
+      utterance.voice = voice
+    }
+    utterance.lang = voice?.lang ?? locale
+    utterance.onstart = () => {
+      if (current?.messageId === messageId) {
+        useReadAloud.setState({ status: 'playing' })
       }
     }
-  })()
+    utterance.onend = () => {
+      if (current?.messageId === messageId && index === chunks.length - 1) {
+        finish()
+      }
+    }
+    utterance.onerror = (event) => {
+      if (current?.messageId !== messageId) {
+        return
+      }
+      const reason = (event as SpeechSynthesisErrorEvent).error
+      // cancel() 触发的中断不是错误
+      if (reason === 'interrupted' || reason === 'canceled') {
+        return
+      }
+      finish()
+      onError(new Error(reason || 'synthesis failed'))
+    }
+    return utterance
+  })
+  current = { messageId, utterances }
+  useReadAloud.setState({ messageId, status: 'loading' })
+  for (const utterance of utterances) {
+    synth.speak(utterance)
+  }
 }
