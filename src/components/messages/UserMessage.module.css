@@ -1,7 +1,9 @@
 .container {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
   padding-bottom: 16px;
 
   &.isFirst {
@@ -105,6 +107,7 @@
 
 .shareCheck {
   display: flex;
+  margin-top: 11px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
@@ -129,6 +132,9 @@
 }
 
 .body {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  align-items: flex-end;
   min-width: 0;
 }
