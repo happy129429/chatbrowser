@@ -80,3 +80,9 @@
 .bar:focus-visible .label {
   display: block;
 }
+
+@media print {
+  .rail {
+    display: none;
+  }
+}

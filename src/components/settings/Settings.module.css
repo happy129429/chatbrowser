@@ -440,3 +440,8 @@
     max-width: 100%;
   }
 }
+
+.statValue {
+  font-size: 14px;
+  color: var(--dsw-alias-label-primary);
+}

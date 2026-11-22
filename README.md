@@ -31,6 +31,7 @@ The output is written to `dist/` and can be deployed to any static server.
 - Browse conversations with the original rendering: Markdown, syntax highlighting, KaTeX math, Mermaid diagrams, deep-thinking timelines, web-search steps and source citations, message branches with version switching, and image attachments (non-image attachments show metadata only).
 - Archive groups behave like browser tab groups: rename, color, collapse, move chats between groups, merge, dissolve, export a group back to a ZIP, or delete it. All organization is local; your source ZIP files are never touched.
 - Global text search across titles, questions and answers with highlighted snippets and in-chat jump. Normalized matching (case, width, whitespace) with a fuzzy subsequence fallback.
+- Export selected rounds of a chat as a self-contained HTML file (rendered markdown, MathML formulas, highlighted code, sources) or as Markdown.
 - Read replies aloud with the browser's built-in speech synthesis — no TTS endpoint required.
 - UI language (follow-browser by default, Simplified Chinese / English), light and dark themes, and mobile layouts.
 

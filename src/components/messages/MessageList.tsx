@@ -1,13 +1,25 @@
+import clsx from 'clsx'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslate } from '../../i18n/index.js'
 import { useIsMobile } from '../../app/viewport.js'
 import {
   buildMessageVersions,
   getVisibleMessages,
   type MessageVersions,
 } from '../../services/chat/branches.js'
-import { selectMessageVersion, clearPendingJump, useChatStore } from '../../services/chat/store.js'
-import type { Session, UserMessage as UserMessageType } from '../../services/chat/types.js'
+import {
+  selectMessageVersion,
+  clearPendingJump,
+  exitShareSelect,
+  startShareSelect,
+  useChatStore,
+} from '../../services/chat/store.js'
+import { exportRounds, type ExportRound } from '../../services/chat/export.js'
+import type { Message, Session, UserMessage as UserMessageType } from '../../services/chat/types.js'
 import { closeSearchPanel } from '../search/searchPanelState.js'
+import { showToast } from '../base/toastState.js'
+import { Button } from '../base/Button.js'
+import { IconCheckedOutline14 } from '../base/icons.js'
 import { AssistantMessage } from './AssistantMessage.js'
 import { RoundNav } from './RoundNav.js'
 import { ScrollToBottomContext } from './scrollContext.js'
@@ -25,6 +37,7 @@ export const MessageList = ({
   session: Session
   footer?: React.ReactNode
 }) => {
+  const t = useTranslate()
   const isMobile = useIsMobile()
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -204,6 +217,65 @@ export const MessageList = ({
     () => messages.filter((message): message is UserMessageType => message.role === 'user'),
     [messages]
   )
+
+  // 轮次导出选择模式
+  const shareSelect = useChatStore((state) => state.shareSelect)
+  const shareActive = shareSelect?.sessionId === session.id
+  const [shareSelected, setShareSelected] = useState<Set<string>>(() => new Set())
+  const [exporting, setExporting] = useState<'html' | 'markdown' | null>(null)
+
+  useEffect(() => {
+    if (!shareActive || !shareSelect) {
+      return
+    }
+    const roundIds = rounds.map((round) => round.id)
+    setShareSelected(
+      shareSelect.initial === 'all'
+        ? new Set(roundIds)
+        : new Set(shareSelect.initial.filter((id) => roundIds.includes(id)))
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareActive])
+
+  const assistantByParent = useMemo(() => {
+    const map = new Map<string, Message>()
+    for (const message of messages) {
+      if (message.role === 'assistant' && message.parentId) {
+        map.set(message.parentId, message)
+      }
+    }
+    return map
+  }, [messages])
+
+  const doExport = async (format: 'html' | 'markdown') => {
+    const chosen = rounds.filter((round) => shareSelected.has(round.id))
+    if (chosen.length === 0) {
+      return
+    }
+    setExporting(format)
+    try {
+      const chosenRounds: ExportRound[] = chosen.map((user) => ({
+        user,
+        assistant:
+          assistantByParent.get(user.id)?.role === 'assistant'
+            ? (assistantByParent.get(user.id) as Extract<Message, { role: 'assistant' }>)
+            : null,
+      }))
+      const { name, blob } = await exportRounds(session, chosenRounds, format)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = name
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      exitShareSelect()
+    } catch {
+      showToast({ key: 'exportFailed', type: 'error' })
+    } finally {
+      setExporting(null)
+    }
+  }
+
   return (
     <ScrollToBottomContext.Provider value={scrollToBottom}>
       <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
@@ -218,6 +290,25 @@ export const MessageList = ({
                   isLast={index === lastIndex || index === lastIndex - 1}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
+                  share={
+                    shareActive
+                      ? {
+                          checked: shareSelected.has(message.id),
+                          onToggle: () => {
+                            const id = message.id
+                            setShareSelected((previous) => {
+                              const next = new Set(previous)
+                              if (next.has(id)) {
+                                next.delete(id)
+                              } else {
+                                next.add(id)
+                              }
+                              return next
+                            })
+                          },
+                        }
+                      : undefined
+                  }
                 />
               ) : (
                 <AssistantMessage
@@ -226,6 +317,27 @@ export const MessageList = ({
                   isLast={index === lastIndex}
                   versions={versions.get(message.id) ?? EMPTY_VERSIONS}
                   onSelectVersion={selectVersion}
+                  onShareRound={
+                    shareActive || !message.parentId
+                      ? undefined
+                      : () => startShareSelect(session.id, [message.parentId as string])
+                  }
+                  stats={(() => {
+                    const roundIndex = rounds.findIndex((round) => round.id === message.parentId)
+                    if (roundIndex === -1) {
+                      return undefined
+                    }
+                    const tokens = message.usage
+                      ? message.usage.input_tokens +
+                        message.usage.cache_creation_input_tokens +
+                        message.usage.cache_read_input_tokens +
+                        message.usage.output_tokens
+                      : null
+                    return {
+                      round: roundIndex + 1,
+                      tokens,
+                    }
+                  })()}
                 />
               )
             )}
@@ -233,7 +345,61 @@ export const MessageList = ({
         </div>
         {footer}
       </div>
-      {!isMobile ? (
+      {shareActive ? (
+        <div className={styles.shareBar}>
+          <button
+            type="button"
+            className={styles.shareSelectAll}
+            onClick={() => {
+              const all = rounds.map((round) => round.id)
+              const allSelected = all.every((id) => shareSelected.has(id))
+              setShareSelected(allSelected ? new Set() : new Set(all))
+            }}
+          >
+            <span
+              className={clsx(
+                styles.shareCheck,
+                rounds.length > 0 &&
+                  rounds.every((round) => shareSelected.has(round.id)) &&
+                  styles.shareCheckOn
+              )}
+              role="checkbox"
+              aria-checked={
+                rounds.length > 0 && rounds.every((round) => shareSelected.has(round.id))
+              }
+            >
+              {rounds.length > 0 && rounds.every((round) => shareSelected.has(round.id)) ? (
+                <IconCheckedOutline14 />
+              ) : null}
+            </span>
+            {t('selectAll')}
+          </button>
+          <span className={styles.shareCount}>
+            {t('roundsSelected', { count: shareSelected.size })}
+          </span>
+          <div className={styles.shareActions}>
+            <Button variant="outlined" size="s" onClick={exitShareSelect}>
+              {t('cancel')}
+            </Button>
+            <Button
+              variant="outlined"
+              size="s"
+              disabled={exporting !== null || shareSelected.size === 0}
+              onClick={() => void doExport('markdown')}
+            >
+              {t('exportMarkdown')}
+            </Button>
+            <Button
+              size="s"
+              disabled={exporting !== null || shareSelected.size === 0}
+              onClick={() => void doExport('html')}
+            >
+              {t('exportHtml')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {!isMobile && !shareActive ? (
         <RoundNav
           rounds={rounds}
           scrollRef={scrollRef}

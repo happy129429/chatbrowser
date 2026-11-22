@@ -6,6 +6,7 @@ import {
   IconEditOutline16,
   IconEllipsisOutline16,
   IconPinFill16,
+  IconShareOutline16,
   IconTrashOutline16,
 } from '../base/icons.js'
 import { renameSession, selectSession } from '../../services/chat/store.js'
@@ -25,6 +26,7 @@ export const SessionItem = memo(function SessionItem({
   onDragEnd,
   selection,
   onPin,
+  onExportChat,
   onDelete,
 }: {
   session: SessionSummary
@@ -39,6 +41,8 @@ export const SessionItem = memo(function SessionItem({
   selection?: { checked: boolean; onToggle: () => void }
   /** 单项置顶切换；参数为置顶后的状态 */
   onPin?: (pinned: boolean) => void
+  /** 打开该会话的轮次导出选择 */
+  onExportChat?: () => void
   onDelete: () => void
 }) {
   const t = useTranslate()
@@ -136,6 +140,12 @@ export const SessionItem = memo(function SessionItem({
               label: session.pinned ? t('unpin') : t('pin'),
               icon: <IconPinFill16 />,
               onSelect: () => onPin?.(!session.pinned),
+            },
+            {
+              key: 'export-chat',
+              label: t('exportChat'),
+              icon: <IconShareOutline16 />,
+              onSelect: () => onExportChat?.(),
             },
             ...moveOptions,
             ...ungroupOption,

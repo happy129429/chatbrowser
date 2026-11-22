@@ -23,8 +23,10 @@ import {
   removeSession,
   removeSessions,
   renameGroup,
+  selectSession,
   setGroupColor,
   setSessionsPinned,
+  startShareSelect,
   useChatStore,
 } from '../../services/chat/store.js'
 import { exportGroupArchive, importArchiveFiles } from '../../services/chat/backup.js'
@@ -223,6 +225,10 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
         session={session}
         active={session.id === activeId}
         moveTargets={archiveGroups.filter((item) => item.id !== session.groupId)}
+        onExportChat={() => {
+          selectSession(session.id)
+          startShareSelect(session.id, 'all')
+        }}
         onMove={
           archiveGroups.length > 0 ? (groupId) => moveSessions([session.id], groupId) : undefined
         }
@@ -292,6 +298,16 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
               {selected.size === 1
                 ? t('selectionCountOne')
                 : t('selectionCount', { count: selected.size })}
+            </span>
+            <span className={styles.selectionScope}>
+              {selecting.groupId === null
+                ? t('selectionScopeUngrouped', {
+                    count: sessions.filter((session) => session.groupId === null).length,
+                  })
+                : t('selectionScopeGroup', {
+                    count: sessions.filter((session) => session.groupId === selecting.groupId)
+                      .length,
+                  })}
             </span>
             <button
               type="button"

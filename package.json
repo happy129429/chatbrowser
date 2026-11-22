@@ -1,6 +1,6 @@
 {
   "name": "chatbrowser",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "本地浏览 DeepSeek 历史对话导出的静态应用。",
   "license": "GPL-3.0-or-later",
   "private": true,
@@ -27,6 +27,7 @@
     "mdast-util-gfm": "3.1.0",
     "mdast-util-math": "3.0.0",
     "mermaid": "11.10.1",
+    "micromark": "^4.0.3",
     "micromark-extension-gfm": "3.0.0",
     "micromark-extension-llm-math": "3.1.0",
     "minisearch": "^7.2.0",

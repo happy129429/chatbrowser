@@ -15,6 +15,14 @@
   background: var(--dsw-alias-bg-base);
 }
 
+.titleRow {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .title {
   max-width: 480px;
   padding: 8px 12px;
@@ -25,9 +33,20 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.sessionStats {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  user-select: none;
+}
+
 .withCollapsedSider {
   margin-left: 113px;
 }
 
-@media not all and (min-width: 768px) {
+@media print {
+  .header {
+    display: none;
+  }
 }

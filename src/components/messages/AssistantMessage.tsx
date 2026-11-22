@@ -1,7 +1,8 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
 import { memo } from 'react'
-import { IconWarningOutline16 } from '../base/icons.js'
+import { IconShareOutline16, IconWarningOutline16 } from '../base/icons.js'
+import { IconButton } from '../base/IconButton.js'
 import { describeReply } from '../../services/chat/describe.js'
 import type { AssistantMessage as AssistantMessageType } from '../../services/chat/types.js'
 import { Markdown } from '../markdown/Markdown.js'
@@ -23,11 +24,17 @@ export const AssistantMessage = memo(function AssistantMessage({
   isLast,
   versions,
   onSelectVersion,
+  onShareRound,
+  stats,
 }: {
   message: AssistantMessageType
   isLast: boolean
   versions: MessageVersions
   onSelectVersion: SelectMessageVersion
+  /** 分享按钮：把这一轮加入导出选择 */
+  onShareRound?: () => void
+  /** 轮次小字：第 N 轮与该轮 token 用量 */
+  stats?: { round: number; tokens: number | null }
 }) {
   const t = useTranslate()
   const view = useReplyView(message)
@@ -89,7 +96,23 @@ export const AssistantMessage = memo(function AssistantMessage({
           {responseText && !refused ? (
             <ReadAloudButton messageId={message.id} text={responseText} />
           ) : null}
+          {onShareRound ? (
+            <IconButton
+              icon={<IconShareOutline16 />}
+              tooltip={t('share')}
+              tooltipPlacement="bottom"
+              onClick={onShareRound}
+            />
+          ) : null}
         </div>
+        {stats ? (
+          <span className={styles.roundStats}>
+            {t('roundPrefix', { round: stats.round })}
+            {stats.tokens !== null
+              ? ` · ${t('tokensShort', { tokens: stats.tokens.toLocaleString('en-US') })}`
+              : ''}
+          </span>
+        ) : null}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   IconDarkOutline16,
   IconDataOutline16,
@@ -7,6 +7,7 @@ import {
   IconFollowsystemOutline16,
   IconLightOutline16,
   IconSettingsOutline16,
+  IconStatsOutline16,
   IconUploadOutline14,
 } from '../base/icons.js'
 import {
@@ -24,6 +25,7 @@ import {
   type ThemePreference,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
+import { collectChatStats, type ChatStats } from '../../services/chat/stats.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
@@ -46,6 +48,7 @@ const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode
     label: 'settingDialogAsideGeneralOptionLabel',
     icon: <IconSettingsOutline16 />,
   },
+  { value: 'stats', label: 'settingDialogAsideStatsOptionLabel', icon: <IconStatsOutline16 /> },
   { value: 'data', label: 'settingDialogAsideDataOptionLabel', icon: <IconDataOutline16 /> },
 ]
 
@@ -92,6 +95,8 @@ const SettingsContent = () => {
               <ThemeSetting />
               <LocaleSetting />
             </>
+          ) : section === 'stats' ? (
+            <ChatStats />
           ) : (
             <>
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
@@ -193,6 +198,73 @@ const useHistoryDelete = () => {
   }
 }
 
+/** 遍历本地库汇总统计：组数、会话数、轮数、token 用量与思考时长。 */
+const ChatStats = () => {
+  const t = useTranslate()
+  const [stats, setStats] = useState<ChatStats | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void collectChatStats().then((result) => {
+      if (active) {
+        setStats(result)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const formatSeconds = (seconds: number) =>
+    seconds < 90
+      ? t('statsSeconds', { count: seconds })
+      : t('statsMinutes', { count: Math.round(seconds / 60) })
+
+  return (
+    <>
+      {stats === null ? (
+        <SettingCell label={t('statsScanning')} status={null} />
+      ) : (
+        <>
+          <SettingCell
+            label={t('statsGroups')}
+            status={null}
+            action={<span className={styles.statValue}>{stats.groups}</span>}
+          />
+          <SettingCell
+            label={t('statsSessions')}
+            status={null}
+            action={<span className={styles.statValue}>{stats.sessions}</span>}
+          />
+          <SettingCell
+            label={t('statsRounds')}
+            status={null}
+            action={<span className={styles.statValue}>{stats.rounds}</span>}
+          />
+          <SettingCell
+            label={t('statsTokens')}
+            status={null}
+            action={
+              <span className={styles.statValue}>
+                {stats.tokens === null ? '—' : stats.tokens.toLocaleString('en-US')}
+              </span>
+            }
+          />
+          <SettingCell
+            label={t('statsThinking')}
+            status={null}
+            action={
+              <span className={styles.statValue}>
+                {stats.thinkSeconds === null ? '—' : formatSeconds(stats.thinkSeconds)}
+              </span>
+            }
+          />
+        </>
+      )}
+    </>
+  )
+}
+
 const LocaleSetting = () => {
   const t = useTranslate()
   const localePreference = useSettings((state) => state.localePreference)
@@ -289,7 +361,7 @@ const SettingCell = ({
   label: string
   description?: string
   status: Status
-  action: ReactNode
+  action?: ReactNode
   className?: string
 }) => {
   const t = useTranslate()

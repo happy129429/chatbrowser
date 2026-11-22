@@ -82,6 +82,7 @@ export const SearchOverlay = () => {
   const locale = useSettings((state) => state.locale)
   const open = useSearchOverlay((state) => state.open)
   const sessions = useChatStore((state) => state.sessions)
+  const archiveGroups = useChatStore((state) => state.groups)
   const dataVersion = useChatStore((state) => state.dataVersion)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<SearchHit[]>([])
@@ -218,6 +219,10 @@ export const SearchOverlay = () => {
                   <span className={styles.hitBody}>
                     <span className={styles.hitTitleRow}>
                       <span className={styles.hitTitle}>{summary?.title || t('untitledChat')}</span>
+                      {(() => {
+                        const group = archiveGroups.find((item) => item.id === summary?.groupId)
+                        return group ? <span className={styles.hitGroup}>{group.name}</span> : null
+                      })()}
                       <span className={styles.hitBadge}>
                         {sessionHits.length === 1
                           ? t('searchMatchOne')

@@ -560,3 +560,22 @@ export const IconFolderOutline16 = () => (
     />
   </svg>
 )
+
+export const IconShareOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M8.6 1.9c0-.66.8-1 1.27-.53l5.2 5.06c.3.3.3.77 0 1.07l-5.2 5.06c-.47.46-1.27.12-1.27-.53V9.9c-2.87.13-4.62 1.1-5.94 3.2-.3.47-1.03.26-1.03-.3C1.63 7.6 4.3 4.9 8.6 4.6V1.9Z"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
+export const IconStatsOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="8.5" width="2.6" height="5.5" rx="1" fill="currentColor" />
+    <rect x="6.7" y="5" width="2.6" height="9" rx="1" fill="currentColor" />
+    <rect x="11.4" y="2" width="2.6" height="12" rx="1" fill="currentColor" />
+  </svg>
+)

@@ -68,3 +68,10 @@ body.change-theme *::after {
     background-color: transparent;
   }
 }
+
+@media print {
+  body {
+    background: #fff;
+    color: #111;
+  }
+}

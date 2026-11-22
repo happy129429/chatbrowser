@@ -32,6 +32,8 @@ type ChatState = {
   pendingJump: { sessionId: string; messageId: string } | null
   /** 会话数据的版本号：导入/删除/重命名等递增，用于搜索索引缓存失效 */
   dataVersion: number
+  /** 轮次导出选择：sessionId + 初始选中（全部或指定提问） */
+  shareSelect: { sessionId: string; initial: 'all' | string[] } | null
 }
 
 export const useChatStore = create<ChatState>(() => ({
@@ -46,11 +48,29 @@ export const useChatStore = create<ChatState>(() => ({
   activeId: null,
   pendingJump: null,
   dataVersion: 0,
+  shareSelect: null,
 }))
 
 const { getState: get, setState: set } = useChatStore
 
 const bumpDataVersion = () => set((state) => ({ dataVersion: state.dataVersion + 1 }))
+
+/** 进入当前会话的轮次导出选择模式。 */
+export const startShareSelect = (sessionId: string, initial: 'all' | string[] = 'all') => {
+  if (get().importingHistory || !get().sessions.some((session) => session.id === sessionId)) {
+    return
+  }
+  touchSession(sessionId)
+  set({ activeId: sessionId, shareSelect: { sessionId, initial } })
+  void ensureSessionLoaded(sessionId)
+  trimSessionCache()
+}
+
+export const exitShareSelect = () => {
+  if (get().shareSelect !== null) {
+    set({ shareSelect: null })
+  }
+}
 
 const sortSessions = (sessions: SessionSummary[]) =>
   [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)
