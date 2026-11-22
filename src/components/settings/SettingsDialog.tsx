@@ -453,6 +453,7 @@ const ChatStats = () => {
               </span>
             }
           />
+          <p className={styles.statsHint}>{t('statsScopeHint')}</p>
         </>
       )}
     </>

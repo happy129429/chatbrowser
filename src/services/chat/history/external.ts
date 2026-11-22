@@ -179,23 +179,32 @@ const fromOpenWebUI = (parsed: unknown[], groupId: string): Session[] => {
     if (entries.length === 0) {
       continue
     }
-    // 先按 currentId 回溯父链；脱敏样本里 id 被替换时退回时间顺序
+    // 先按 currentId 回溯父链；脱敏样本里 id/父链被破坏时退回时间顺序
     const path: Loose[] = []
     const seen = new Set<string>()
+    let broken = false
+    const exists = (id: string) =>
+      entries.some((entry) => entry.key === id || entry.message.id === id)
     let cursor: string | undefined =
       typeof history.currentId === 'string' ? history.currentId : undefined
     while (cursor && !seen.has(cursor)) {
       seen.add(cursor)
       const hit = entries.find((entry) => entry.key === cursor || entry.message.id === cursor)
       if (!hit) {
+        broken = true
         break
       }
       path.push(hit.message)
-      cursor = typeof hit.message.parentId === 'string' ? hit.message.parentId : undefined
+      const parent = hit.message.parentId
+      cursor = typeof parent === 'string' ? parent : undefined
+      if (cursor && !exists(cursor)) {
+        broken = true
+      }
     }
     path.reverse()
+    // 父链断裂（脱敏/字段缺失）时用全量时间顺序，避免只导入分支末端的一两轮
     const ordered =
-      path.length >= 2
+      !broken && path.length >= 2
         ? path
         : entries
             .map((entry) => entry.message)

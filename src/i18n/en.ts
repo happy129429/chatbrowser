@@ -150,6 +150,8 @@ export const en = {
   statsSessions: 'Chats',
   statsRounds: 'Rounds',
   statsTokens: 'Total tokens',
+  statsScopeHint:
+    'Only archives that carry usage data are counted (DeepSeek native exports); external formats usually have no token data.',
   statsThinking: 'Total thinking time',
   statsScanning: 'Computing…',
   statsSeconds: '{count} s',

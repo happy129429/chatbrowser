@@ -148,6 +148,8 @@ export const zh = {
   statsSessions: '会话',
   statsRounds: '对话轮数',
   statsTokens: 'Token 总用量',
+  statsScopeHint:
+    '仅统计能读取到用量数据的归档（DeepSeek 原生导出）；外部格式通常没有 token 数据。',
   statsThinking: '思考总时长',
   statsScanning: '正在统计…',
   statsSeconds: '{count} 秒',
