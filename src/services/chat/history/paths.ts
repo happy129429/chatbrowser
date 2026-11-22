@@ -3,6 +3,8 @@
 export const MANIFEST_PATH = 'manifest.json'
 export const USER_PATH = 'user.json'
 export const INDEX_PATH = 'chat_session_index.json'
+/** 本应用扩展数据（系统提示词/分组信息），官方客户端通常会忽略未知文件 */
+export const EXT_PATH = 'chatbrowser_ext.json'
 
 export const sessionPath = (sessionId: string) => `chat_sessions/${sessionId}.json`
 

@@ -15,6 +15,7 @@ import { SessionView } from '../components/session/SessionView.js'
 import { MobileHeader } from '../components/session/MobileHeader.js'
 import { Welcome } from '../components/session/Welcome.js'
 import { SettingsDialog } from '../components/settings/SettingsDialog.js'
+import { ExportDialog } from '../components/export/ExportDialog.js'
 import { Toast } from '../components/base/Toast.js'
 import { Button } from '../components/base/Button.js'
 import { stopReadAloud } from '../services/speech/readAloud.js'
@@ -124,6 +125,7 @@ export const App = () => {
         <SearchOverlay />
       </div>
       <SettingsDialog />
+      <ExportDialog />
       <ArchiveInputHost />
       <Toast />
     </>

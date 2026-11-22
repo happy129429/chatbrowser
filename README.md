@@ -50,7 +50,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 
 - DeepSeek export `deepseek_data-*.zip` (full pipeline: branches, tool steps, images, reasoning)
 - ChatGPT export (`conversations.json` ZIP with the `mapping` tree)
-- Claude export (`conversations.json` ZIP with `chat_messages` / `content` arrays)
+- Claude export (`conversations.json` ZIP with `chat_messages` / `content` arrays; thinking blocks are separated from the answer, files keep metadata only)
 - z.ai / OpenWebUI native exports (`chat.history.messages` object tree + `currentId`, imports the active branch)
 - Single-session `turn_history` envelopes (`session_metadata` / `global_context` system instructions)
 - z.ai and similar formats (`messages` / `chat_history` etc.)
@@ -60,8 +60,10 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 ## Features
 
 - Full rendering: Markdown, code highlighting, KaTeX, Mermaid, reasoning timeline, web search sources, message branches and attachments
+- Safety-refused replies show only the notice by default; in the archive you can use "Show original content" to reveal the reasoning and text that were sent
 - Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete
 - Global search with highlighted excerpts and jump-to-message; cached index per data version
+- Export as…: groups or single conversations to DeepSeek-compatible ZIP, DeepSeek extended ZIP (system prompts and group info kept in a sidecar), or Claude JSON; includes an option to anonymize IDs
 - Round-level export: self-contained HTML (MathML, Prism, sources) or Markdown
 - Round navigation, scroll restoration, session restore, read-aloud, token/round statistics
 - Chinese/English UI (follows the browser by default), light/dark themes, mobile layout
@@ -85,6 +87,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 - The launcher uses a fixed port; a newer build closes a stale older instance, the portable build asks you to close it first
 - No sync or built-in backup between entries/browsers — export a group ZIP before switching
 - Vendor export formats may change; attach a sanitized sample when reporting import issues
+- z.ai's "export archived conversation" may only include the first user prompt; the remaining message bodies are missing from the export itself
 
 ## Development
 

@@ -221,13 +221,9 @@ const toAssistant = (message: ChatMessage): AssistantMessage => {
     status: replyStatus[message.status],
     accumulatedTokens:
       message.accumulated_token_usage > 0 ? message.accumulated_token_usage : undefined,
-    // 拒绝回复丢弃模型正文和思考，保留模板提示与工具步骤。
+    // 拒绝回复默认隐藏原始内容，但保留在数据中，供归档浏览时展开查看。
     ...(refused ? { stopReason: 'refusal' as const } : {}),
-    blocks: refused
-      ? blocks.filter(
-          (block) => block.type !== 'thinking' && (block.type !== 'text' || block.isTemplate)
-        )
-      : blocks,
+    blocks,
   }
 }
 

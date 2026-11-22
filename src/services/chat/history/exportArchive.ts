@@ -1,7 +1,10 @@
 import * as db from '../db.js'
 import type { Session } from '../types.js'
 import { EXPORT_FORMAT_VERSION, type Manifest, type SessionIndexEntry } from './format.js'
-import { INDEX_PATH, MANIFEST_PATH, imagePath, sessionPath } from './paths.js'
+import { EXT_PATH, INDEX_PATH, MANIFEST_PATH, imagePath, sessionPath } from './paths.js'
+import { promptOf, toExtension } from './extension.js'
+import { anonymizeSession } from '../converters/anonymize.js'
+import type { SessionGroup } from '../types.js'
 import { toIndexEntry, toSessionFile } from './toArchive.js'
 import { writeArchive } from './zipWriter.js'
 
@@ -12,19 +15,28 @@ const json = (value: unknown) => new Blob([JSON.stringify(value)], { type: 'appl
  * 只写出本地有原件的图片，每个会话目录各写一份；其他附件只有元数据。
  */
 export const exportArchive = async (
-  sessions: Iterable<Session> | AsyncIterable<Session>
+  sessions: Iterable<Session> | AsyncIterable<Session>,
+  options: { extended?: boolean; anonymize?: boolean; group?: SessionGroup | null } = {}
 ): Promise<Blob> => {
   const manifest: Manifest = { export_format_version: EXPORT_FORMAT_VERSION }
   const entries = [{ name: MANIFEST_PATH, blob: json(manifest) }]
   const imageEntries: { name: string; blob: Blob }[] = []
   const index: SessionIndexEntry[] = []
   const originals = new Map<string, Blob | undefined>()
-  for await (const session of sessions) {
+  const prompts = new Map<string, string>()
+  for await (const original of sessions) {
+    const anonymized = options.anonymize ? anonymizeSession(original) : null
+    const session = anonymized?.session ?? original
+    const prompt = promptOf(original)
+    if (prompt) {
+      prompts.set(session.id, prompt)
+    }
     for (const message of session.messages) {
       if (message.role === 'user') {
         for (const file of message.files) {
           if (file.isImage && !originals.has(file.id)) {
-            originals.set(file.id, await db.loadFile(file.id))
+            const sourceId = anonymized?.fileIds.get(file.id) ?? file.id
+            originals.set(file.id, await db.loadFile(sourceId))
           }
         }
       }
@@ -46,5 +58,9 @@ export const exportArchive = async (
     index.push(toIndexEntry(data))
   }
   entries.push({ name: INDEX_PATH, blob: json(index) })
+  if (options.extended) {
+    const extension = toExtension(options.group ?? null, prompts, options.group?.extras)
+    entries.push({ name: EXT_PATH, blob: json(extension) })
+  }
   return writeArchive(entries.concat(imageEntries))
 }

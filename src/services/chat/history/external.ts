@@ -68,6 +68,10 @@ const toConversationList = (parsed: unknown): unknown[] | null => {
   if (Array.isArray(wrapper.turn_history)) {
     return [wrapper]
   }
+  // 单个 Claude 会话对象
+  if (Array.isArray(wrapper.chat_messages)) {
+    return [wrapper]
+  }
   if (Array.isArray(wrapper.messages)) {
     return [wrapper]
   }
@@ -423,7 +427,13 @@ const fromGeneric = (list: unknown[], groupId: string): Session[] => {
   return sessions
 }
 
-type Round = { question: string; answer: string; at: number }
+type Round = {
+  question: string
+  answer: string
+  at: number
+  thinking?: string
+  thinkingSeconds?: number
+}
 
 export type GroupExtra = { title: string; content: string }
 
@@ -437,7 +447,9 @@ const toSession = (
   updatedAt: number,
   rounds: Round[]
 ): Session | null => {
-  const usable = rounds.filter((round) => round.question.trim() || round.answer.trim())
+  const usable = rounds.filter(
+    (round) => round.question.trim() || round.answer.trim() || round.thinking?.trim()
+  )
   if (usable.length === 0) {
     return null
   }
@@ -457,14 +469,25 @@ const toSession = (
       messages.push(user)
       parentId = user.id
     }
-    if (round.answer.trim()) {
+    if (round.answer.trim() || round.thinking?.trim()) {
+      const blocks: AssistantMessage['blocks'] = []
+      if (round.thinking?.trim()) {
+        blocks.push({
+          type: 'thinking',
+          thinking: round.thinking.trim(),
+          elapsedSeconds: round.thinkingSeconds,
+        })
+      }
+      if (round.answer.trim()) {
+        blocks.push({ type: 'text', text: round.answer.trim() })
+      }
       const reply: AssistantMessage = {
         id: `${rawId}-a${index}`,
         role: 'assistant',
         createdAt: roundAt + 1,
         model: null,
         status: 'done',
-        blocks: [{ type: 'text', text: round.answer.trim() }],
+        blocks,
         parentId,
       }
       messages.push(reply)
@@ -594,8 +617,43 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       if (!message) {
         continue
       }
-      // 真实导出里 text 可能是空字符串而正文在 content:[{type:'text',text}] 中
-      const text = contentText(message.text) || contentText(message.content)
+      // 真实导出里 text 是「思考 + 正文」的拼接全文，结构化内容在 content 数组中
+      const blocks = Array.isArray(message.content)
+        ? message.content.map(record).filter((block): block is Loose => block !== null)
+        : []
+      const texts: string[] = []
+      const thinkings: string[] = []
+      let thinkingSeconds = 0
+      for (const block of blocks) {
+        if (block.type === 'text' && typeof block.text === 'string') {
+          texts.push(block.text)
+        } else if (block.type === 'thinking') {
+          const summary = Array.isArray(block.summaries)
+            ? block.summaries
+                .map(record)
+                .filter((item): item is Loose => item !== null)
+                .map((item) => (typeof item.summary === 'string' ? item.summary : ''))
+                .filter(Boolean)
+                .join('\n')
+            : ''
+          const thinking =
+            typeof block.thinking === 'string' && block.thinking.trim() && !block.thinking_hidden
+              ? block.thinking
+              : summary
+          if (thinking.trim()) {
+            thinkings.push(thinking)
+          }
+          const start =
+            typeof block.start_timestamp === 'string' ? Date.parse(block.start_timestamp) : NaN
+          const stop =
+            typeof block.stop_timestamp === 'string' ? Date.parse(block.stop_timestamp) : NaN
+          if (Number.isFinite(start) && Number.isFinite(stop) && stop > start) {
+            thinkingSeconds += (stop - start) / 1000
+          }
+        }
+      }
+      const text = texts.join('\n\n') || contentText(message.text)
+      const thinking = thinkings.join('\n\n')
       const at = toMs(message.created_at, Date.now())
       const sender = message.sender ?? message.role
       if (sender === 'human' || sender === 'user') {
@@ -605,7 +663,13 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
         pendingQuestion = text
         pendingAt = at
       } else if (sender === 'assistant') {
-        rounds.push({ question: pendingQuestion, answer: text, at: pendingAt || at })
+        rounds.push({
+          question: pendingQuestion,
+          answer: text,
+          at: pendingAt || at,
+          thinking: thinking || undefined,
+          thinkingSeconds: thinkingSeconds > 0 ? thinkingSeconds : undefined,
+        })
         pendingQuestion = ''
       }
     }

@@ -47,8 +47,11 @@ export const exportHistory = (): Promise<{ name: string; blob: Blob }> =>
     return { name: backupFileName(new Date()), blob }
   })
 
-/** 导出一个归档组为 ZIP；文件名取组名。 */
-export const exportGroupArchive = (groupId: string): Promise<{ name: string; blob: Blob }> =>
+/** 导出一个归档组为 ZIP；文件名取组名。extended=true 时附带 chatbrowser_ext.json。 */
+export const exportGroupArchive = (
+  groupId: string,
+  options: { extended?: boolean; anonymize?: boolean } = {}
+): Promise<{ name: string; blob: Blob }> =>
   enqueueBackup(async () => {
     const { sessions, groups } = useChatStore.getState()
     const group = groups.find((item) => item.id === groupId)
@@ -60,8 +63,74 @@ export const exportGroupArchive = (groupId: string): Promise<{ name: string; blo
       throw new Error(`Archive group is empty: ${groupId}`)
     }
     const { exportArchive } = await import('./history/exportArchive.js')
-    const blob = await exportArchive(sessionReader(list)())
-    return { name: `${downloadName(group.name)}.zip`, blob }
+    const blob = await exportArchive(sessionReader(list)(), {
+      extended: options.extended,
+      anonymize: options.anonymize,
+      group,
+    })
+    return {
+      name: `${downloadName(group.name)}${options.extended ? '-ext' : ''}.zip`,
+      blob,
+    }
+  })
+
+/** 导出单个会话为归档 ZIP；扩展模式附带系统提示词。 */
+export const exportSessionArchive = (
+  sessionId: string,
+  options: { extended?: boolean; anonymize?: boolean } = {}
+): Promise<{ name: string; blob: Blob }> =>
+  enqueueBackup(async () => {
+    const state = useChatStore.getState()
+    const summary = state.sessions.find((item) => item.id === sessionId)
+    const session = Object.hasOwn(state.sessionCache, sessionId)
+      ? state.sessionCache[sessionId]
+      : await db.loadSession(sessionId)
+    if (!summary || !session) {
+      throw new Error(`History session is missing: ${sessionId}`)
+    }
+    const group = state.groups.find((item) => item.id === session.groupId) ?? null
+    const { exportArchive } = await import('./history/exportArchive.js')
+    const blob = await exportArchive([{ ...session, ...summary }], {
+      extended: options.extended,
+      anonymize: options.anonymize,
+      group,
+    })
+    return {
+      name: `${downloadName(session.title || 'session')}${options.extended ? '-ext' : ''}.zip`,
+      blob,
+    }
+  })
+
+/** 导出为 Claude conversations.json（有损：仅当前分支的文本内容）。 */
+export const exportClaudeJson = (target: {
+  groupId?: string
+  sessionId?: string
+  anonymize?: boolean
+}): Promise<{ name: string; blob: Blob }> =>
+  enqueueBackup(async () => {
+    const { sessions, groups, sessionCache } = useChatStore.getState()
+    const { exportClaudeJson: toClaude } = await import('./converters/claude.js')
+    if (target.groupId) {
+      const group = groups.find((item) => item.id === target.groupId)
+      const list = sessions.filter((session) => session.groupId === target.groupId)
+      if (!group || list.length === 0) {
+        throw new Error(`Archive group is empty: ${target.groupId}`)
+      }
+      const blob = await toClaude(sessionReader(list)(), { anonymize: target.anonymize })
+      return { name: `${downloadName(group.name)}-claude.json`, blob }
+    }
+    const sessionId = target.sessionId
+    const summary = sessions.find((item) => item.id === sessionId)
+    const session = sessionId
+      ? Object.hasOwn(sessionCache, sessionId)
+        ? sessionCache[sessionId]
+        : await db.loadSession(sessionId)
+      : undefined
+    if (!sessionId || !summary || !session) {
+      throw new Error(`History session is missing: ${sessionId ?? ''}`)
+    }
+    const blob = await toClaude([{ ...session, ...summary }], { anonymize: target.anonymize })
+    return { name: `${downloadName(session.title || 'session')}-claude.json`, blob }
   })
 
 /** 组名取自 ZIP 文件名（去掉扩展名）。 */
@@ -90,9 +159,22 @@ export const importArchiveFile = (file: File): Promise<number> =>
         }
       })
     }
+    const { readArchiveExtension } = await import('./history/extension.js')
+    const extension = await readArchiveExtension(file)
+    if (extension?.group) {
+      if (extension.group.name && extension.group.name.trim()) {
+        group.name = extension.group.name
+      }
+      if (extension.group.color !== undefined) {
+        group.color = extension.group.color
+      }
+      if (extension.group.extras && extension.group.extras.length > 0) {
+        group.extras = extension.group.extras
+      }
+    }
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
     await checkArchiveFormat(file)
-    return addHistoryGroup(group, () => importArchive(file, group.id))
+    return addHistoryGroup(group, () => importArchive(file, group.id, extension))
   })
 
 /** 是否外部格式（ChatGPT / Claude 的 JSON 导出） */

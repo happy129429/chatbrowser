@@ -155,6 +155,22 @@ await sleep(3500)
 const sessionCount = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
 check('导入 mock ZIP', sessionCount === 12, `会话数=${sessionCount}`)
 
+// 安全拒绝：默认隐藏，点击小按钮后显示原始内容
+await clickByText('div[class*="item-"]', 'TypeScript 类型体操')
+await sleep(1200)
+const refusedToggle = await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((node) => node.textContent.includes('显示原始内容'))
+  btn?.click()
+  return btn ? 'ok' : 'no-toggle'
+})()`)
+await sleep(400)
+const refusedText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  '拒绝回复可展开查看原始内容',
+  refusedToggle === 'ok' && typeof refusedText === 'string' && refusedText.includes('模型原始正文'),
+  refusedToggle
+)
+
 // 外部格式（ChatGPT ZIP / Claude ZIP / z.ai JSON）
 const chatgptBase64 = fs
   .readFileSync(path.join(root, 'mock', 'chatgpt-sample.zip'))
@@ -221,6 +237,16 @@ check(
   'Claude content 数组正文可导入',
   typeof claudeContent === 'string' && claudeContent.includes('conducted extensive experiments'),
   claudeContent.includes('conducted extensive experiments') ? 'ok' : 'missing'
+)
+
+const claudeThinkingTitle = await evaluate(
+  `[...document.querySelectorAll('div[class*="title"]')].some((node) => node.textContent.includes('已思考'))`
+)
+const claudeThinkingBody = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'Claude 思考块与正文分离',
+  claudeThinkingTitle === true && /rewrite this sentence/.test(claudeThinkingBody),
+  claudeThinkingTitle ? 'ok' : 'missing'
 )
 
 await clickByText('div[class*="item-"]', 'z.ai 原生：分支历史')
@@ -458,6 +484,39 @@ if (exportedFile) {
 }
 check('导出包含所选轮次的 HTML', exportOk, exportDetail)
 
+// 导出为… 弹窗（单会话）
+await evaluate(`(() => {
+  const item = [...document.querySelectorAll('div[class*="item-"]')].find((node) => node.textContent.includes('长会话压测'))
+  const btn = [...(item?.querySelectorAll('button') ?? [])].find((node) => (node.getAttribute('aria-label') ?? '').includes('更多'))
+  btn?.click()
+  return btn ? 'ok' : 'no-more'
+})()`)
+await sleep(400)
+await evaluate(`(() => {
+  const el = [...document.querySelectorAll('button,[role="menuitem"]')].find((node) => node.textContent.trim() === '导出为…')
+  el?.click()
+  return el ? 'ok' : 'no-export-as'
+})()`)
+await sleep(500)
+const exportDialog = await evaluate(
+  `document.querySelector('div[role="dialog"]')?.textContent ?? ''`
+)
+check(
+  '单会话导出为…弹窗包含格式与匿名化',
+  typeof exportDialog === 'string' &&
+    exportDialog.includes('DeepSeek 兼容 ZIP') &&
+    exportDialog.includes('DeepSeek 扩展 ZIP') &&
+    exportDialog.includes('Claude JSON') &&
+    exportDialog.includes('匿名化 ID'),
+  exportDialog.slice(0, 80)
+)
+await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('div[role="dialog"] button')].find((node) => node.textContent.trim() === '取消')
+  btn?.click()
+  return 'ok'
+})()`)
+await sleep(300)
+
 // ---------- 6. 统计 ----------
 await evaluate(`document.querySelector('button[class*="settings"]')?.click()`)
 await sleep(600)
@@ -488,7 +547,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.6.7') &&
+  aboutText.includes('0.6.8') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

@@ -16,7 +16,6 @@ import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
 import { openArchivePicker } from './ArchiveInputHost.js'
 import { Markdown } from '../markdown/Markdown.js'
-import { saveBlob } from '../../utils/saveFile.js'
 import {
   createGroup,
   dissolveGroup,
@@ -32,13 +31,13 @@ import {
   startShareSelect,
   useChatStore,
 } from '../../services/chat/store.js'
-import { exportGroupArchive } from '../../services/chat/backup.js'
 import type { SessionGroup, SessionSummary } from '../../services/chat/types.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import { openSettings } from '../settings/settingsDialogState.js'
+import { openExport } from '../export/exportDialogState.js'
 import { closeMobileSider, useMobileSider } from './mobileSiderState.js'
 import { colorDotClass, GroupHeader } from './GroupHeader.js'
 import { openSearchOverlay } from './searchOverlayState.js'
@@ -137,18 +136,6 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
     }
   }, [])
 
-  const exportGroup = async (group: SessionGroup) => {
-    try {
-      const { name, blob } = await exportGroupArchive(group.id)
-      const result = await saveBlob(name, blob)
-      if (result === 'saved') {
-        showToast({ key: 'exportSaved' })
-      }
-    } catch {
-      showToast({ key: 'groupOperationFailed', type: 'error' })
-    }
-  }
-
   const moveSessions = (ids: string[], groupId: string | null) => {
     void moveSessionsToGroup(ids, groupId).catch(() =>
       showToast({ key: 'groupOperationFailed', type: 'error' })
@@ -203,6 +190,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           selectSession(session.id)
           startShareSelect(session.id, 'all')
         }}
+        onExportAs={() => openExport({ kind: 'session', id: session.id })}
         onMove={
           archiveGroups.length > 0 ? (groupId) => moveSessions([session.id], groupId) : undefined
         }
@@ -375,7 +363,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                           showToast({ key: 'groupOperationFailed', type: 'error' })
                         )
                       }}
-                      onExport={() => void exportGroup(group)}
+                      onExport={() => openExport({ kind: 'group', id: group.id })}
                       onShowExtras={
                         group.extras && group.extras.length > 0
                           ? () => setExtrasGroup(group)

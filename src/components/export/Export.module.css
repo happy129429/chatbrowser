@@ -1,0 +1,110 @@
+.dialog {
+  width: min(640px, 100%);
+}
+
+.target {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.targetLabel {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.targetName {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: none;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background-color: var(--dsw-specific-sidebar-nav-item-hover);
+}
+
+.optionActive {
+  border-color: var(--dsw-alias-button-primary-fill);
+}
+
+.optionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.optionDescription {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.lossy {
+  padding: 0 6px;
+  border-radius: 4px;
+  background-color: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.radio {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--dsw-alias-border-l2);
+  border-radius: 50%;
+}
+
+.optionActive .radio {
+  border: 4px solid var(--dsw-alias-button-primary-fill);
+}
+
+.anonymize {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  cursor: pointer;
+}
+
+.anonymize input {
+  margin-top: 3px;
+  accent-color: var(--dsw-alias-button-primary-fill);
+}

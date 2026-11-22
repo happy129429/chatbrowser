@@ -1,7 +1,15 @@
 import * as db from '../db.js'
 import { BackupError, fail } from './errors.js'
 import type { SessionIndexEntry } from './format.js'
-import { INDEX_PATH, MANIFEST_PATH, USER_PATH, parseSessionPath, sessionFilesDir } from './paths.js'
+import {
+  EXT_PATH,
+  INDEX_PATH,
+  MANIFEST_PATH,
+  USER_PATH,
+  parseSessionPath,
+  sessionFilesDir,
+} from './paths.js'
+import { readExtension, sessionPrompts, type ArchiveExtension } from './extension.js'
 import { checkManifest, readSessionFile, readSessionIndex } from './schema.js'
 import { toLocalSession } from './toLocal.js'
 import {
@@ -78,7 +86,11 @@ export const checkArchiveFormat = async (file: File): Promise<void> => {
  * 会话读完立即暂存（打上目标组 ID），只保留图片路径映射；图片全部读完后逐会话回填 MIME，不改变图片身份。
  * 写入导入暂存存储；调用方负责先清空暂存，成功后按组提交，失败时清理暂存。
  */
-export const importArchive = async (file: File, groupId: string): Promise<void> => {
+export const importArchive = async (
+  file: File,
+  groupId: string,
+  extension?: ArchiveExtension | null
+): Promise<void> => {
   if (!(await isZipFile(file))) {
     fail('backupUnrecognized')
   }
@@ -89,6 +101,7 @@ export const importArchive = async (file: File, groupId: string): Promise<void> 
   let manifest = false
   let index: SessionIndexEntry[] | undefined
   let currentSessionId: string | undefined
+  const prompts = sessionPrompts(extension ?? null)
 
   const saveImage = async (entry: ArchiveEntry, id: string) => {
     if (stored.has(id)) {
@@ -117,6 +130,10 @@ export const importArchive = async (file: File, groupId: string): Promise<void> 
       } else if (sessionId !== null && !index) {
         const local = toLocalSession(readSessionFile(await readJson(entry)))
         local.session.groupId = groupId
+        const systemPrompt = prompts.get(sessionId)
+        if (systemPrompt) {
+          local.session.systemPrompt = systemPrompt
+        }
         if (local.session.id !== sessionId || imported.has(sessionId)) {
           fail('backupIncomplete')
         }
@@ -126,6 +143,9 @@ export const importArchive = async (file: File, groupId: string): Promise<void> 
           images.set(imagePath, id)
         }
         await db.addStagingSession(local.session)
+      } else if (path === EXT_PATH) {
+        // 旁路扩展数据已在外层预读；这里只需消费条目
+        readExtension(await readJson(entry))
       } else if (path === INDEX_PATH && !index) {
         index = readSessionIndex(await readJson(entry))
       } else if (

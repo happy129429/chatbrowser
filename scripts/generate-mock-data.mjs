@@ -271,6 +271,8 @@ const workSessions = [
         tokens: 1310,
         status: 'CONTENT_FILTER',
         fragments: [
+          think('模型原始思考：联合类型分发时，条件类型会逐项展开，需要小心 never。', 2),
+          answer('模型原始正文：这里是被安全策略拦截前已经下发的正文内容。'),
           {
             type: 'TEMPLATE_RESPONSE',
             content: '该回复因触发内容安全策略被拦截，请调整问题后重试。',
@@ -723,39 +725,65 @@ const claude = [
       {
         uuid: 'cl-1-1',
         sender: 'human',
-        // 真实导出的常见形态：text 为空串，正文在 content 数组里
-        text: '',
+        text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
         content: [
           {
             type: 'text',
             text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
+            citations: [],
           },
         ],
         created_at: new Date(now - 5 * 86400000).toISOString(),
+        attachments: [],
+        files: [{ file_uuid: 'cl-file-1', file_name: 'paper.png' }],
+        parent_message_uuid: '00000000-0000-4000-8000-000000000000',
       },
       {
         uuid: 'cl-1-2',
         sender: 'assistant',
-        text: null,
+        // 真实导出：text 是思考 + 正文的拼接全文；结构化内容在 content 中
+        text: 'I need to rewrite this sentence in an academic tone.\n\nWe conducted extensive experiments, and the results demonstrate strong performance.',
         content: [
+          {
+            type: 'thinking',
+            thinking: 'I need to rewrite this sentence in an academic tone.',
+            summaries: [{ summary: '改写为学术表达。' }],
+            start_timestamp: new Date(now - 5 * 86400000 + 5000).toISOString(),
+            stop_timestamp: new Date(now - 5 * 86400000 + 25000).toISOString(),
+            flags: null,
+            cut_off: false,
+            truncated: true,
+            hidden: false,
+            thinking_hidden: false,
+          },
           {
             type: 'text',
             text: 'We conducted extensive experiments, and the results demonstrate strong performance.',
+            citations: [],
           },
         ],
         created_at: new Date(now - 5 * 86400000 + 30000).toISOString(),
+        attachments: [],
+        files: [],
+        parent_message_uuid: 'cl-1-1',
       },
       {
         uuid: 'cl-1-3',
         sender: 'human',
         text: '再精简一点',
         created_at: new Date(now - 5 * 86400000 + 60000).toISOString(),
+        attachments: [],
+        files: [],
+        parent_message_uuid: 'cl-1-2',
       },
       {
         uuid: 'cl-1-4',
         sender: 'assistant',
         text: 'Extensive experiments confirm the strong performance.',
         created_at: new Date(now - 5 * 86400000 + 70000).toISOString(),
+        attachments: [],
+        files: [],
+        parent_message_uuid: 'cl-1-3',
       },
     ],
   },

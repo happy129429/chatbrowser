@@ -3,6 +3,7 @@ import { memo, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
   IconCheckedOutline14,
+  IconDownloadOutline16,
   IconEditOutline16,
   IconEllipsisOutline16,
   IconPinFill16,
@@ -27,6 +28,7 @@ export const SessionItem = memo(function SessionItem({
   selection,
   onPin,
   onExportChat,
+  onExportAs,
   onDelete,
 }: {
   session: SessionSummary
@@ -43,6 +45,7 @@ export const SessionItem = memo(function SessionItem({
   onPin?: (pinned: boolean) => void
   /** 打开该会话的轮次导出选择 */
   onExportChat?: () => void
+  onExportAs?: () => void
   onDelete: () => void
 }) {
   const t = useTranslate()
@@ -146,6 +149,12 @@ export const SessionItem = memo(function SessionItem({
               label: t('shareChat'),
               icon: <IconShareOutline16 />,
               onSelect: () => onExportChat?.(),
+            },
+            {
+              key: 'export-as',
+              label: t('exportAs'),
+              icon: <IconDownloadOutline16 />,
+              onSelect: () => onExportAs?.(),
             },
             ...moveOptions,
             ...ungroupOption,

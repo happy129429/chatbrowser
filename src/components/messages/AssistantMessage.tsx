@@ -1,6 +1,6 @@
 import { useTranslate } from '../../i18n/index.js'
 import clsx from 'clsx'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { IconShareOutline16, IconWarningOutline16 } from '../base/icons.js'
 import { IconButton } from '../base/IconButton.js'
 import { describeReply } from '../../services/chat/describe.js'
@@ -40,9 +40,11 @@ export const AssistantMessage = memo(function AssistantMessage({
   const view = useReplyView(message)
   const panelEntry = useSearchPanel((state) => state.entry)
   const notice = describeReply(message)
-  // 安全拒绝：已下发的思考与正文按协议丢弃，只显示模板答复。
+  // 安全拒绝：默认只显示模板答复，归档浏览时可展开查看原始内容。
+  const [showRefused, setShowRefused] = useState(false)
   const refused = message.stopReason === 'refusal'
-  const answer = refused ? null : view.answer
+  const hiddenRefused = refused && !showRefused
+  const answer = hiddenRefused ? null : view.answer
   const responseText = [answer?.text, notice?.presentation === 'response' ? notice.text : null]
     .filter(Boolean)
     .join('\n\n')
@@ -50,7 +52,9 @@ export const AssistantMessage = memo(function AssistantMessage({
   const summaryEntry = `${message.id}-summary`
   return (
     <div className={styles.message} data-message-id={message.id}>
-      {refused ? null : <ReplyArea message={message} view={view} hasResponse={!!responseText} />}
+      {hiddenRefused ? null : (
+        <ReplyArea message={message} view={view} hasResponse={!!responseText} />
+      )}
       {answer ? (
         <Markdown
           className="ds-assistant-message-main-content"
@@ -75,6 +79,14 @@ export const AssistantMessage = memo(function AssistantMessage({
           <span>{notice.text}</span>
         </div>
       ) : null}
+      {refused && !showRefused ? (
+        <button type="button" className={styles.refusedToggle} onClick={() => setShowRefused(true)}>
+          {t('showRefusedContent')}
+        </button>
+      ) : null}
+      {refused && showRefused ? (
+        <div className={styles.refusedHint}>{t('refusedContentHint')}</div>
+      ) : null}
       {!refused && view.searchResults.length > 0 ? (
         <div
           className={clsx(styles.summary, panelEntry === summaryEntry && styles.summaryActive)}
@@ -93,7 +105,7 @@ export const AssistantMessage = memo(function AssistantMessage({
         <BranchSwitcher versions={versions} disabled={false} onSelect={onSelectVersion} />
         <div className={clsx(styles.actions, isLast && styles.alwaysShow)}>
           {copyText ? <CopyButton text={copyText} /> : null}
-          {responseText && !refused ? (
+          {responseText && (!refused || showRefused) ? (
             <ReadAloudButton messageId={message.id} text={responseText} />
           ) : null}
           {onShareRound ? (
