@@ -28,6 +28,36 @@ import styles from './MessageList.module.css'
 
 /** 距底部小于该值时视为在底部，内容增长时跟随 */
 const STICKY_THRESHOLD = 40
+
+/** 会话滚动位置：首个可见消息与相对滚动容器顶部的偏移，刷新后恢复。 */
+type SavedPosition = { messageId: string; offset: number; atBottom: boolean; ts: number }
+const POSITIONS_KEY = 'chat-demo:scroll-positions'
+const readPositions = (): Record<string, SavedPosition> => {
+  try {
+    return JSON.parse(localStorage.getItem(POSITIONS_KEY) ?? '{}') as Record<string, SavedPosition>
+  } catch {
+    return {}
+  }
+}
+const positions = readPositions()
+let positionsTimer = 0
+const flushPositions = () => {
+  window.clearTimeout(positionsTimer)
+  // 只保留最近的 200 条，避免无限增长
+  const entries = Object.entries(positions)
+    .sort((a, b) => b[1].ts - a[1].ts)
+    .slice(0, 200)
+  try {
+    localStorage.setItem(POSITIONS_KEY, JSON.stringify(Object.fromEntries(entries)))
+  } catch {
+    // 存储不可用时忽略
+  }
+}
+const rememberPosition = (sessionId: string, position: SavedPosition) => {
+  positions[sessionId] = position
+  window.clearTimeout(positionsTimer)
+  positionsTimer = window.setTimeout(flushPositions, 400)
+}
 const EMPTY_VERSIONS: MessageVersions = { ids: [], index: -1 }
 
 export const MessageList = ({
@@ -67,14 +97,31 @@ export const MessageList = ({
   /** 跳转定位进行中：吸底跟随暂停，内容懒渲染长高时持续重新对准目标。 */
   const jumpActiveRef = useRef(false)
   const jumpTargetRef = useRef<string | null>(null)
-  const jumpStableRef = useRef({ height: 0, count: 0 })
   const jumpReleaseRef = useRef(0)
+  /** 目标相对容器顶部的期望偏移；null 表示居中（搜索/导航跳转） */
+  const jumpOffsetRef = useRef<number | null>(null)
+  const sessionIdRef = useRef(session.id)
+  sessionIdRef.current = session.id
 
   const releaseJump = useCallback(() => {
     jumpActiveRef.current = false
     jumpTargetRef.current = null
+    jumpOffsetRef.current = null
     window.clearTimeout(jumpReleaseRef.current)
   }, [])
+
+  /** 恢复上次阅读位置：不闪烁，只对齐到保存的消息与偏移。 */
+  const restorePosition = useCallback(
+    (messageId: string, offset: number) => {
+      stickyRef.current = false
+      jumpActiveRef.current = true
+      jumpTargetRef.current = messageId
+      jumpOffsetRef.current = offset
+      window.clearTimeout(jumpReleaseRef.current)
+      jumpReleaseRef.current = window.setTimeout(releaseJump, 1500)
+    },
+    [releaseJump]
+  )
 
   const jumpToMessage = useCallback(
     (messageId: string) => {
@@ -88,7 +135,7 @@ export const MessageList = ({
       stickyRef.current = false
       jumpActiveRef.current = true
       jumpTargetRef.current = messageId
-      jumpStableRef.current = { height: 0, count: 0 }
+      jumpOffsetRef.current = null
       window.clearTimeout(jumpReleaseRef.current)
       // 内容迟迟不再变化（如目标本就渲染完毕）时兜底释放，避免跟随永久失效。
       jumpReleaseRef.current = window.setTimeout(releaseJump, 1500)
@@ -120,19 +167,18 @@ export const MessageList = ({
         releaseJump()
         return
       }
-      const height = content.scrollHeight
-      const stable = jumpStableRef.current.height === height ? jumpStableRef.current.count + 1 : 0
-      jumpStableRef.current = { height, count: stable }
-      if (stable >= 2) {
-        releaseJump()
-        return
-      }
+      const desiredOffset = jumpOffsetRef.current
       const delta =
-        target.getBoundingClientRect().top + target.clientHeight / 2 - scroll.clientHeight / 2
+        desiredOffset === null
+          ? target.getBoundingClientRect().top + target.clientHeight / 2 - scroll.clientHeight / 2
+          : target.getBoundingClientRect().top - scroll.getBoundingClientRect().top - desiredOffset
       if (Math.abs(delta) > 1) {
         scroll.scrollTop += delta
         scrollTopRef.current = scroll.scrollTop
       }
+      // 静默期：内容持续增长期间保持对准，停止变化 400ms 后释放
+      window.clearTimeout(jumpReleaseRef.current)
+      jumpReleaseRef.current = window.setTimeout(releaseJump, 400)
     })
     observer.observe(content)
     observer.observe(scroll)
@@ -156,6 +202,22 @@ export const MessageList = ({
     stickyRef.current = true
     scrollToBottom()
   }, [session.id, lastMessageId, scrollToBottom])
+
+  // 会话首次渲染后恢复上次阅读位置；正在搜索跳转时让位于跳转。
+  const restoredSessionRef = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    if (restoredSessionRef.current === session.id) {
+      return
+    }
+    restoredSessionRef.current = session.id
+    const saved = positions[session.id]
+    const jumping = useChatStore.getState().pendingJump?.sessionId === session.id
+    if (!saved || saved.atBottom || jumping || !saved.messageId) {
+      return
+    }
+    restorePosition(saved.messageId, saved.offset)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id])
 
   useEffect(closeSearchPanel, [session.id, lastMessageId])
 
@@ -199,6 +261,28 @@ export const MessageList = ({
         stickyRef.current = false
       }
       scrollTopRef.current = el.scrollTop
+      // 记录阅读位置：首个可见消息 + 相对容器顶部的偏移
+      if (!jumpActiveRef.current) {
+        const content = contentRef.current
+        if (content) {
+          const containerTop = el.getBoundingClientRect().top
+          let anchor: HTMLElement | null = null
+          for (const node of content.querySelectorAll<HTMLElement>('[data-message-id]')) {
+            if (node.getBoundingClientRect().bottom > containerTop + 1) {
+              anchor = node
+              break
+            }
+          }
+          if (anchor) {
+            rememberPosition(sessionIdRef.current, {
+              messageId: anchor.dataset.messageId ?? '',
+              offset: Math.round(anchor.getBoundingClientRect().top - containerTop),
+              atBottom: nearBottom,
+              ts: Date.now(),
+            })
+          }
+        }
+      }
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     // 用户主动滚动立即接管，终止跳转锁定
@@ -211,6 +295,16 @@ export const MessageList = ({
       el.removeEventListener('touchstart', onUserScrollIntent)
     }
   }, [isMobile, releaseJump, scrollToBottom])
+
+  useEffect(() => {
+    const flush = () => flushPositions()
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', flush)
+    }
+  }, [])
 
   const lastIndex = messages.length - 1
   const rounds = useMemo(
