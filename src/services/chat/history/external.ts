@@ -47,6 +47,18 @@ const toConversationList = (parsed: unknown): unknown[] | null => {
   if (Array.isArray(wrapper.data)) {
     return wrapper.data
   }
+  if (record(wrapper.data)) {
+    return toConversationList(wrapper.data)
+  }
+  if (Array.isArray(wrapper.chats)) {
+    return wrapper.chats
+  }
+  if (Array.isArray(wrapper.items)) {
+    return wrapper.items
+  }
+  if (Array.isArray(wrapper.list)) {
+    return wrapper.list
+  }
   if (Array.isArray(wrapper.messages)) {
     return [wrapper]
   }
@@ -74,11 +86,16 @@ export const detectExternalSource = (parsed: unknown): ExternalSource | null => 
   if (Array.isArray(first.chat_messages)) {
     return 'claude'
   }
-  const messages = first.messages
-  if (Array.isArray(messages) && messages.length > 0) {
-    const sample = record(messages[0])
-    if (sample && ('role' in sample || 'sender' in sample)) {
-      return 'generic'
+  for (const key of ['messages', 'chat_history', 'history', 'turns', 'records']) {
+    const messages = first[key]
+    if (Array.isArray(messages) && messages.length > 0) {
+      const sample = record(messages[0])
+      if (
+        sample &&
+        ('role' in sample || 'sender' in sample || 'from' in sample || 'is_user' in sample)
+      ) {
+        return 'generic'
+      }
     }
   }
   return null
@@ -130,9 +147,13 @@ const fromGeneric = (list: unknown[], groupId: string): Session[] => {
   const sessions: Session[] = []
   for (const item of list) {
     const conversation = record(item)
-    const messages =
-      conversation && Array.isArray(conversation.messages) ? conversation.messages : null
-    if (!conversation || !messages) {
+    if (!conversation) {
+      continue
+    }
+    const messages = ['messages', 'chat_history', 'history', 'turns', 'records']
+      .map((key) => conversation[key])
+      .find((value): value is unknown[] => Array.isArray(value))
+    if (!messages) {
       continue
     }
     const systemParts: string[] = []
@@ -144,8 +165,14 @@ const fromGeneric = (list: unknown[], groupId: string): Session[] => {
       if (!message) {
         return
       }
-      const role = roleOf(message.role) ?? roleOf(message.sender)
-      const text = contentText(message.content ?? message.text ?? message.message)
+      const role =
+        roleOf(message.role) ??
+        roleOf(message.sender) ??
+        roleOf(message.from) ??
+        (message.is_user === true ? 'user' : message.is_user === false ? 'assistant' : null)
+      const text = contentText(
+        message.content ?? message.text ?? message.message ?? message.value ?? message.parts
+      )
       const at = toMs(
         message.created_at ?? message.created_time ?? message.inserted_at ?? message.timestamp,
         Date.now() + index
@@ -374,7 +401,7 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       if (!message) {
         continue
       }
-      const text = typeof message.text === 'string' ? message.text : ''
+      const text = contentText(message.text ?? message.content)
       const at = toMs(message.created_at, Date.now())
       if (message.sender === 'human') {
         if (pendingQuestion) {

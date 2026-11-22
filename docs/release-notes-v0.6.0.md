@@ -5,12 +5,12 @@ A local AI chat-history browser. No API, no server, your data stays on your devi
 
 ## 下载 / Downloads
 
-| 文件 / Asset | 平台 / Platform | 说明 / Notes |
-| --- | --- | --- |
-| `windows-x64.zip` | Windows 10/11 | 解压双击 `chatbrowser.exe`（Edge/Chrome 无地址栏窗口） |
-| `windows-portable.zip` | Windows | **免 exe**：用系统自带 PowerShell 启动（`start-chatbrowser.cmd`），规避未签名程序拦截 |
-| `linux-x64.tar.gz` | Linux x86_64 | 解压运行 `./chatbrowser`（含图标与 .desktop） |
-| `chatbrowser-android.apk` | Android 6+ | 直接安装；数据与导出均在本机 |
+| 文件 / Asset              | 平台 / Platform | 说明 / Notes                                                                          |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------- |
+| `windows-x64.zip`         | Windows 10/11   | 解压双击 `chatbrowser.exe`（Edge/Chrome 无地址栏窗口）                                |
+| `windows-portable.zip`    | Windows         | **免 exe**：用系统自带 PowerShell 启动（`start-chatbrowser.cmd`），规避未签名程序拦截 |
+| `linux-x64.tar.gz`        | Linux x86_64    | 解压运行 `./chatbrowser`（含图标与 .desktop）                                         |
+| `chatbrowser-android.apk` | Android 6+      | 直接安装；数据与导出均在本机                                                          |
 
 > 未签名提示：右键 zip → 属性 → 勾选「解除锁定」后再解压；SmartScreen 弹窗选「更多信息 → 仍要运行」。桌面版与便携版使用同一地址 `127.0.0.1:17890`，数据互通。
 
@@ -27,11 +27,13 @@ A local AI chat-history browser. No API, no server, your data stays on your devi
 ## 自 v0.5.0 以来的变化 / Since v0.5.0
 
 ### 新增
+
 - ChatGPT / Claude / z.ai 导入与附加信息查看
 - Windows PowerShell 便携版；启动器自动发现 Edge/Chrome 并用 `--app` 开窗口
 - 关于页与检查更新、CSP、三平台应用图标、GitHub Actions 发布流水线
 
 ### 修复
+
 - DeepSeek ZIP 内的会话文件不会被误判为外部格式
 - 导航条悬停浮层尺寸、用户气泡折行、跳转期间滚动位置丢失等
 

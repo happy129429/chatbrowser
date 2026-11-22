@@ -86,8 +86,12 @@ for (const target of targets) {
     )
   }
   fs.writeFileSync(
-    path.join(outDir, '使用说明.txt'),
+    path.join(outDir, 'README-zh.txt'),
     '双击 chatbrowser 启动（首次启动会在本地 127.0.0.1:17890 提供服务并自动打开窗口）。\n数据保存在浏览器存储中，与源 ZIP 文件无关。\n关闭窗口后程序仍在后台运行，再次双击即可重新打开（不会重复启动）。\n'
+  )
+  fs.writeFileSync(
+    path.join(outDir, 'Instructions.txt'),
+    'chatbrowser\n\nDouble-click "chatbrowser" to start. It serves the app at 127.0.0.1:17890 and opens a chromeless window (Edge/Chrome; Firefox falls back to a normal tab).\nData is stored in the browser storage and is independent of your source ZIP files.\nClosing the window keeps the launcher running; double-click again to reopen it (no duplicate instance).\n'
   )
   built.push({ target, outDir })
 }
@@ -123,10 +127,16 @@ for (const { target, outDir } of built) {
   )
   fs.copyFileSync(path.join(root, 'LICENSE'), path.join(portableDir, 'LICENSE'))
   fs.writeFileSync(
-    path.join(portableDir, '使用说明.txt'),
+    path.join(portableDir, 'README-zh.txt'),
     '双击 start-chatbrowser.cmd 启动（使用 Windows 自带 PowerShell，无需安装，也没有 exe）。\r\n' +
       '首次可能提示“是否允许 PowerShell 运行”，选择允许即可。\r\n' +
       '本地服务地址固定为 127.0.0.1:17890，与桌面版共享同一份浏览器数据。\r\n'
+  )
+  fs.writeFileSync(
+    path.join(portableDir, 'Instructions.txt'),
+    'chatbrowser (portable, no exe)\r\n\r\n' +
+      'Double-click start-chatbrowser.cmd. It uses the built-in Windows PowerShell, so there is no executable to be blocked by Defender.\r\n' +
+      'Allow PowerShell if prompted. The fixed address 127.0.0.1:17890 shares data with the desktop build.\r\n'
   )
   const files = {}
   const walk = (dir, base) => {

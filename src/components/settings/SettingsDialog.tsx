@@ -15,7 +15,7 @@ import {
   BackupError,
   clearHistory,
   exportHistory,
-  importArchiveFile,
+  importArchiveFiles,
 } from '../../services/chat/backup.js'
 import { useChatStore } from '../../services/chat/store.js'
 import {
@@ -517,7 +517,11 @@ const useHistoryImport = () => {
     setBusy(true)
     setStatus(null)
     try {
-      const count = await importArchiveFile(file)
+      const [outcome] = await importArchiveFiles([file])
+      if (outcome?.error) {
+        throw outcome.error
+      }
+      const count = outcome?.sessions ?? 0
       setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
     } catch (error) {
       setStatus(
@@ -565,7 +569,7 @@ const ImportHistory = ({
           <input
             ref={inputRef}
             type="file"
-            accept=".zip,application/zip,application/x-zip-compressed"
+            accept=".zip,.json,application/zip,application/x-zip-compressed,application/json"
             hidden
             onChange={(event) => {
               const file = event.target.files?.[0]

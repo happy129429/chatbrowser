@@ -749,21 +749,23 @@ const claude = [
 ]
 writeFileSync(path.join(outDir, 'claude-sample.json'), JSON.stringify(claude, null, 2))
 const zai = {
-  conversations: [
-    {
-      id: 'zai-1',
-      title: 'z.ai 示例：GLM 问答',
-      created_at: new Date(now - 4 * 86400000).toISOString(),
-      updated_at: new Date(now - 4 * 86400000 + 60000).toISOString(),
-      messages: [
-        { role: 'system', content: '你是 GLM，一个乐于助人的 AI 助手。' },
-        { role: 'user', content: '用一句话介绍 z.ai' },
-        { role: 'assistant', content: 'z.ai 是智谱推出的 AI 助手平台。' },
-        { role: 'user', content: '再短一点' },
-        { role: 'assistant', content: '智谱的 AI 助手。' },
-      ],
-    },
-  ],
+  data: {
+    chats: [
+      {
+        id: 'zai-1',
+        name: 'z.ai 示例：GLM 问答',
+        created_at: new Date(now - 4 * 86400000).toISOString(),
+        updated_at: new Date(now - 4 * 86400000 + 60000).toISOString(),
+        chat_history: [
+          { role: 'system', content: '你是 GLM，一个乐于助人的 AI 助手。' },
+          { role: 'user', content: '用一句话介绍 z.ai' },
+          { role: 'assistant', content: 'z.ai 是智谱推出的 AI 助手平台。' },
+          { role: 'user', content: '再短一点' },
+          { role: 'assistant', content: '智谱的 AI 助手。' },
+        ],
+      },
+    ],
+  },
 }
 writeFileSync(path.join(outDir, 'zai-sample.json'), JSON.stringify(zai, null, 2))
 console.log('外部格式样例: chatgpt-sample(.zip/.json) / claude-sample.json / zai-sample.json')
