@@ -62,7 +62,7 @@ pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug (needs And
 
 ## Features
 
-- Import one or more history export ZIPs; each becomes an archive group, and imports are additive — existing data is never replaced.
+- Import DeepSeek history ZIPs, or ChatGPT / Claude / z.ai exports (ZIP or JSON); each becomes an archive group, and imports are additive — existing data is never replaced. Imported external chats keep their system prompts (viewable per chat), and account-level memories / custom instructions are shown from the group menu.
 - Browse conversations with the original rendering: Markdown, syntax highlighting, KaTeX math, Mermaid diagrams, deep-thinking timelines, web-search steps and source citations, message branches with version switching, and image attachments (non-image attachments show metadata only).
 - Archive groups behave like browser tab groups: rename, color, collapse, move chats between groups, merge, dissolve, export a group back to a ZIP, or delete it. All organization is local; your source ZIP files are never touched.
 - Global text search across titles, questions and answers with highlighted snippets and in-chat jump. Normalized matching (case, width, whitespace) with a fuzzy subsequence fallback.

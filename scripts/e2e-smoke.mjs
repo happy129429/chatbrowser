@@ -155,6 +155,99 @@ await sleep(3500)
 const sessionCount = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
 check('导入 mock ZIP', sessionCount === 12, `会话数=${sessionCount}`)
 
+// 外部格式（ChatGPT ZIP / Claude JSON / z.ai JSON）
+const chatgptBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'chatgpt-sample.zip'))
+  .toString('base64')
+const claudeBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'claude-sample.json'))
+  .toString('base64')
+const zaiBase64 = fs.readFileSync(path.join(root, 'mock', 'zai-sample.json')).toString('base64')
+await evaluate(`(() => {
+  const input = document.querySelector('input[type="file"][multiple]')
+  const dt = new DataTransfer()
+  const toFile = (base64, name, type) =>
+    new File([Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))], name, { type })
+  dt.items.add(toFile(${JSON.stringify(chatgptBase64)}, 'chatgpt-sample.zip', 'application/zip'))
+  dt.items.add(toFile(${JSON.stringify(claudeBase64)}, 'claude-sample.json', 'application/json'))
+  dt.items.add(toFile(${JSON.stringify(zaiBase64)}, 'zai-sample.json', 'application/json'))
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+})()`)
+let withExternal = 0
+for (let i = 0; i < 30; i++) {
+  await sleep(500)
+  withExternal = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+  if (withExternal >= 16) {
+    break
+  }
+}
+const hasChatGptTitle = await evaluate(
+  `[...document.querySelectorAll('div[class*="item-"]')].some((el) => el.textContent.includes('Rust 所有权'))`
+)
+check('导入 ChatGPT(ZIP) / Claude / z.ai', withExternal === 16, `会话数=${withExternal}`)
+check('外部会话标题正确', hasChatGptTitle === true)
+
+// 系统提示词面板（ChatGPT system 消息）
+await clickByText('div[class*="item-"]', 'Rust 所有权')
+await sleep(1400)
+const promptOpened = await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((node) => node.textContent.includes('系统提示词') || node.textContent.includes('System prompt'))
+  btn?.click()
+  return btn ? 'ok' : 'no-prompt-button'
+})()`)
+await sleep(400)
+const promptText = await evaluate(
+  `document.querySelector('div[class*="systemPromptBody"]')?.textContent ?? ''`
+)
+check(
+  '会话系统提示词可查看',
+  promptOpened === 'ok' && promptText.includes('helpful assistant'),
+  promptText.slice(0, 40)
+)
+
+// 组级附加信息（记忆 / 自定义指令）
+const groupMenuOpened = await evaluate(`(() => {
+  const headers = [...document.querySelectorAll('div[class*="groupHeader"]')]
+  const target = headers.find((node) => node.textContent.includes('chatgpt-sample'))
+  if (!target) return 'no-group'
+  const buttons = target.querySelectorAll('button')
+  buttons[buttons.length - 1]?.click()
+  return 'ok'
+})()`)
+await sleep(500)
+const extrasItem = await evaluate(`(() => {
+  const item = [...document.querySelectorAll('div[role="menuitem"]')].find((node) => node.textContent.includes('附加信息') || node.textContent.includes('Archive notes'))
+  item?.click()
+  return item ? 'ok' : 'no-extras-item'
+})()`)
+await sleep(500)
+const extrasText = await evaluate(
+  `document.querySelector('div[class*="extrasList"]')?.textContent ?? ''`
+)
+check(
+  '组级附加信息入口与内容',
+  groupMenuOpened === 'ok' &&
+    extrasItem === 'ok' &&
+    extrasText.includes('记忆') &&
+    extrasText.includes('自定义指令'),
+  extrasText.slice(0, 60)
+)
+await send('Input.dispatchKeyEvent', {
+  type: 'keyDown',
+  key: 'Escape',
+  code: 'Escape',
+  windowsVirtualKeyCode: 27,
+})
+await send('Input.dispatchKeyEvent', {
+  type: 'keyUp',
+  key: 'Escape',
+  code: 'Escape',
+  windowsVirtualKeyCode: 27,
+})
+await sleep(500)
+
 // ---------- 2. 搜索 + 跳转 ----------
 await evaluate(`document.querySelector('div[class*="topActions"] button')?.click()`)
 await sleep(500)

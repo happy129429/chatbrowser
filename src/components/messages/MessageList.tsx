@@ -202,9 +202,9 @@ export const MessageList = ({
         scroll.scrollTop += delta
         scrollTopRef.current = scroll.scrollTop
       }
-      // 静默期：内容持续增长期间保持对准，停止变化 400ms 后释放
+      // 静默期：内容持续增长期间保持对准，停止变化 800ms 后释放
       window.clearTimeout(jumpReleaseRef.current)
-      jumpReleaseRef.current = window.setTimeout(releaseJump, 400)
+      jumpReleaseRef.current = window.setTimeout(releaseJump, 800)
     })
     observer.observe(content)
     observer.observe(scroll)
@@ -530,7 +530,9 @@ export const MessageList = ({
             {t('selectAll')}
           </button>
           <span className={styles.shareCount}>
-            {t('roundsSelected', { count: shareSelected.size })}
+            {shareSelected.size === 1
+              ? t('roundsSelectedOne')
+              : t('roundsSelected', { count: shareSelected.size })}
           </span>
           <div className={styles.shareActions}>
             <Button variant="outlined" size="s" onClick={exitShareSelect}>

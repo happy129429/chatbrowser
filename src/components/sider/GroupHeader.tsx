@@ -9,6 +9,7 @@ import {
   IconDownloadOutline16,
   IconEditOutline16,
   IconEllipsisOutline16,
+  IconInfoOutline16,
   IconManageOutline16,
   IconTrashOutline16,
 } from '../base/icons.js'
@@ -54,6 +55,7 @@ export const GroupHeader = ({
   onDissolve,
   onExport,
   onMultiSelect,
+  onShowExtras,
   onDelete,
 }: {
   group: SessionGroup
@@ -71,6 +73,8 @@ export const GroupHeader = ({
   onExport: () => void
   /** 进入该组的多选管理模式 */
   onMultiSelect: () => void
+  /** 查看组级附加信息（仅外部导入存在时提供） */
+  onShowExtras?: () => void
   onDelete: () => void
 }) => {
   const t = useTranslate()
@@ -184,6 +188,16 @@ export const GroupHeader = ({
               icon: <IconCloseOutline16 />,
               onSelect: onDissolve,
             },
+            ...(onShowExtras
+              ? [
+                  {
+                    key: 'extras',
+                    label: t('groupExtrasMenu'),
+                    icon: <IconInfoOutline16 />,
+                    onSelect: onShowExtras,
+                  },
+                ]
+              : []),
             {
               key: 'export',
               label: t('groupMenuExport'),

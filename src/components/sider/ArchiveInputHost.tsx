@@ -25,7 +25,7 @@ export const ArchiveInputHost = () => {
     <input
       ref={inputRef}
       type="file"
-      accept=".zip,application/zip,application/x-zip-compressed"
+      accept=".zip,.json,application/zip,application/x-zip-compressed,application/json"
       multiple
       hidden
       onChange={(event) => {

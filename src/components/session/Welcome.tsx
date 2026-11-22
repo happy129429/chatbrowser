@@ -18,11 +18,10 @@ type ItemState = {
   reason?: TranslationKey
 }
 
-const ACCEPT = '.zip,application/zip,application/x-zip-compressed'
+const ACCEPT = '.zip,.json,application/zip,application/x-zip-compressed,application/json'
 const isArchive = (file: File) =>
-  /\.zip$/i.test(file.name) ||
-  file.type === 'application/zip' ||
-  file.type === 'application/x-zip-compressed'
+  /\.(zip|json)$/i.test(file.name) ||
+  ['application/zip', 'application/x-zip-compressed', 'application/json'].includes(file.type)
 
 /** 欢迎页：问候语 + 归档导入入口（拖放或多选）。桌面端居中；移动端吸底 */
 export const Welcome = () => {

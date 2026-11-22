@@ -3,6 +3,7 @@ import { createId } from '../../utils/id.js'
 import * as db from './db.js'
 import { addHistoryGroup, clearAllHistory, useChatStore } from './store.js'
 import type { Session, SessionGroup, SessionSummary } from './types.js'
+import { BackupError } from './history/errors.js'
 
 export { BackupError } from './history/errors.js'
 
@@ -66,11 +67,9 @@ export const exportGroupArchive = (groupId: string): Promise<{ name: string; blo
 /** 组名取自 ZIP 文件名（去掉扩展名）。 */
 const groupName = (fileName: string) => fileName.replace(/\.zip$/i, '') || fileName
 
-/** 导入单个 ZIP 为一个新归档组；增量导入，失败时已有数据不变。返回导入的会话数。 */
+/** 导入单个 ZIP 为一个新归档组；支持 DeepSeek 归档与「ZIP 包里装 JSON」的 ChatGPT / Claude 导出。 */
 export const importArchiveFile = (file: File): Promise<number> =>
   enqueueBackup(async () => {
-    const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
-    await checkArchiveFormat(file)
     const group: SessionGroup = {
       id: createId(),
       name: groupName(file.name),
@@ -78,10 +77,54 @@ export const importArchiveFile = (file: File): Promise<number> =>
       sourceName: file.name,
       createdAt: Date.now(),
     }
+    // 先探测 ZIP 内是否含 ChatGPT / Claude 的 conversations JSON
+    const { externalSessionsFromZip } = await import('./history/external.js')
+    const external = await externalSessionsFromZip(file, group.id)
+    if (external && external.sessions.length > 0) {
+      if (external.extras.length > 0) {
+        group.extras = external.extras
+      }
+      return addHistoryGroup(group, async () => {
+        for (const session of external.sessions) {
+          await db.addStagingSession(session)
+        }
+      })
+    }
+    const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
+    await checkArchiveFormat(file)
     return addHistoryGroup(group, () => importArchive(file, group.id))
   })
 
-/** 依次导入多个 ZIP；单个失败不影响后续文件。返回逐个文件的结果。 */
+/** 是否外部格式（ChatGPT / Claude 的 JSON 导出） */
+const isExternalJson = (file: File) =>
+  /\.json$/i.test(file.name) || file.type === 'application/json'
+
+/** 导入 ChatGPT / Claude 导出的 JSON 为一个归档组。返回导入的会话数。 */
+export const importExternalFile = (file: File): Promise<number> =>
+  enqueueBackup(async () => {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(await file.text())
+    } catch {
+      throw new BackupError('backupInvalidJson')
+    }
+    const { externalToSessions } = await import('./history/external.js')
+    const group: SessionGroup = {
+      id: createId(),
+      name: groupName(file.name.replace(/\.json$/i, '') || file.name),
+      color: null,
+      sourceName: file.name,
+      createdAt: Date.now(),
+    }
+    return addHistoryGroup(group, async () => {
+      const sessions = externalToSessions(parsed, group.id)
+      for (const session of sessions) {
+        await db.addStagingSession(session)
+      }
+    })
+  })
+
+/** 依次导入多个文件（ZIP 或外部 JSON）；单个失败不影响后续文件。返回逐个文件的结果。 */
 export type ArchiveImportOutcome = {
   file: File
   /** 成功导入的会话数；失败为 0 */
@@ -93,7 +136,9 @@ export const importArchiveFiles = async (files: File[]): Promise<ArchiveImportOu
   const outcomes: ArchiveImportOutcome[] = []
   for (const file of files) {
     try {
-      const sessions = await importArchiveFile(file)
+      const sessions = isExternalJson(file)
+        ? await importExternalFile(file)
+        : await importArchiveFile(file)
       outcomes.push({ file, sessions })
     } catch (error) {
       outcomes.push({ file, sessions: 0, error })

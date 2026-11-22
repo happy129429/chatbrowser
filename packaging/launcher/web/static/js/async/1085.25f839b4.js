@@ -1,11 +1,1 @@
-'use strict'
-;(self.rspackChunkchatbrowser = self.rspackChunkchatbrowser || []).push([
-  [1085],
-  {
-    4860(r, s, e) {
-      e.d(s, { createInfoServices: () => c.v })
-      var c = e(2179)
-      e(7127)
-    },
-  },
-])
+"use strict";(self.rspackChunkchatbrowser=self.rspackChunkchatbrowser||[]).push([[1085],{4860(r,s,e){e.d(s,{createInfoServices:()=>c.v});var c=e(2179);e(7127)}}]);

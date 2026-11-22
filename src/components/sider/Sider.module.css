@@ -582,3 +582,28 @@
     display: none;
   }
 }
+
+.extrasList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extrasItem {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  padding: 6px 10px;
+
+  summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--dsw-alias-label-primary);
+    user-select: none;
+  }
+}
+
+.extrasBody {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}

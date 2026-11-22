@@ -15,6 +15,7 @@ import {
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
 import { openArchivePicker } from './ArchiveInputHost.js'
+import { Markdown } from '../markdown/Markdown.js'
 import { saveBlob } from '../../utils/saveFile.js'
 import {
   createGroup,
@@ -54,6 +55,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
   const [deletePending, setDeletePending] = useState(false)
   const [deletingGroup, setDeletingGroup] = useState<SessionGroup | null>(null)
+  const [extrasGroup, setExtrasGroup] = useState<SessionGroup | null>(null)
   const [deleteGroupPending, setDeleteGroupPending] = useState(false)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set())
   /** 正在拖拽的会话 id；组头成为放下目标 */
@@ -374,6 +376,11 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                         )
                       }}
                       onExport={() => void exportGroup(group)}
+                      onShowExtras={
+                        group.extras && group.extras.length > 0
+                          ? () => setExtrasGroup(group)
+                          : undefined
+                      }
                       onMultiSelect={() => enterSelection(group.id)}
                       onDelete={() => setDeletingGroup(group)}
                     />
@@ -527,6 +534,29 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           {t('deleteGroupModalDescription', {
             count: sessions.filter((session) => session.groupId === deletingGroup.id).length,
           })}
+        </Modal>
+      ) : null}
+      {extrasGroup ? (
+        <Modal
+          title={t('groupExtrasTitle')}
+          onClose={() => setExtrasGroup(null)}
+          className={styles.extrasModal}
+        >
+          <div className={styles.extrasList}>
+            {(extrasGroup.extras ?? []).map((extra, index) => (
+              <details key={`${extra.title}-${index}`} className={styles.extrasItem}>
+                <summary>{extra.title}</summary>
+                <div className={styles.extrasBody}>
+                  <Markdown
+                    content={extra.content}
+                    loading={false}
+                    cacheKey={`extra-${extrasGroup.id}-${index}`}
+                    disableLink={false}
+                  />
+                </div>
+              </details>
+            ))}
+          </div>
         </Modal>
       ) : null}
       {moveOpen ? (

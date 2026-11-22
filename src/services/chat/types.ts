@@ -110,6 +110,8 @@ export type SessionGroup = {
   /** 导入时的 ZIP 文件名 */
   sourceName: string
   createdAt: number
+  /** 账号级附加信息（记忆、自定义指令、项目提示词等）；仅外部导入时存在 */
+  extras?: { title: string; content: string }[]
 }
 
 export type Session = {
@@ -125,6 +127,8 @@ export type Session = {
   messages: Message[]
   /** undefined 表示线性消息列表；null 表示空会话。 */
   rootMessageId?: string | null
+  /** 导入的外部对话携带的系统提示词/自定义指令 */
+  systemPrompt?: string
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */

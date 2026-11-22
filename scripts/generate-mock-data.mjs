@@ -643,4 +643,129 @@ makeZip(
   [...workSessions, ...studySessions, ...lifeSessions],
   '工作 / 学习 / 生活三类，共 12 个会话'
 )
+// ---------- 外部格式样例：ChatGPT / Claude JSON ----------
+const cgTime = (offset) => (now - 3 * 86400000 + offset) / 1000
+const node = (id, parentId, role, text, index) => ({
+  id,
+  parent: parentId,
+  children: [],
+  message: {
+    id,
+    author: { role },
+    content: { content_type: 'text', parts: [text] },
+    create_time: cgTime(index * 60000),
+  },
+})
+const n1 = node('cg-n1', null, 'system', 'You are a helpful assistant.', 0)
+const n2 = node('cg-n2', 'cg-n1', 'user', 'Rust 的所有权解决了什么问题？', 1)
+const n3 = node(
+  'cg-n3',
+  'cg-n2',
+  'assistant',
+  '所有权在编译期保证内存安全：每个值有唯一所有者，离开作用域自动释放。',
+  2
+)
+const n4 = node('cg-n4', 'cg-n3', 'user', '那借用呢？', 3)
+const n5 = node(
+  'cg-n5',
+  'cg-n4',
+  'assistant',
+  '借用通过引用临时访问值，同一时间要么多个不可变借用，要么一个可变借用。',
+  4
+)
+n1.children = ['cg-n2']
+n2.children = ['cg-n3']
+n3.children = ['cg-n4']
+n4.children = ['cg-n5']
+const m1 = node('cg-m1', null, 'user', '煮鸡蛋几分钟？', 0)
+const m2 = node('cg-m2', 'cg-m1', 'assistant', '冷水下锅水开后 6-8 分钟，喜欢溏心 5 分钟。', 1)
+m1.children = ['cg-m2']
+const chatgpt = [
+  {
+    id: 'cg-1',
+    title: 'ChatGPT 示例：Rust 所有权',
+    create_time: cgTime(0),
+    update_time: cgTime(300000),
+    current_node: 'cg-n5',
+    mapping: Object.fromEntries([n1, n2, n3, n4, n5].map((item) => [item.id, item])),
+  },
+  {
+    id: 'cg-2',
+    title: 'ChatGPT 示例：早餐',
+    create_time: cgTime(600000),
+    update_time: cgTime(660000),
+    current_node: 'cg-m2',
+    mapping: Object.fromEntries([m1, m2].map((item) => [item.id, item])),
+  },
+]
+writeFileSync(path.join(outDir, 'chatgpt-sample.json'), JSON.stringify(chatgpt, null, 2))
+// 官方导出形态：ZIP 里包着 conversations.json
+writeFileSync(
+  path.join(outDir, 'chatgpt-sample.zip'),
+  zipSync({
+    'conversations.json': strToU8(JSON.stringify(chatgpt)),
+    'user.json': strToU8(
+      JSON.stringify({
+        memories: ['用户偏好简洁直接的回答', '用户正在学习 Rust'],
+        custom_instructions: '请用简体中文回答。',
+      })
+    ),
+  })
+)
+
+const claude = [
+  {
+    uuid: 'cl-1',
+    name: 'Claude 示例：论文润色',
+    created_at: new Date(now - 5 * 86400000).toISOString(),
+    updated_at: new Date(now - 5 * 86400000 + 120000).toISOString(),
+    chat_messages: [
+      {
+        uuid: 'cl-1-1',
+        sender: 'human',
+        text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
+        created_at: new Date(now - 5 * 86400000).toISOString(),
+      },
+      {
+        uuid: 'cl-1-2',
+        sender: 'assistant',
+        text: 'We conducted extensive experiments, and the results demonstrate strong performance.',
+        created_at: new Date(now - 5 * 86400000 + 30000).toISOString(),
+      },
+      {
+        uuid: 'cl-1-3',
+        sender: 'human',
+        text: '再精简一点',
+        created_at: new Date(now - 5 * 86400000 + 60000).toISOString(),
+      },
+      {
+        uuid: 'cl-1-4',
+        sender: 'assistant',
+        text: 'Extensive experiments confirm the strong performance.',
+        created_at: new Date(now - 5 * 86400000 + 70000).toISOString(),
+      },
+    ],
+  },
+]
+writeFileSync(path.join(outDir, 'claude-sample.json'), JSON.stringify(claude, null, 2))
+const zai = {
+  conversations: [
+    {
+      id: 'zai-1',
+      title: 'z.ai 示例：GLM 问答',
+      created_at: new Date(now - 4 * 86400000).toISOString(),
+      updated_at: new Date(now - 4 * 86400000 + 60000).toISOString(),
+      messages: [
+        { role: 'system', content: '你是 GLM，一个乐于助人的 AI 助手。' },
+        { role: 'user', content: '用一句话介绍 z.ai' },
+        { role: 'assistant', content: 'z.ai 是智谱推出的 AI 助手平台。' },
+        { role: 'user', content: '再短一点' },
+        { role: 'assistant', content: '智谱的 AI 助手。' },
+      ],
+    },
+  ],
+}
+writeFileSync(path.join(outDir, 'zai-sample.json'), JSON.stringify(zai, null, 2))
+console.log('外部格式样例: chatgpt-sample(.zip/.json) / claude-sample.json / zai-sample.json')
+
 console.log(`输出目录: ${outDir}`)

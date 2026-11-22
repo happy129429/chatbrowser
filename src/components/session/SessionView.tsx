@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
 import { useTranslate } from '../../i18n/index.js'
 import { startShareSelect } from '../../services/chat/store.js'
@@ -8,10 +8,44 @@ import type { Session } from '../../services/chat/types.js'
 import { MessageList } from '../messages/MessageList.js'
 import { MobileHeader } from './MobileHeader.js'
 import { IconButton } from '../base/IconButton.js'
-import { IconShareOutline16 } from '../base/icons.js'
+import {
+  IconChevronDownOutline14,
+  IconChevronRightOutline14,
+  IconShareOutline16,
+} from '../base/icons.js'
+import { Markdown } from '../markdown/Markdown.js'
 import styles from './SessionView.module.css'
 
 /** 会话页：标题栏（移动端为顶栏，含分享入口）+ 消息列表 */
+/** 外部导入对话携带的系统提示词：默认折叠，点开查看。 */
+const SystemPromptPanel = ({ content }: { content: string }) => {
+  const t = useTranslate()
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={styles.systemPrompt}>
+      <button
+        type="button"
+        className={styles.systemPromptTitle}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>{t('systemPromptTitle')}</span>
+        {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
+      </button>
+      {open ? (
+        <div className={styles.systemPromptBody}>
+          <Markdown
+            content={content}
+            loading={false}
+            cacheKey="system-prompt"
+            disableLink={false}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export const SessionView = ({
   session,
   siderCollapsed,
@@ -57,7 +91,7 @@ export const SessionView = ({
           <div className={clsx(styles.titleRow, siderCollapsed && styles.withCollapsedSider)}>
             <div className={styles.title}>{title}</div>
             <span className={styles.sessionStats}>
-              {t('sessionStatsLine', {
+              {t(rounds === 1 ? 'sessionStatsLineOne' : 'sessionStatsLine', {
                 rounds,
                 tokens: tokens === null ? '—' : tokens.toLocaleString('en-US'),
               })}
@@ -72,6 +106,7 @@ export const SessionView = ({
           </div>
         </div>
       )}
+      {session.systemPrompt ? <SystemPromptPanel content={session.systemPrompt} /> : null}
       <MessageList session={session} />
     </div>
   )

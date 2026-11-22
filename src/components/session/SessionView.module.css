@@ -54,3 +54,35 @@
     display: none;
   }
 }
+
+.systemPrompt {
+  flex-shrink: 0;
+  margin: 0 18px 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.systemPromptTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.systemPromptBody {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0 12px 10px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}
