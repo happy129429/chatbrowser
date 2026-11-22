@@ -6,6 +6,16 @@
 
 > **致谢**：本项目由 **GLM-5.3-Flash（Z.ai）** 与 **DeepSeek-V4.1-Flash-1017** 开发，人类参与者仅提出原始想法与反馈。界面与消息渲染管线大量来自上游 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo)，特此致谢。
 
+## 截图
+
+| 归档列表                               | 全局搜索                                 |
+| -------------------------------------- | ---------------------------------------- |
+| ![归档列表](docs/screenshots/list.png) | ![全局搜索](docs/screenshots/search.png) |
+
+| 轮次导航                                    | 统计                                |
+| ------------------------------------------- | ----------------------------------- |
+| ![轮次导航](docs/screenshots/round-nav.png) | ![统计](docs/screenshots/stats.png) |
+
 ## 快速开始
 
 安装 Node.js 22.12+ 与 pnpm：

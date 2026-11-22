@@ -120,11 +120,19 @@ export const MessageList = ({
   const sessionIdRef = useRef(session.id)
   sessionIdRef.current = session.id
 
+  /** 由 onScroll 填充：读取当前阅读位置并写入缓存。 */
+  const capturePositionRef = useRef<() => void>(() => {})
+
   const releaseJump = useCallback(() => {
+    if (!jumpActiveRef.current) {
+      return
+    }
     jumpActiveRef.current = false
     jumpTargetRef.current = null
     jumpOffsetRef.current = null
     window.clearTimeout(jumpReleaseRef.current)
+    // 锁释放后补记一次位置：手动滚动可能发生在锁定期间而被跳过
+    capturePositionRef.current()
   }, [])
 
   /** 恢复上次阅读位置：不闪烁，只对齐到保存的消息与偏移。 */
@@ -258,6 +266,33 @@ export const MessageList = ({
     [session.id]
   )
 
+  /** 读取当前阅读位置：首个可见消息 + 相对容器顶部的偏移。 */
+  const capturePosition = useCallback(() => {
+    const el = scrollRef.current
+    const content = contentRef.current
+    if (!el || !content) {
+      return
+    }
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICKY_THRESHOLD
+    const containerTop = el.getBoundingClientRect().top
+    let anchor: HTMLElement | null = null
+    for (const node of content.querySelectorAll<HTMLElement>('[data-message-id]')) {
+      if (node.getBoundingClientRect().bottom > containerTop + 1) {
+        anchor = node
+        break
+      }
+    }
+    if (anchor) {
+      rememberPosition(sessionIdRef.current, {
+        messageId: anchor.dataset.messageId ?? '',
+        offset: Math.round(anchor.getBoundingClientRect().top - containerTop),
+        atBottom: nearBottom,
+        ts: Date.now(),
+      })
+    }
+  }, [])
+  capturePositionRef.current = capturePosition
+
   // 跨移动端断点时切换滚动层，并保持当前阅读位置。
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -278,38 +313,23 @@ export const MessageList = ({
         stickyRef.current = false
       }
       scrollTopRef.current = el.scrollTop
-      // 记录阅读位置：首个可见消息 + 相对容器顶部的偏移
       if (!jumpActiveRef.current) {
-        const content = contentRef.current
-        if (content) {
-          const containerTop = el.getBoundingClientRect().top
-          let anchor: HTMLElement | null = null
-          for (const node of content.querySelectorAll<HTMLElement>('[data-message-id]')) {
-            if (node.getBoundingClientRect().bottom > containerTop + 1) {
-              anchor = node
-              break
-            }
-          }
-          if (anchor) {
-            rememberPosition(sessionIdRef.current, {
-              messageId: anchor.dataset.messageId ?? '',
-              offset: Math.round(anchor.getBoundingClientRect().top - containerTop),
-              atBottom: nearBottom,
-              ts: Date.now(),
-            })
-          }
-        }
+        capturePositionRef.current()
       }
     }
     el.addEventListener('scroll', onScroll, { passive: true })
-    // 用户主动滚动立即接管，终止跳转锁定
+    // 用户主动滚动/按键/拖动滚动条立即接管，终止跳转锁定
     const onUserScrollIntent = () => releaseJump()
     el.addEventListener('wheel', onUserScrollIntent, { passive: true })
     el.addEventListener('touchstart', onUserScrollIntent, { passive: true })
+    el.addEventListener('pointerdown', onUserScrollIntent, { passive: true })
+    el.addEventListener('keydown', onUserScrollIntent)
     return () => {
       el.removeEventListener('scroll', onScroll)
       el.removeEventListener('wheel', onUserScrollIntent)
       el.removeEventListener('touchstart', onUserScrollIntent)
+      el.removeEventListener('pointerdown', onUserScrollIntent)
+      el.removeEventListener('keydown', onUserScrollIntent)
     }
   }, [isMobile, releaseJump, scrollToBottom])
 

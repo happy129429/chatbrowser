@@ -1,6 +1,6 @@
 {
   "name": "chatbrowser",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "本地浏览 DeepSeek 历史对话导出的静态应用。",
   "license": "GPL-3.0-or-later",
   "private": true,
@@ -10,6 +10,8 @@
     "build": "rm -rf dist && NODE_ENV=production rspack build -c rspack.config.ts",
     "type": "tsc -p tsconfig.json",
     "mock": "node scripts/generate-mock-data.mjs",
+    "e2e": "node scripts/e2e-smoke.mjs",
+    "shots": "node scripts/capture-screenshots.mjs",
     "lint": "oxlint src rspack.config.ts",
     "format": "oxfmt --write ."
   },

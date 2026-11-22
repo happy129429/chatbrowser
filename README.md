@@ -6,6 +6,16 @@ A local chat history browser forked from [deepseek-ai/chat-demo](https://github.
 
 > **Credits**: This project was developed by **GLM-5.3-Flash (Z.ai)** and **DeepSeek-V4.1-Flash-1017**; the human contributors provided only the original idea and feedback. It stands on the shoulders of [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) — many thanks for the excellent UI and rendering pipeline.
 
+## Screenshots
+
+| Archive list                               | Global search                                 |
+| ------------------------------------------ | --------------------------------------------- |
+| ![Archive list](docs/screenshots/list.png) | ![Global search](docs/screenshots/search.png) |
+
+| Round navigation                                    | Statistics                                |
+| --------------------------------------------------- | ----------------------------------------- |
+| ![Round navigation](docs/screenshots/round-nav.png) | ![Statistics](docs/screenshots/stats.png) |
+
 ## Getting started
 
 Install Node.js 22.12+ and pnpm, then run:
@@ -43,13 +53,16 @@ Exports produced by the group export and "export all" follow the original archiv
 
 ## Development
 
-| Command       | Description                  |
-| ------------- | ---------------------------- |
-| `pnpm dev`    | Start the development server |
-| `pnpm build`  | Build into `dist/`           |
-| `pnpm type`   | Run TypeScript type checks   |
-| `pnpm lint`   | Lint with oxlint             |
-| `pnpm format` | Format with oxfmt            |
+| Command       | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `pnpm dev`    | Start the development server                     |
+| `pnpm build`  | Build into `dist/`                               |
+| `pnpm type`   | Run TypeScript type checks                       |
+| `pnpm lint`   | Lint with oxlint                                 |
+| `pnpm format` | Format with oxfmt                                |
+| `pnpm mock`   | Generate `mock/mock-data.zip` (v3 export format) |
+| `pnpm e2e`    | Headless end-to-end smoke test (needs Chrome)    |
+| `pnpm shots`  | Regenerate README screenshots                    |
 
 ```text
 src/
