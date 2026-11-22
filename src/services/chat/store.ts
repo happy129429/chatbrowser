@@ -55,6 +55,34 @@ const { getState: get, setState: set } = useChatStore
 
 const bumpDataVersion = () => set((state) => ({ dataVersion: state.dataVersion + 1 }))
 
+/** 记住当前会话，刷新后自动恢复。 */
+const ACTIVE_KEY = 'chat-demo:active-session'
+const readActiveSession = () => {
+  try {
+    return localStorage.getItem(ACTIVE_KEY)
+  } catch {
+    return null
+  }
+}
+const writeActiveSession = (id: string | null) => {
+  try {
+    if (id === null) {
+      localStorage.removeItem(ACTIVE_KEY)
+    } else {
+      localStorage.setItem(ACTIVE_KEY, id)
+    }
+  } catch {
+    // 存储不可用时忽略
+  }
+}
+
+// 任何入口切换会话都会经过 activeId，订阅统一落盘。
+useChatStore.subscribe((state, previous) => {
+  if (state.activeId !== previous.activeId) {
+    writeActiveSession(state.activeId)
+  }
+})
+
 /** 进入当前会话的轮次导出选择模式。 */
 export const startShareSelect = (sessionId: string, initial: 'all' | string[] = 'all') => {
   if (get().importingHistory || !get().sessions.some((session) => session.id === sessionId)) {
@@ -243,12 +271,21 @@ export const initChat = (): Promise<void> => {
       const [summaries, groups] = await Promise.all([db.loadSessionSummaries(), db.loadGroups()])
       if (epoch === historyEpoch) {
         const sorted = sortSessions(summaries)
+        const savedActive = readActiveSession()
+        const restoreActive =
+          savedActive !== null && sorted.some((session) => session.id === savedActive)
+            ? savedActive
+            : null
         set({
           ready: true,
           sessions: sorted,
           groups: groups.sort((a, b) => b.createdAt - a.createdAt),
+          activeId: restoreActive,
         })
         prefetchSearchIndex(sorted, get().dataVersion)
+        if (restoreActive !== null) {
+          void ensureSessionLoaded(restoreActive)
+        }
       }
     } catch (error) {
       if (epoch === historyEpoch) {
