@@ -719,6 +719,7 @@ const claude = [
   {
     uuid: 'cl-1',
     name: 'Claude 示例：论文润色',
+    summary: '**会话摘要**：这是一次论文润色对话，包含学术表达改写与精简要求。',
     created_at: new Date(now - 5 * 86400000).toISOString(),
     updated_at: new Date(now - 5 * 86400000 + 120000).toISOString(),
     chat_messages: [

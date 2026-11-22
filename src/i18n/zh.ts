@@ -134,6 +134,7 @@ export const zh = {
   share: '分享',
   sessionStatsLineOne: '{rounds} 轮 · {tokens} tokens',
   sessionStatsLine: '{rounds} 轮 · {tokens} tokens',
+  sessionSummaryTitle: '会话摘要',
   systemPromptTitle: '系统提示词',
   groupExtrasMenu: '附加信息',
   groupExtrasTitle: '附加信息',

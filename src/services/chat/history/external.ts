@@ -1,6 +1,7 @@
 import { createId } from '../../../utils/id.js'
 import { ArchiveError, isZipFile, readArchive, readEntry } from './zipReader.js'
-import type { AssistantMessage, Message, Session, UserMessage } from '../types.js'
+import type { AssistantMessage, FileAttachment, Message, Session, UserMessage } from '../types.js'
+import { getFileViewType, isImage } from '../../../utils/file.js'
 import { BackupError } from './errors.js'
 
 /**
@@ -599,7 +600,91 @@ const fromChatGpt = (parsed: unknown[], groupId: string): Session[] => {
   return sessions
 }
 
-/** Claude：chat_messages 即有序轮次。 */
+/** Claude content 块：正文与思考分离；text 是拼接全文，仅在缺少 content 时回退。 */
+const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage['blocks'] } => {
+  const raw = Array.isArray(message.content)
+    ? message.content.map(record).filter((block): block is Loose => block !== null)
+    : []
+  const texts: string[] = []
+  const thinkings: string[] = []
+  let thinkingSeconds = 0
+  for (const block of raw) {
+    if (block.type === 'text' && typeof block.text === 'string') {
+      texts.push(block.text)
+    } else if (block.type === 'thinking') {
+      const summary = Array.isArray(block.summaries)
+        ? block.summaries
+            .map(record)
+            .filter((item): item is Loose => item !== null)
+            .map((item) => (typeof item.summary === 'string' ? item.summary : ''))
+            .filter(Boolean)
+            .join('\n')
+        : ''
+      const thinking =
+        typeof block.thinking === 'string' && block.thinking.trim() && !block.thinking_hidden
+          ? block.thinking
+          : summary
+      if (thinking.trim()) {
+        thinkings.push(thinking)
+      }
+      const start =
+        typeof block.start_timestamp === 'string' ? Date.parse(block.start_timestamp) : NaN
+      const stop = typeof block.stop_timestamp === 'string' ? Date.parse(block.stop_timestamp) : NaN
+      if (Number.isFinite(start) && Number.isFinite(stop) && stop > start) {
+        thinkingSeconds += (stop - start) / 1000
+      }
+    }
+  }
+  const text = texts.join('\n\n') || (raw.length === 0 ? contentText(message.text) : '')
+  const blocks: AssistantMessage['blocks'] = []
+  if (thinkings.length > 0) {
+    blocks.push({
+      type: 'thinking',
+      thinking: thinkings.join('\n\n'),
+      ...(thinkingSeconds > 0 ? { elapsedSeconds: thinkingSeconds } : {}),
+    })
+  }
+  if (text.trim()) {
+    blocks.push({ type: 'text', text })
+  }
+  return { text, blocks }
+}
+
+/** files / attachments 只保留元数据：Claude 导出不含原件。 */
+const claudeFiles = (message: Loose): FileAttachment[] => {
+  const files: FileAttachment[] = []
+  const seen = new Set<string>()
+  const add = (value: unknown, index: number) => {
+    const item = record(value)
+    const name =
+      (typeof item?.file_name === 'string' && item.file_name) ||
+      (typeof item?.name === 'string' && item.name) ||
+      (typeof item?.filename === 'string' && item.filename) ||
+      (typeof value === 'string' ? value : '')
+    if (!name.trim()) {
+      return
+    }
+    const id =
+      (typeof item?.file_uuid === 'string' && item.file_uuid) ||
+      (typeof item?.uuid === 'string' && item.uuid) ||
+      `${name}-${index}`
+    if (seen.has(id)) {
+      return
+    }
+    seen.add(id)
+    const type = getFileViewType(name)
+    files.push({ id, name, size: 0, isImage: isImage(type), mimeType: '' })
+  }
+  for (const key of ['files', 'attachments'] as const) {
+    const list = Array.isArray(message[key]) ? message[key] : []
+    list.forEach(add)
+  }
+  return files
+}
+
+const CLAUDE_ROOT_UUID = '00000000-0000-4000-8000-000000000000'
+
+/** Claude：保留原始 uuid / parent_message_uuid，还原当前可见分支。 */
 const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
   const sessions: Session[] = []
   for (const item of parsed) {
@@ -609,87 +694,127 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
     if (!conversation || !list) {
       continue
     }
-    const rounds: Round[] = []
-    let pendingQuestion = ''
-    let pendingAt = 0
-    for (const entry of list) {
-      const message = record(entry)
-      if (!message) {
-        continue
-      }
-      // 真实导出里 text 是「思考 + 正文」的拼接全文，结构化内容在 content 数组中
-      const blocks = Array.isArray(message.content)
-        ? message.content.map(record).filter((block): block is Loose => block !== null)
-        : []
-      const texts: string[] = []
-      const thinkings: string[] = []
-      let thinkingSeconds = 0
-      for (const block of blocks) {
-        if (block.type === 'text' && typeof block.text === 'string') {
-          texts.push(block.text)
-        } else if (block.type === 'thinking') {
-          const summary = Array.isArray(block.summaries)
-            ? block.summaries
-                .map(record)
-                .filter((item): item is Loose => item !== null)
-                .map((item) => (typeof item.summary === 'string' ? item.summary : ''))
-                .filter(Boolean)
-                .join('\n')
-            : ''
-          const thinking =
-            typeof block.thinking === 'string' && block.thinking.trim() && !block.thinking_hidden
-              ? block.thinking
-              : summary
-          if (thinking.trim()) {
-            thinkings.push(thinking)
-          }
-          const start =
-            typeof block.start_timestamp === 'string' ? Date.parse(block.start_timestamp) : NaN
-          const stop =
-            typeof block.stop_timestamp === 'string' ? Date.parse(block.stop_timestamp) : NaN
-          if (Number.isFinite(start) && Number.isFinite(stop) && stop > start) {
-            thinkingSeconds += (stop - start) / 1000
-          }
-        }
-      }
-      const text = texts.join('\n\n') || contentText(message.text)
-      const thinking = thinkings.join('\n\n')
-      const at = toMs(message.created_at, Date.now())
-      const sender = message.sender ?? message.role
-      if (sender === 'human' || sender === 'user') {
-        if (pendingQuestion) {
-          rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
-        }
-        pendingQuestion = text
-        pendingAt = at
-      } else if (sender === 'assistant') {
-        rounds.push({
-          question: pendingQuestion,
-          answer: text,
-          at: pendingAt || at,
-          thinking: thinking || undefined,
-          thinkingSeconds: thinkingSeconds > 0 ? thinkingSeconds : undefined,
-        })
-        pendingQuestion = ''
-      }
-    }
-    if (pendingQuestion) {
-      rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
-    }
-    const session = toSession(
-      'claude',
-      groupId,
-      typeof conversation.uuid === 'string' ? conversation.uuid : createId(),
+    const raw = list.map(record).filter((message): message is Loose => message !== null)
+    const title =
       typeof conversation.name === 'string' && conversation.name.trim()
         ? conversation.name
-        : 'Claude 对话',
-      toMs(conversation.created_at, Date.now()),
-      toMs(conversation.updated_at, Date.now()),
-      rounds
-    )
-    if (session) {
-      sessions.push(session)
+        : 'Claude 对话'
+    const createdAt = toMs(conversation.created_at, Date.now())
+    const updatedAt = toMs(conversation.updated_at, Date.now())
+    const summary =
+      typeof conversation.summary === 'string' && conversation.summary.trim()
+        ? conversation.summary
+        : undefined
+    const rawId = typeof conversation.uuid === 'string' ? conversation.uuid : createId()
+    const sessionId = `${groupId}-claude-${safeId(rawId)}`
+
+    // 旧样本没有消息 uuid：退回顺序轮次解析。
+    if (raw.length === 0 || !raw.every((message) => typeof message.uuid === 'string')) {
+      const rounds: Round[] = []
+      let pendingQuestion = ''
+      let pendingAt = 0
+      for (const message of raw) {
+        const { text } = claudeContent(message)
+        const at = toMs(message.created_at, Date.now())
+        const sender = message.sender ?? message.role
+        if (sender === 'human' || sender === 'user') {
+          if (pendingQuestion) {
+            rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
+          }
+          pendingQuestion = text
+          pendingAt = at
+        } else if (sender === 'assistant') {
+          rounds.push({ question: pendingQuestion, answer: text, at: pendingAt || at })
+          pendingQuestion = ''
+        }
+      }
+      if (pendingQuestion) {
+        rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
+      }
+      const session = toSession('claude', groupId, rawId, title, createdAt, updatedAt, rounds)
+      if (session) {
+        if (summary) {
+          session.summary = summary
+        }
+        sessions.push(session)
+      }
+      continue
     }
+
+    const nodes = new Map<string, { message: Loose; id: string; parentUuid: string | null }>()
+    raw.forEach((message, index) => {
+      const baseId = message.uuid as string
+      const id = nodes.has(baseId) ? `${baseId}-${index}` : baseId
+      const parentUuid =
+        typeof message.parent_message_uuid === 'string' &&
+        message.parent_message_uuid !== CLAUDE_ROOT_UUID
+          ? message.parent_message_uuid
+          : null
+      nodes.set(id, { message, id, parentUuid })
+    })
+    const parentOf = (node: { parentUuid: string | null }) =>
+      node.parentUuid && nodes.has(node.parentUuid) ? node.parentUuid : null
+
+    // 从导出数组最后一条回溯当前分支，并为路径上的节点设置 selectedChildId。
+    const path: string[] = []
+    const seen = new Set<string>()
+    let cursor: string | null = [...nodes.keys()].at(-1) ?? null
+    while (cursor && !seen.has(cursor)) {
+      seen.add(cursor)
+      path.push(cursor)
+      const node = nodes.get(cursor)
+      cursor = node ? parentOf(node) : null
+    }
+    path.reverse()
+    const nextOnPath = new Map<string, string>()
+    for (let i = 0; i < path.length - 1; i++) {
+      nextOnPath.set(path[i], path[i + 1])
+    }
+
+    const messages: Message[] = []
+    for (const node of nodes.values()) {
+      const at = toMs(node.message.created_at, createdAt)
+      const parentId = parentOf(node)
+      const selectedChildId = nextOnPath.get(node.id)
+      const sender = roleOf(node.message.sender) ?? roleOf(node.message.role)
+      const content = claudeContent(node.message)
+      if (sender === 'user') {
+        messages.push({
+          id: node.id,
+          role: 'user',
+          content: content.text,
+          files: claudeFiles(node.message),
+          createdAt: at,
+          parentId,
+          ...(selectedChildId ? { selectedChildId } : {}),
+        })
+      } else if (sender === 'assistant') {
+        messages.push({
+          id: node.id,
+          role: 'assistant',
+          createdAt: at,
+          model: null,
+          status: 'done',
+          blocks: content.blocks,
+          parentId,
+          ...(selectedChildId ? { selectedChildId } : {}),
+        })
+      }
+    }
+    if (messages.length === 0) {
+      continue
+    }
+    sessions.push({
+      id: sessionId,
+      title,
+      createdAt,
+      updatedAt,
+      groupId,
+      pinned: false,
+      messages,
+      rootMessageId: path[0] ?? messages[0].id,
+      ...(summary ? { summary } : {}),
+    })
   }
   return sessions
 }

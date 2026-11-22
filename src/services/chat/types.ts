@@ -129,6 +129,8 @@ export type Session = {
   rootMessageId?: string | null
   /** 导入的外部对话携带的系统提示词/自定义指令 */
   systemPrompt?: string
+  /** 外部导出携带的会话摘要（Claude summary 等） */
+  summary?: string
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */

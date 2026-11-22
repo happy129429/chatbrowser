@@ -50,7 +50,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 
 - DeepSeek export `deepseek_data-*.zip` (full pipeline: branches, tool steps, images, reasoning)
 - ChatGPT export (`conversations.json` ZIP with the `mapping` tree)
-- Claude export (`conversations.json` ZIP with `chat_messages` / `content` arrays; thinking blocks are separated from the answer, files keep metadata only)
+- Claude export (`conversations.json` ZIP): keeps the conversation summary, original message UUID/parent chain and attachment filenames; thinking blocks are separated from the answer
 - z.ai / OpenWebUI native exports (`chat.history.messages` object tree + `currentId`, imports the active branch)
 - Single-session `turn_history` envelopes (`session_metadata` / `global_context` system instructions)
 - z.ai and similar formats (`messages` / `chat_history` etc.)
@@ -60,6 +60,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 ## Features
 
 - Full rendering: Markdown, code highlighting, KaTeX, Mermaid, reasoning timeline, web search sources, message branches and attachments
+- External conversation summaries (Claude `summary`) appear as a collapsible panel; attachments without originals show name/type
 - Safety-refused replies show only the notice by default; in the archive you can use "Show original content" to reveal the reasoning and text that were sent
 - Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete
 - Global search with highlighted excerpts and jump-to-message; cached index per data version

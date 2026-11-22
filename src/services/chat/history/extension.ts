@@ -11,7 +11,7 @@ export type ArchiveExtension = {
     color?: string | null
     extras?: { title: string; content: string }[]
   }
-  sessions?: { id: string; systemPrompt?: string }[]
+  sessions?: { id: string; systemPrompt?: string; summary?: string }[]
 }
 
 const record = (value: unknown) =>
@@ -33,6 +33,7 @@ export const readExtension = (value: unknown): ArchiveExtension | null => {
         .map((item) => ({
           id: typeof item.id === 'string' ? item.id : '',
           systemPrompt: typeof item.systemPrompt === 'string' ? item.systemPrompt : undefined,
+          summary: typeof item.summary === 'string' ? item.summary : undefined,
         }))
         .filter((item) => item.id !== '')
     : undefined
@@ -79,7 +80,8 @@ export const readArchiveExtension = async (file: File): Promise<ArchiveExtension
 export const toExtension = (
   group: SessionGroup | null,
   prompts: Map<string, string>,
-  groupExtras?: { title: string; content: string }[]
+  groupExtras?: { title: string; content: string }[],
+  summaries: Map<string, string> = new Map()
 ): ArchiveExtension => ({
   format: 'chatbrowser-ext',
   version: 1,
@@ -90,8 +92,19 @@ export const toExtension = (
         extras: groupExtras && groupExtras.length > 0 ? groupExtras : undefined,
       }
     : undefined,
-  sessions: [...prompts.entries()].map(([id, systemPrompt]) => ({ id, systemPrompt })),
+  sessions: [...new Set([...prompts.keys(), ...summaries.keys()])].map((id) => ({
+    id,
+    systemPrompt: prompts.get(id),
+    summary: summaries.get(id),
+  })),
 })
+
+export const sessionSummaries = (extension: ArchiveExtension | null): Map<string, string> =>
+  new Map(
+    (extension?.sessions ?? [])
+      .filter((item) => item.summary && item.summary.trim() !== '')
+      .map((item) => [item.id, item.summary as string])
+  )
 
 export const sessionPrompts = (extension: ArchiveExtension | null): Map<string, string> =>
   new Map(

@@ -9,7 +9,12 @@ import {
   parseSessionPath,
   sessionFilesDir,
 } from './paths.js'
-import { readExtension, sessionPrompts, type ArchiveExtension } from './extension.js'
+import {
+  readExtension,
+  sessionPrompts,
+  sessionSummaries,
+  type ArchiveExtension,
+} from './extension.js'
 import { checkManifest, readSessionFile, readSessionIndex } from './schema.js'
 import { toLocalSession } from './toLocal.js'
 import {
@@ -102,6 +107,7 @@ export const importArchive = async (
   let index: SessionIndexEntry[] | undefined
   let currentSessionId: string | undefined
   const prompts = sessionPrompts(extension ?? null)
+  const summaries = sessionSummaries(extension ?? null)
 
   const saveImage = async (entry: ArchiveEntry, id: string) => {
     if (stored.has(id)) {
@@ -133,6 +139,10 @@ export const importArchive = async (
         const systemPrompt = prompts.get(sessionId)
         if (systemPrompt) {
           local.session.systemPrompt = systemPrompt
+        }
+        const summary = summaries.get(sessionId)
+        if (summary) {
+          local.session.summary = summary
         }
         if (local.session.id !== sessionId || imported.has(sessionId)) {
           fail('backupIncomplete')

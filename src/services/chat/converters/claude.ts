@@ -17,6 +17,7 @@ export const sessionsToClaude = (sessions: Session[]) =>
   sessions.map((session) => ({
     uuid: session.id,
     name: session.title,
+    ...(session.summary ? { summary: session.summary } : {}),
     created_at: iso(session.createdAt),
     updated_at: iso(session.updatedAt),
     chat_messages: getVisibleMessages(session).map((message) => {

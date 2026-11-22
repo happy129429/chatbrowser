@@ -50,7 +50,7 @@
 
 - DeepSeek 官方导出 `deepseek_data-*.zip`（完整管线：分支、工具步骤、图片、思考内容）
 - ChatGPT 导出（`conversations.json` ZIP，含 `mapping` 树）
-- Claude 导出（`conversations.json` ZIP，含 `chat_messages` / `content` 数组；思考块与正文分离，附件仅保留元信息）
+- Claude 导出（`conversations.json` ZIP）：保留会话摘要、原始消息 UUID/parent 链、附件文件名元数据；思考块与正文分离
 - z.ai / OpenWebUI 原生导出（`chat.history.messages` 对象树 + `currentId`，按当前分支导入）
 - 单会话 `turn_history` 封装（`session_metadata` / `global_context` 系统指令）
 - z.ai 等通用格式（`messages` / `chat_history` 等字段）
@@ -60,6 +60,7 @@
 ## 功能
 
 - 完整渲染归档：Markdown、代码高亮、KaTeX、Mermaid、深度思考时间线、联网搜索与来源、消息分支切换、图片附件
+- 外部会话摘要（Claude `summary`）以折叠面板展示；无原件的附件显示文件名/类型
 - 安全拒绝回复默认只显示提示，归档浏览可点「显示原始内容」查看已下发的思考与正文
 - 归档组管理：重命名、配色、折叠、组间移动、合并、解散、导出组 ZIP、删除
 - 全局搜索：标题/提问/回答正文，摘录高亮、点击定位；按数据版本缓存索引

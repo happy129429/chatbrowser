@@ -46,6 +46,34 @@ const SystemPromptPanel = ({ content }: { content: string }) => {
   )
 }
 
+const SessionSummaryPanel = ({ content }: { content: string }) => {
+  const t = useTranslate()
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={styles.systemPrompt}>
+      <button
+        type="button"
+        className={styles.systemPromptTitle}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>{t('sessionSummaryTitle')}</span>
+        {open ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
+      </button>
+      {open ? (
+        <div className={styles.systemPromptBody}>
+          <Markdown
+            content={content}
+            loading={false}
+            cacheKey="session-summary"
+            disableLink={false}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export const SessionView = ({
   session,
   siderCollapsed,
@@ -106,6 +134,7 @@ export const SessionView = ({
           </div>
         </div>
       )}
+      {session.summary ? <SessionSummaryPanel content={session.summary} /> : null}
       {session.systemPrompt ? <SystemPromptPanel content={session.systemPrompt} /> : null}
       <MessageList session={session} />
     </div>

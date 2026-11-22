@@ -13,10 +13,10 @@ import styles from './MessageFile.module.css'
  * - 文件：显示文件卡片。
  */
 export const MessageFile = ({ file }: { file: FileAttachment }) => {
-  const { image, url, link } = useFileView(file.id, file.name)
+  const { image, url, link, loaded } = useFileView(file.id, file.name)
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
 
-  if (image && url !== null) {
+  if (image && (!loaded || url !== null)) {
     const preview = url ? (
       failedUrl === url ? (
         <span className={styles.failedIcon} role="img" aria-label={file.name}>

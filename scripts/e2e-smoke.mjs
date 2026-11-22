@@ -239,6 +239,24 @@ check(
   claudeContent.includes('conducted extensive experiments') ? 'ok' : 'missing'
 )
 
+const claudeSummary = await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((node) => node.textContent.includes('会话摘要'))
+  btn?.click()
+  return btn ? 'ok' : 'no-summary'
+})()`)
+await sleep(300)
+const claudeSummaryText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+const claudeOriginalId = await evaluate(`!!document.querySelector('[data-message-id="cl-1-2"]')`)
+check(
+  'Claude 摘要/附件/原始消息 ID 保留',
+  claudeSummary === 'ok' &&
+    typeof claudeSummaryText === 'string' &&
+    claudeSummaryText.includes('这是一次论文润色对话') &&
+    claudeSummaryText.includes('paper.png') &&
+    claudeOriginalId === true,
+  `summary=${claudeSummary} id=${claudeOriginalId}`
+)
+
 const claudeThinkingTitle = await evaluate(
   `[...document.querySelectorAll('div[class*="title"]')].some((node) => node.textContent.includes('已思考'))`
 )
@@ -547,7 +565,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.6.8') &&
+  aboutText.includes('0.6.9') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

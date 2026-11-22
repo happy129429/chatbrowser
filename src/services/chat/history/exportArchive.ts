@@ -24,12 +24,16 @@ export const exportArchive = async (
   const index: SessionIndexEntry[] = []
   const originals = new Map<string, Blob | undefined>()
   const prompts = new Map<string, string>()
+  const summaries = new Map<string, string>()
   for await (const original of sessions) {
     const anonymized = options.anonymize ? anonymizeSession(original) : null
     const session = anonymized?.session ?? original
     const prompt = promptOf(original)
     if (prompt) {
       prompts.set(session.id, prompt)
+    }
+    if (session.summary?.trim()) {
+      summaries.set(session.id, session.summary)
     }
     for (const message of session.messages) {
       if (message.role === 'user') {
@@ -59,7 +63,7 @@ export const exportArchive = async (
   }
   entries.push({ name: INDEX_PATH, blob: json(index) })
   if (options.extended) {
-    const extension = toExtension(options.group ?? null, prompts, options.group?.extras)
+    const extension = toExtension(options.group ?? null, prompts, options.group?.extras, summaries)
     entries.push({ name: EXT_PATH, blob: json(extension) })
   }
   return writeArchive(entries.concat(imageEntries))
