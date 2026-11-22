@@ -43,15 +43,32 @@ const positions = readPositions()
 let positionsTimer = 0
 const flushPositions = () => {
   window.clearTimeout(positionsTimer)
-  // 只保留最近的 200 条，避免无限增长
-  const entries = Object.entries(positions)
-    .sort((a, b) => b[1].ts - a[1].ts)
-    .slice(0, 200)
   try {
+    // 与已有存储合并（多标签页场景），再按时间裁剪到 200 条
+    const merged = { ...readPositions(), ...positions }
+    const entries = Object.entries(merged)
+      .sort((a, b) => b[1].ts - a[1].ts)
+      .slice(0, 200)
     localStorage.setItem(POSITIONS_KEY, JSON.stringify(Object.fromEntries(entries)))
   } catch {
     // 存储不可用时忽略
   }
+}
+
+/** 恢复时总是读最新存储：避免长时间打开后内存缓存落后于其他标签页。 */
+const lookupPosition = (sessionId: string): SavedPosition | undefined => {
+  try {
+    const raw = localStorage.getItem(POSITIONS_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, SavedPosition>
+      if (parsed[sessionId]) {
+        return parsed[sessionId]
+      }
+    }
+  } catch {
+    // 解析失败时退回内存缓存
+  }
+  return positions[sessionId]
 }
 const rememberPosition = (sessionId: string, position: SavedPosition) => {
   positions[sessionId] = position
@@ -210,7 +227,7 @@ export const MessageList = ({
       return
     }
     restoredSessionRef.current = session.id
-    const saved = positions[session.id]
+    const saved = lookupPosition(session.id)
     const jumping = useChatStore.getState().pendingJump?.sessionId === session.id
     if (!saved || saved.atBottom || jumping || !saved.messageId) {
       return
