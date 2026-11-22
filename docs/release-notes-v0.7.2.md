@@ -23,8 +23,8 @@ Claude 项目附加信息增强与部署文档。
 ## 校验 / Checksums (SHA-256)
 
 ```
-67ec7300a5f63f0803577daca7cf8c68ca35a06d7e7bd0ab55fe07f69327687d  windows-portable.zip
-2f22060e40a8e19d3121333ec011bdea82cd2b9e8bc9ab721995d201373b9a54  windows-x64.zip
-741f0e0ab74d2070b700b5e76d198eb10a1114b3975a341c3acf189e925d0912  linux-x64.tar.gz
+f49faa336afa8ec9f377312a9433418c1441daadd28bd129aad93a32a9ebfa6e  windows-portable.zip
+b5b0218795fe96f2df9744c24bf1a5492118d4919394832ffa8f5728ee3b88c0  windows-x64.zip
+6f296f9e839a73d08be9c6e81a7e7b3a99e299f76da6e27b1e981ff71fb478e2  linux-x64.tar.gz
 b385daef8f7540ec70d3a0aa7259165a70fffec055096c3b21bbad1fbb0f7d3b  chatbrowser-android-debug.apk
 ```

@@ -38,7 +38,11 @@ const icoPath = path.join(root, 'assets', 'icons', 'icon.ico')
 fs.copyFileSync(icoPath, path.join(launcherDir, 'winres', 'icon.ico'))
 const syso = path.join(launcherDir, 'rsrc_windows_amd64.syso')
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version
-const sysoStale = !fs.existsSync(syso) || fs.statSync(icoPath).mtimeMs > fs.statSync(syso).mtimeMs
+const winresPath = path.join(launcherDir, 'winres', 'winres.json')
+const sysoStale =
+  !fs.existsSync(syso) ||
+  fs.statSync(icoPath).mtimeMs > fs.statSync(syso).mtimeMs ||
+  fs.statSync(winresPath).mtimeMs > fs.statSync(syso).mtimeMs
 if (sysoStale) {
   // 注意：生成工具必须用宿主机平台编译执行，不要设置 GOOS
   const args = [
