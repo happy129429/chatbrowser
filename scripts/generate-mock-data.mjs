@@ -723,13 +723,26 @@ const claude = [
       {
         uuid: 'cl-1-1',
         sender: 'human',
-        text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
+        // 真实导出的常见形态：text 为空串，正文在 content 数组里
+        text: '',
+        content: [
+          {
+            type: 'text',
+            text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
+          },
+        ],
         created_at: new Date(now - 5 * 86400000).toISOString(),
       },
       {
         uuid: 'cl-1-2',
         sender: 'assistant',
-        text: 'We conducted extensive experiments, and the results demonstrate strong performance.',
+        text: null,
+        content: [
+          {
+            type: 'text',
+            text: 'We conducted extensive experiments, and the results demonstrate strong performance.',
+          },
+        ],
         created_at: new Date(now - 5 * 86400000 + 30000).toISOString(),
       },
       {
@@ -748,6 +761,22 @@ const claude = [
   },
 ]
 writeFileSync(path.join(outDir, 'claude-sample.json'), JSON.stringify(claude, null, 2))
+// 官方导出形态：ZIP 里 conversations.json + projects.json
+writeFileSync(
+  path.join(outDir, 'claude-sample.zip'),
+  zipSync({
+    'conversations.json': strToU8(JSON.stringify(claude)),
+    'projects.json': strToU8(
+      JSON.stringify([
+        {
+          uuid: 'proj-1',
+          name: '论文项目',
+          prompt_template: '你是学术写作助手，回答保持严谨、简洁。',
+        },
+      ])
+    ),
+  })
+)
 const zai = {
   data: {
     chats: [
@@ -768,6 +797,8 @@ const zai = {
   },
 }
 writeFileSync(path.join(outDir, 'zai-sample.json'), JSON.stringify(zai, null, 2))
-console.log('外部格式样例: chatgpt-sample(.zip/.json) / claude-sample.json / zai-sample.json')
+console.log(
+  '外部格式样例: chatgpt-sample(.zip/.json) / claude-sample(.zip/.json) / zai-sample.json'
+)
 
 console.log(`输出目录: ${outDir}`)

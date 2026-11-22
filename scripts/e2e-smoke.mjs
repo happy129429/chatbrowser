@@ -155,12 +155,12 @@ await sleep(3500)
 const sessionCount = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
 check('导入 mock ZIP', sessionCount === 12, `会话数=${sessionCount}`)
 
-// 外部格式（ChatGPT ZIP / Claude JSON / z.ai JSON）
+// 外部格式（ChatGPT ZIP / Claude ZIP / z.ai JSON）
 const chatgptBase64 = fs
   .readFileSync(path.join(root, 'mock', 'chatgpt-sample.zip'))
   .toString('base64')
 const claudeBase64 = fs
-  .readFileSync(path.join(root, 'mock', 'claude-sample.json'))
+  .readFileSync(path.join(root, 'mock', 'claude-sample.zip'))
   .toString('base64')
 const zaiBase64 = fs.readFileSync(path.join(root, 'mock', 'zai-sample.json')).toString('base64')
 await evaluate(`(() => {
@@ -169,7 +169,7 @@ await evaluate(`(() => {
   const toFile = (base64, name, type) =>
     new File([Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))], name, { type })
   dt.items.add(toFile(${JSON.stringify(chatgptBase64)}, 'chatgpt-sample.zip', 'application/zip'))
-  dt.items.add(toFile(${JSON.stringify(claudeBase64)}, 'claude-sample.json', 'application/json'))
+  dt.items.add(toFile(${JSON.stringify(claudeBase64)}, 'claude-export.zip', 'application/zip'))
   dt.items.add(toFile(${JSON.stringify(zaiBase64)}, 'zai-sample.json', 'application/json'))
   input.files = dt.files
   input.dispatchEvent(new Event('change', { bubbles: true }))
@@ -188,6 +188,28 @@ const hasChatGptTitle = await evaluate(
 )
 check('导入 ChatGPT(ZIP) / Claude / z.ai', withExternal === 16, `会话数=${withExternal}`)
 check('外部会话标题正确', hasChatGptTitle === true)
+
+const acceptAttr = await evaluate(
+  `document.querySelector('input[type="file"][multiple]')?.accept ?? ''`
+)
+check(
+  '文件选择器接受 ZIP 与 JSON',
+  typeof acceptAttr === 'string' &&
+    acceptAttr.includes('.zip') &&
+    acceptAttr.includes('.json') &&
+    !acceptAttr.includes('*.*'),
+  acceptAttr
+)
+
+// Claude：text 为空、正文在 content 数组中
+await clickByText('div[class*="item-"]', '论文润色')
+await sleep(1400)
+const claudeContent = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'Claude content 数组正文可导入',
+  typeof claudeContent === 'string' && claudeContent.includes('conducted extensive experiments'),
+  claudeContent.includes('conducted extensive experiments') ? 'ok' : 'missing'
+)
 
 // 系统提示词面板（ChatGPT system 消息）
 await clickByText('div[class*="item-"]', 'Rust 所有权')
@@ -409,6 +431,25 @@ check(
   typeof statsText === 'string' && /Token总用量[\d,]+/.test(statsText.replace(/\s/g, '')),
   statsText?.slice(0, 120)
 )
+
+// ---------- 7. 关于页 ----------
+await evaluate(`(() => {
+  const tab = [...document.querySelectorAll('button[role="tab"]')].find((node) => node.textContent.includes('关于'))
+  tab?.click()
+  return 'ok'
+})()`)
+await sleep(600)
+const aboutText = await evaluate(
+  `document.querySelector('div[role="dialog"]')?.textContent ?? document.querySelector('main')?.textContent ?? ''`
+)
+const aboutOk =
+  typeof aboutText === 'string' &&
+  aboutText.includes('0.6.3') &&
+  aboutText.includes('github.com/happy129429/chatbrowser') &&
+  aboutText.includes('deepseek-ai/chat-demo') &&
+  aboutText.includes('GPL-3.0-or-later') &&
+  aboutText.includes('检查')
+check('关于页包含版本/项目/上游/许可', aboutOk, aboutOk ? 'ok' : aboutText?.slice(0, 160))
 
 // ---------- 汇总 ----------
 ws.close()

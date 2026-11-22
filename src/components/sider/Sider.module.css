@@ -269,7 +269,9 @@
 .bottom {
   display: flex;
   flex-shrink: 0;
-  height: 64px;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
 }
 
 .settings {
@@ -277,7 +279,6 @@
   align-items: center;
   box-sizing: border-box;
   width: 100%;
-  margin-block: auto;
   padding: 6px 2px 6px 6px;
   border: none;
   border-radius: 12px;

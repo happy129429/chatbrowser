@@ -11,13 +11,22 @@ $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dist = Join-Path $root 'dist'
 $prefix = "http://127.0.0.1:$Port/"
 $healthUrl = $prefix + '__chatbrowser'
+# 构建时由 scripts/build-desktop.mjs 替换为实际版本号
+$appVersion = '__APP_VERSION__'
 
-function Test-Healthy {
+# 返回端口上已有实例的版本；无实例返回 $null，旧版（只有 ok）返回空字符串。
+function Get-HealthVersion {
   try {
     $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 1
-    return $response.StatusCode -eq 200 -and $response.Content -eq 'ok'
+    if ($response.StatusCode -ne 200) { return $null }
+    try {
+      $data = $response.Content | ConvertFrom-Json
+      if ($data.app -eq 'chatbrowser') { return [string]$data.version }
+    } catch {}
+    if ($response.Content -eq 'ok') { return '' }
+    return $null
   } catch {
-    return $false
+    return $null
   }
 }
 
@@ -39,9 +48,16 @@ function Open-Window {
   Start-Process $prefix
 }
 
-# 已有实例：直接开窗口
-if (Test-Healthy) {
-  if (-not $NoOpen) { Open-Window }
+# 已有实例：同版本直接开窗口；旧版本提示用户先关闭，避免显示旧界面
+$existingVersion = Get-HealthVersion
+if ($null -ne $existingVersion) {
+  if ($existingVersion -eq $appVersion) {
+    if (-not $NoOpen) { Open-Window }
+    return
+  }
+  Write-Host "检测到旧版本的对话浏览器仍在运行（端口 $Port）。" -ForegroundColor Yellow
+  Write-Host "请先关闭旧版窗口，再重新启动本程序。" -ForegroundColor Yellow
+  Read-Host "按回车退出"
   return
 }
 
@@ -69,7 +85,7 @@ $listener.Prefixes.Add($prefix)
 try {
   $listener.Start()
 } catch {
-  Write-Host "端口 $Port 被占用，无法启动。" -ForegroundColor Red
+  Write-Host "端口 $Port 被占用，无法启动。若旧版对话浏览器仍在运行，请先关闭它。" -ForegroundColor Red
   Read-Host "按回车退出"
   return
 }
@@ -88,8 +104,9 @@ while ($listener.IsListening) {
   try {
     $pathPart = [System.Uri]::UnescapeDataString($request.Url.AbsolutePath)
     if ($pathPart -eq '/__chatbrowser') {
-      $bytes = [System.Text.Encoding]::UTF8.GetBytes('ok')
-      $response.ContentType = 'text/plain'
+      $payload = '{"app":"chatbrowser","version":"' + $appVersion + '"}'
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
+      $response.ContentType = 'application/json'
       $response.OutputStream.Write($bytes, 0, $bytes.Length)
       $response.Close()
       continue

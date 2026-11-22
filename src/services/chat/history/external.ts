@@ -108,7 +108,11 @@ const contentText = (value: unknown): string => {
   }
   if (Array.isArray(value)) {
     return value
-      .map((item) => (typeof item === 'string' ? item : contentText(record(item)?.text)))
+      .map((item) =>
+        typeof item === 'string'
+          ? item
+          : contentText(record(item)?.text) || contentText(record(item)?.content)
+      )
       .filter(Boolean)
       .join('\n')
   }
@@ -401,15 +405,17 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       if (!message) {
         continue
       }
-      const text = contentText(message.text ?? message.content)
+      // 真实导出里 text 可能是空字符串而正文在 content:[{type:'text',text}] 中
+      const text = contentText(message.text) || contentText(message.content)
       const at = toMs(message.created_at, Date.now())
-      if (message.sender === 'human') {
+      const sender = message.sender ?? message.role
+      if (sender === 'human' || sender === 'user') {
         if (pendingQuestion) {
           rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
         }
         pendingQuestion = text
         pendingAt = at
-      } else if (message.sender === 'assistant') {
+      } else if (sender === 'assistant') {
         rounds.push({ question: pendingQuestion, answer: text, at: pendingAt || at })
         pendingQuestion = ''
       }

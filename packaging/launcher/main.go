@@ -5,6 +5,8 @@ package main
 import (
 	"bytes"
 	"embed"
+	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -15,8 +17,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 )
 
 //go:embed web
@@ -24,20 +28,36 @@ var embedded embed.FS
 
 const (
 	addr     = "127.0.0.1:17890"
+	port     = 17890
 	appURL   = "http://" + addr + "/"
 	healthAt = "/__chatbrowser"
 )
+
+// version 由构建脚本通过 -ldflags "-X main.version=..." 注入。
+var version = "dev"
+
+type healthInfo struct {
+	App     string `json:"app"`
+	Version string `json:"version"`
+}
 
 func main() {
 	noOpen := flag.Bool("no-open", false, "启动后不自动打开窗口")
 	flag.Parse()
 
-	// 已在运行（端口就绪且健康检查通过）：直接开窗口，避免重复起服务。
-	if healthy() {
-		if !*noOpen {
-			openWindow()
+	// 端口上已有本应用实例：同版本直接开窗口；旧版本先结束，避免「新版启动却显示旧界面」。
+	if info, ok := probe(); ok {
+		if info.App == "chatbrowser" && info.Version != version {
+			if !terminateStale() || !waitPortFree(3*time.Second) {
+				messageBox("另一个旧版本的对话浏览器仍在运行（端口 " + addr + "）。\n请先关闭它，再重新启动本程序。")
+				return
+			}
+		} else {
+			if !*noOpen {
+				openWindow()
+			}
+			return
 		}
-		return
 	}
 	if busy() {
 		messageBox("端口 " + addr + " 被其他程序占用，无法启动。请关闭占用程序后重试。")
@@ -52,8 +72,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthAt, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		_, _ = w.Write([]byte("ok"))
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(healthInfo{App: "chatbrowser", Version: version})
 	})
 	mux.Handle("/", serveStatic(web))
 
@@ -64,7 +84,10 @@ func main() {
 		}
 	}()
 
-	for i := 0; i < 50 && !healthy(); i++ {
+	for i := 0; i < 50; i++ {
+		if _, ok := probe(); ok {
+			break
+		}
 		time.Sleep(50 * time.Millisecond)
 	}
 	if !*noOpen {
@@ -109,19 +132,131 @@ func busy() bool {
 	return true
 }
 
-func healthy() bool {
-	client := http.Client{Timeout: 700 * time.Millisecond}
+// probe 查询端口上的服务；旧版只返回 "ok"，按未知版本处理。
+func probe() (healthInfo, bool) {
+	client := http.Client{Timeout: 900 * time.Millisecond}
 	resp, err := client.Get(appURL + strings.TrimPrefix(healthAt, "/"))
 	if err != nil {
-		return false
+		return healthInfo{}, false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return false
+		return healthInfo{}, false
 	}
-	buf := make([]byte, 2)
-	n, _ := resp.Body.Read(buf)
-	return n == 2 && string(buf) == "ok"
+	var raw bytes.Buffer
+	if _, err := raw.ReadFrom(resp.Body); err != nil {
+		return healthInfo{}, false
+	}
+	body := strings.TrimSpace(raw.String())
+	var info healthInfo
+	if json.Unmarshal([]byte(body), &info) == nil && info.App != "" {
+		return info, true
+	}
+	if body == "ok" {
+		return healthInfo{App: "chatbrowser", Version: ""}, true
+	}
+	return healthInfo{}, false
+}
+
+func waitPortFree(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !busy() {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return !busy()
+}
+
+// terminateStale 结束监听固定端口、且进程名为 chatbrowser 的旧实例。
+func terminateStale() bool {
+	switch runtime.GOOS {
+	case "windows":
+		script := "$ErrorActionPreference='SilentlyContinue';" +
+			"$c=Get-NetTCPConnection -LocalPort " + strconv.Itoa(port) + " -State Listen | Select-Object -First 1;" +
+			"if(-not $c){exit 1};" +
+			"$p=Get-Process -Id $c.OwningProcess;" +
+			"if(-not $p){exit 1};" +
+			"if($p.ProcessName -eq 'chatbrowser'){Stop-Process -Id $p.Id -Force;exit 0};" +
+			"exit 1"
+		encoded := encodePowerShell(script)
+		if err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded).Run(); err == nil {
+			return true
+		}
+		return false
+	case "darwin":
+		return killPIDs(listeningPIDs())
+	default:
+		return killPIDs(listeningPIDs())
+	}
+}
+
+func listeningPIDs() []int {
+	try := func(name string, args ...string) string {
+		out, err := exec.Command(name, args...).Output()
+		if err != nil {
+			return ""
+		}
+		return string(out)
+	}
+	var raw string
+	if runtime.GOOS == "darwin" {
+		raw = try("lsof", "-t", "-iTCP:"+strconv.Itoa(port), "-sTCP:LISTEN")
+	} else {
+		raw = try("lsof", "-t", "-iTCP:"+strconv.Itoa(port), "-sTCP:LISTEN")
+		if raw == "" {
+			raw = try("ss", "-ltnp", "sport = :"+strconv.Itoa(port))
+			pids := []int{}
+			for _, field := range strings.Fields(raw) {
+				if idx := strings.Index(field, "pid="); idx >= 0 {
+					value := strings.TrimSuffix(field[idx+4:], ",")
+					if pid, err := strconv.Atoi(value); err == nil {
+						pids = append(pids, pid)
+					}
+				}
+			}
+			return pids
+		}
+	}
+	pids := []int{}
+	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
+		if pid, err := strconv.Atoi(strings.TrimSpace(line)); err == nil {
+			pids = append(pids, pid)
+		}
+	}
+	return pids
+}
+
+func killPIDs(pids []int) bool {
+	killed := false
+	for _, pid := range pids {
+		if runtime.GOOS == "linux" {
+			exe, err := os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
+			if err != nil || !strings.Contains(filepath.Base(exe), "chatbrowser") {
+				continue
+			}
+		}
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			continue
+		}
+		if proc.Kill() == nil {
+			killed = true
+		}
+	}
+	return killed
+}
+
+// encodePowerShell 生成 UTF-16LE Base64，避免引号与中文转义问题。
+func encodePowerShell(script string) string {
+	units := utf16.Encode([]rune(script))
+	buf := make([]byte, len(units)*2)
+	for i, unit := range units {
+		buf[i*2] = byte(unit)
+		buf[i*2+1] = byte(unit >> 8)
+	}
+	return base64.StdEncoding.EncodeToString(buf)
 }
 
 // openWindow 优先用 Chromium 系浏览器的 --app 模式开独立窗口，失败则退回默认浏览器。
@@ -184,7 +319,12 @@ func tryStart(name string, args ...string) bool {
 
 func messageBox(text string) {
 	fmt.Fprintln(os.Stderr, text)
-	if runtime.GOOS == "windows" {
-		tryStart("cmd", "/c", "echo "+text+" & pause")
+	if runtime.GOOS != "windows" {
+		return
 	}
+	// 启动器是 GUI 程序，没有控制台；用系统消息框展示错误。
+	escaped := strings.ReplaceAll(text, "'", "''")
+	script := "Add-Type -AssemblyName PresentationFramework;" +
+		"[System.Windows.MessageBox]::Show('" + escaped + "','chatbrowser') | Out-Null"
+	tryStart("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encodePowerShell(script))
 }

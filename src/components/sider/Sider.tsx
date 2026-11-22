@@ -4,6 +4,7 @@ import { useTranslate } from '../../i18n/index.js'
 import {
   IconCloseOutline16,
   IconFolderOutline16,
+  IconInfoOutline16,
   IconManageOutline16,
   IconPanelLeftOutline16,
   IconPinFill16,
@@ -454,6 +455,12 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
             <IconSettingsOutline16 />
           </span>
           <span className={styles.settingsLabel}>{t('settings')}</span>
+        </button>
+        <button type="button" className={styles.settings} onClick={() => openSettings('about')}>
+          <span className={styles.settingsIcon}>
+            <IconInfoOutline16 />
+          </span>
+          <span className={styles.settingsLabel}>{t('settingDialogAsideAboutOptionLabel')}</span>
         </button>
       </div>
       {deleting ? (

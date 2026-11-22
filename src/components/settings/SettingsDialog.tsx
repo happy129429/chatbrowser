@@ -27,6 +27,7 @@ import {
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { collectChatStats, type ChatStats } from '../../services/chat/stats.js'
+import { checkForUpdates, RELEASES_URL, type UpdateResult } from '../../services/update.js'
 import { saveBlob } from '../../utils/saveFile.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
@@ -203,36 +204,24 @@ const useHistoryDelete = () => {
   }
 }
 
-/** 关于：版本、检查更新、项目链接与许可。 */
+/** 关于：版本、检查更新、项目地址、上游致谢与许可。 */
 const AboutPanel = () => {
   const t = useTranslate()
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<'latest' | 'newer' | 'failed' | null>(null)
-  const [latestVersion, setLatestVersion] = useState<string | null>(null)
+  const [latest, setLatest] = useState<UpdateResult | null>(null)
 
   const checkUpdate = async () => {
     setChecking(true)
     setUpdate(null)
-    try {
-      const response = await fetch(
-        'https://api.github.com/repos/happy129429/chatbrowser/releases/latest',
-        { headers: { Accept: 'application/vnd.github+json' } }
-      )
-      if (!response.ok) {
-        throw new Error(String(response.status))
-      }
-      const data = (await response.json()) as { tag_name?: string }
-      const latest = (data.tag_name ?? '').replace(/^v/, '')
-      if (!latest) {
-        throw new Error('no tag')
-      }
-      setLatestVersion(latest)
-      setUpdate(compareVersions(latest, __APP_VERSION__) > 0 ? 'newer' : 'latest')
-    } catch {
+    const result = await checkForUpdates(true)
+    setChecking(false)
+    if (!result) {
       setUpdate('failed')
-    } finally {
-      setChecking(false)
+      return
     }
+    setLatest(result)
+    setUpdate(result.newer ? 'newer' : 'latest')
   }
 
   return (
@@ -261,7 +250,7 @@ const AboutPanel = () => {
         <SettingCell
           label={
             update === 'newer'
-              ? t('aboutNewVersion', { version: latestVersion ?? '' })
+              ? t('aboutNewVersion', { version: latest?.latest ?? '' })
               : update === 'latest'
                 ? t('aboutUpToDate')
                 : t('aboutCheckFailed')
@@ -273,9 +262,7 @@ const AboutPanel = () => {
                 variant="outlined"
                 size="m"
                 className={styles.cellButton}
-                onClick={() =>
-                  window.open('https://github.com/happy129429/chatbrowser/releases', '_blank')
-                }
+                onClick={() => window.open(latest?.url ?? RELEASES_URL, '_blank')}
               >
                 {t('aboutDownload')}
               </Button>
@@ -289,14 +276,29 @@ const AboutPanel = () => {
         action={
           <a
             className={styles.statValue}
-            href="https://github.com/happy129429/chatbrowser"
+            href={RELEASES_URL.replace(/\/releases$/, '')}
             target="_blank"
             rel="noreferrer"
           >
-            GitHub
+            github.com/happy129429/chatbrowser
           </a>
         }
       />
+      <SettingCell
+        label={t('aboutUpstream')}
+        status={null}
+        action={
+          <a
+            className={styles.statValue}
+            href="https://github.com/deepseek-ai/chat-demo"
+            target="_blank"
+            rel="noreferrer"
+          >
+            deepseek-ai/chat-demo
+          </a>
+        }
+      />
+      <SettingCell label={t('aboutUpstreamNote')} status={null} action={null} />
       <SettingCell
         label={t('aboutLicense')}
         status={null}
@@ -304,19 +306,6 @@ const AboutPanel = () => {
       />
     </>
   )
-}
-
-/** 简易 semver 比较：仅用于提示是否有新版本。 */
-const compareVersions = (a: string, b: string) => {
-  const pa = a.split('.').map((part) => Number.parseInt(part, 10) || 0)
-  const pb = b.split('.').map((part) => Number.parseInt(part, 10) || 0)
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
-    if (diff !== 0) {
-      return diff
-    }
-  }
-  return 0
 }
 
 /** 遍历本地库汇总统计：组数、会话数、轮数、token 用量与思考时长。 */
@@ -569,7 +558,7 @@ const ImportHistory = ({
           <input
             ref={inputRef}
             type="file"
-            accept=".zip,.json,application/zip,application/x-zip-compressed,application/json"
+            accept=".zip,.json"
             hidden
             onChange={(event) => {
               const file = event.target.files?.[0]

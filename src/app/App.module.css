@@ -20,6 +20,23 @@
   min-height: 0;
 }
 
+.updateBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--dsw-alias-label-primary);
+  background-color: var(--dsw-alias-bg-layer-2);
+  font-size: 14px;
+}
+
+.updateActions {
+  display: flex;
+  gap: 8px;
+}
+
 .saveError {
   display: flex;
   align-items: center;

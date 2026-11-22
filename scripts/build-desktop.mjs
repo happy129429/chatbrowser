@@ -37,6 +37,7 @@ fs.cpSync(path.join(root, 'dist'), webDir, { recursive: true })
 const icoPath = path.join(root, 'assets', 'icons', 'icon.ico')
 fs.copyFileSync(icoPath, path.join(launcherDir, 'winres', 'icon.ico'))
 const syso = path.join(launcherDir, 'rsrc_windows_amd64.syso')
+const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version
 const sysoStale = !fs.existsSync(syso) || fs.statSync(icoPath).mtimeMs > fs.statSync(syso).mtimeMs
 if (sysoStale) {
   // 注意：生成工具必须用宿主机平台编译执行，不要设置 GOOS
@@ -68,7 +69,7 @@ for (const target of targets) {
   const outDir = path.join(releaseDir, target.dir)
   fs.mkdirSync(outDir, { recursive: true })
   const out = path.join(outDir, target.name)
-  const ldflags = target.goos === 'windows' ? '-s -w -H=windowsgui' : '-s -w'
+  const ldflags = `${target.goos === 'windows' ? '-s -w -H=windowsgui' : '-s -w'} -X main.version=${version}`
   run(go, ['build', '-trimpath', '-ldflags', ldflags, '-o', out, '.'], {
     cwd: launcherDir,
     env: { ...process.env, GOOS: target.goos, GOARCH: target.goarch, CGO_ENABLED: '0' },
@@ -116,10 +117,10 @@ for (const { target, outDir } of built) {
   const portableDir = path.join(releaseDir, 'windows-portable')
   fs.mkdirSync(portableDir, { recursive: true })
   fs.cpSync(path.join(root, 'dist'), path.join(portableDir, 'dist'), { recursive: true })
-  fs.copyFileSync(
-    path.join(root, 'packaging', 'windows', 'server.ps1'),
-    path.join(portableDir, 'server.ps1')
-  )
+  const serverScript = fs
+    .readFileSync(path.join(root, 'packaging', 'windows', 'server.ps1'), 'utf8')
+    .replaceAll('__APP_VERSION__', version)
+  fs.writeFileSync(path.join(portableDir, 'server.ps1'), serverScript)
   fs.copyFileSync(
     path.join(root, 'packaging', 'windows', 'start-chatbrowser.cmd'),
     path.join(portableDir, 'start-chatbrowser.cmd')

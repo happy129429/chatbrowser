@@ -18,7 +18,7 @@ type ItemState = {
   reason?: TranslationKey
 }
 
-const ACCEPT = '.zip,.json,application/zip,application/x-zip-compressed,application/json'
+const ACCEPT = '.zip,.json'
 const isArchive = (file: File) =>
   /\.(zip|json)$/i.test(file.name) ||
   ['application/zip', 'application/x-zip-compressed', 'application/json'].includes(file.type)
