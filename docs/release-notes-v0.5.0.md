@@ -5,11 +5,11 @@ A local DeepSeek chat-history browser that loads exported ZIP archives. No API, 
 
 ## 下载 / Downloads
 
-| 文件 / Asset | 平台 / Platform | 说明 / Notes |
-| --- | --- | --- |
-| `windows-x64.zip` | Windows 10/11 | 解压双击 `chatbrowser.exe`；屏幕出现无地址栏应用窗口 / unzip and run the exe |
-| `linux-x64.tar.gz` | Linux x86_64 | 解压运行 `./chatbrowser`（含图标与 .desktop）/ extract and run |
-| `chatbrowser-android-debug.apk` | Android 6+ | debug 签名，直接安装 / debug-signed, sideload directly |
+| 文件 / Asset                    | 平台 / Platform | 说明 / Notes                                                                 |
+| ------------------------------- | --------------- | ---------------------------------------------------------------------------- |
+| `windows-x64.zip`               | Windows 10/11   | 解压双击 `chatbrowser.exe`；屏幕出现无地址栏应用窗口 / unzip and run the exe |
+| `linux-x64.tar.gz`              | Linux x86_64    | 解压运行 `./chatbrowser`（含图标与 .desktop）/ extract and run               |
+| `chatbrowser-android-debug.apk` | Android 6+      | debug 签名，直接安装 / debug-signed, sideload directly                       |
 
 > 数据按 origin 隔离：桌面启动器固定 `127.0.0.1:17890`，重启保留；开发服务器、file://、Android 各自独立。
 > Android 导出文件保存在「文档」目录。
@@ -24,12 +24,14 @@ A local DeepSeek chat-history browser that loads exported ZIP archives. No API, 
 ## 自 v0.4.0 以来的变化 / Since v0.4.0
 
 ### 新增
+
 - 桌面启动器与 Android 打包（`pnpm desktop` / `pnpm android:apk`）
 - 应用图标生成流水线（`pnpm icons`，从 `assets/icon.svg` 生成 ico/png/Android mipmap）
 - 桌面端会话分享按钮移至右上角（与移动端一致）；移动端分享操作栏改为两行布局
 - Android/原生环境下导出走系统「文档」目录
 
 ### 修复
+
 - Windows 启动器首页 301 重定向循环（改用 `http.ServeContent` 直接输出内嵌文件）
 - Windows 启动器未能在 PATH 找到浏览器时退回普通标签页：现会探测 Edge/Chrome 的标准安装路径，用 `--app` 打开无地址栏窗口
 - 跳转锁定期间的用户滚动不会再丢失阅读位置记忆

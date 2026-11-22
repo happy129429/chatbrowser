@@ -5,6 +5,7 @@ import {
   IconDataOutline16,
   IconDownloadOutline16,
   IconFollowsystemOutline16,
+  IconInfoOutline16,
   IconLightOutline16,
   IconSettingsOutline16,
   IconStatsOutline16,
@@ -51,6 +52,7 @@ const sections: { value: SettingsSection; label: TranslationKey; icon: ReactNode
   },
   { value: 'stats', label: 'settingDialogAsideStatsOptionLabel', icon: <IconStatsOutline16 /> },
   { value: 'data', label: 'settingDialogAsideDataOptionLabel', icon: <IconDataOutline16 /> },
+  { value: 'about', label: 'settingDialogAsideAboutOptionLabel', icon: <IconInfoOutline16 /> },
 ]
 
 const SettingsContent = () => {
@@ -98,6 +100,8 @@ const SettingsContent = () => {
             </>
           ) : section === 'stats' ? (
             <ChatStats />
+          ) : section === 'about' ? (
+            <AboutPanel />
           ) : (
             <>
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
@@ -197,6 +201,122 @@ const useHistoryDelete = () => {
     },
     confirm,
   }
+}
+
+/** 关于：版本、检查更新、项目链接与许可。 */
+const AboutPanel = () => {
+  const t = useTranslate()
+  const [checking, setChecking] = useState(false)
+  const [update, setUpdate] = useState<'latest' | 'newer' | 'failed' | null>(null)
+  const [latestVersion, setLatestVersion] = useState<string | null>(null)
+
+  const checkUpdate = async () => {
+    setChecking(true)
+    setUpdate(null)
+    try {
+      const response = await fetch(
+        'https://api.github.com/repos/happy129429/chatbrowser/releases/latest',
+        { headers: { Accept: 'application/vnd.github+json' } }
+      )
+      if (!response.ok) {
+        throw new Error(String(response.status))
+      }
+      const data = (await response.json()) as { tag_name?: string }
+      const latest = (data.tag_name ?? '').replace(/^v/, '')
+      if (!latest) {
+        throw new Error('no tag')
+      }
+      setLatestVersion(latest)
+      setUpdate(compareVersions(latest, __APP_VERSION__) > 0 ? 'newer' : 'latest')
+    } catch {
+      setUpdate('failed')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <>
+      <SettingCell
+        label={t('aboutVersion')}
+        status={null}
+        action={<span className={styles.statValue}>v{__APP_VERSION__}</span>}
+      />
+      <SettingCell
+        label={t('aboutCheckUpdate')}
+        status={null}
+        action={
+          <Button
+            variant="outlined"
+            size="m"
+            className={styles.cellButton}
+            disabled={checking}
+            onClick={() => void checkUpdate()}
+          >
+            {t(checking ? 'aboutChecking' : 'aboutCheckNow')}
+          </Button>
+        }
+      />
+      {update ? (
+        <SettingCell
+          label={
+            update === 'newer'
+              ? t('aboutNewVersion', { version: latestVersion ?? '' })
+              : update === 'latest'
+                ? t('aboutUpToDate')
+                : t('aboutCheckFailed')
+          }
+          status={null}
+          action={
+            update === 'newer' ? (
+              <Button
+                variant="outlined"
+                size="m"
+                className={styles.cellButton}
+                onClick={() =>
+                  window.open('https://github.com/happy129429/chatbrowser/releases', '_blank')
+                }
+              >
+                {t('aboutDownload')}
+              </Button>
+            ) : null
+          }
+        />
+      ) : null}
+      <SettingCell
+        label={t('aboutProject')}
+        status={null}
+        action={
+          <a
+            className={styles.statValue}
+            href="https://github.com/happy129429/chatbrowser"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
+        }
+      />
+      <SettingCell
+        label={t('aboutLicense')}
+        status={null}
+        action={<span className={styles.statValue}>GPL-3.0-or-later</span>}
+      />
+    </>
+  )
+}
+
+/** 简易 semver 比较：仅用于提示是否有新版本。 */
+const compareVersions = (a: string, b: string) => {
+  const pa = a.split('.').map((part) => Number.parseInt(part, 10) || 0)
+  const pb = b.split('.').map((part) => Number.parseInt(part, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (diff !== 0) {
+      return diff
+    }
+  }
+  return 0
 }
 
 /** 遍历本地库汇总统计：组数、会话数、轮数、token 用量与思考时长。 */

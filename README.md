@@ -39,11 +39,11 @@ The output is written to `dist/` and can be deployed to any static server.
 
 Prebuilt packages are attached to [Releases](https://github.com/happy129429/chatbrowser/releases):
 
-| Package | Platform | How to use |
-| --- | --- | --- |
-| `windows-x64.zip` | Windows 10/11 | Unzip and double-click `chatbrowser.exe`. A chromeless app window opens (Edge/Chrome); the launcher serves the UI at `http://127.0.0.1:17890`. |
-| `linux-x64.tar.gz` | Linux x86_64 | Extract, run `./chatbrowser` (or install `chatbrowser.desktop` for a menu entry). |
-| `chatbrowser-android.apk` | Android 6+ | Sideload the APK, open the app, import a ZIP. |
+| Package                   | Platform      | How to use                                                                                                                                     |
+| ------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `windows-x64.zip`         | Windows 10/11 | Unzip and double-click `chatbrowser.exe`. A chromeless app window opens (Edge/Chrome); the launcher serves the UI at `http://127.0.0.1:17890`. |
+| `linux-x64.tar.gz`        | Linux x86_64  | Extract, run `./chatbrowser` (or install `chatbrowser.desktop` for a menu entry).                                                              |
+| `chatbrowser-android.apk` | Android 6+    | Sideload the APK, open the app, import a ZIP.                                                                                                  |
 
 Notes:
 
@@ -59,7 +59,6 @@ pnpm icons        # regenerate platform icons from assets/icon.svg (needs Chrome
 pnpm desktop      # Windows/Linux single-file launchers → release/desktop (needs Go)
 pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug (needs Android SDK + JDK 17)
 ```
-
 
 ## Features
 

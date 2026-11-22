@@ -39,11 +39,11 @@ pnpm build
 
 预构建产物见 [Releases](https://github.com/happy129429/chatbrowser/releases)：
 
-| 包 | 平台 | 使用方式 |
-| --- | --- | --- |
-| `windows-x64.zip` | Windows 10/11 | 解压后双击 `chatbrowser.exe`，自动用 Edge/Chrome 打开无地址栏应用窗口（本地服务固定为 `http://127.0.0.1:17890`）。 |
-| `linux-x64.tar.gz` | Linux x86_64 | 解压运行 `./chatbrowser`（或把 `chatbrowser.desktop` 装进应用菜单）。 |
-| `chatbrowser-android.apk` | Android 6+ | 直接安装 APK，打开后导入 ZIP 即可。 |
+| 包                        | 平台          | 使用方式                                                                                                           |
+| ------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `windows-x64.zip`         | Windows 10/11 | 解压后双击 `chatbrowser.exe`，自动用 Edge/Chrome 打开无地址栏应用窗口（本地服务固定为 `http://127.0.0.1:17890`）。 |
+| `linux-x64.tar.gz`        | Linux x86_64  | 解压运行 `./chatbrowser`（或把 `chatbrowser.desktop` 装进应用菜单）。                                              |
+| `chatbrowser-android.apk` | Android 6+    | 直接安装 APK，打开后导入 ZIP 即可。                                                                                |
 
 注意：
 
@@ -59,7 +59,6 @@ pnpm icons        # 从 assets/icon.svg 重新生成各平台图标（需 Chrome
 pnpm desktop      # Windows/Linux 单文件启动器 → release/desktop（需 Go）
 pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug（需 Android SDK + JDK 17）
 ```
-
 
 ## 功能
 

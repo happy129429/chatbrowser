@@ -579,3 +579,11 @@ export const IconStatsOutline16 = () => (
     <rect x="11.4" y="2" width="2.6" height="12" rx="1" fill="currentColor" />
   </svg>
 )
+
+export const IconInfoOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="8" cy="8" r="6.6" stroke="currentColor" strokeWidth="1.3" />
+    <rect x="7.25" y="6.9" width="1.5" height="4.6" rx="0.75" fill="currentColor" />
+    <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
+  </svg>
+)

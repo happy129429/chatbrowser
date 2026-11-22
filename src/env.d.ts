@@ -5,6 +5,9 @@ declare module '*.module.css' {
 
 declare module '*.css' {}
 
+/** 构建时注入的 package.json 版本号 */
+declare const __APP_VERSION__: string
+
 declare module '*?raw' {
   const source: string
   export default source
