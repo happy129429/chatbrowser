@@ -6,6 +6,7 @@ import {
   IconDownloadOutline16,
   IconFollowsystemOutline16,
   IconInfoOutline16,
+  IconPowerOutline16,
   IconLightOutline16,
   IconSettingsOutline16,
   IconStatsOutline16,
@@ -27,6 +28,7 @@ import {
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { collectChatStats, type ChatStats } from '../../services/chat/stats.js'
+import { quitLauncher, isLauncherOrigin } from '../../services/launcher.js'
 import { checkForUpdates, RELEASES_URL, type UpdateResult } from '../../services/update.js'
 import { saveBlob } from '../../utils/saveFile.js'
 import { Button } from '../base/Button.js'
@@ -79,7 +81,17 @@ const SettingsContent = () => {
         }}
       >
         <div role="tablist" className={styles.navigation}>
-          {sections.map((item) => (
+          {(isLauncherOrigin()
+            ? [
+                ...sections,
+                {
+                  value: 'quit' as const,
+                  label: 'settingDialogAsideQuitOptionLabel' as const,
+                  icon: <IconPowerOutline16 />,
+                },
+              ]
+            : sections
+          ).map((item) => (
             <button
               key={item.value}
               type="button"
@@ -103,6 +115,8 @@ const SettingsContent = () => {
             <ChatStats />
           ) : section === 'about' ? (
             <AboutPanel />
+          ) : section === 'quit' ? (
+            <QuitPanel />
           ) : (
             <>
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
@@ -204,12 +218,58 @@ const useHistoryDelete = () => {
   }
 }
 
-/** 关于：版本、检查更新、项目地址、上游致谢与许可。 */
+/** 退出应用：停止启动器的本地服务并释放程序文件。 */
+const QuitPanel = () => {
+  const t = useTranslate()
+  return (
+    <SettingCell
+      label={t('aboutQuit')}
+      description={t('aboutQuitHint')}
+      status={null}
+      action={
+        <Button
+          variant="dangerOutlined"
+          size="m"
+          className={styles.cellButton}
+          onClick={() => void quitLauncher()}
+        >
+          {t('aboutQuitAction')}
+        </Button>
+      }
+    />
+  )
+}
+
+/** 关于：版本、检查更新、项目地址、上游项目与许可（应用内查看许可证）。 */
 const AboutPanel = () => {
   const t = useTranslate()
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<'latest' | 'newer' | 'failed' | null>(null)
   const [latest, setLatest] = useState<UpdateResult | null>(null)
+  const [licenseOpen, setLicenseOpen] = useState(false)
+  const [licenseText, setLicenseText] = useState('')
+
+  useEffect(() => {
+    if (!licenseOpen || licenseText) {
+      return
+    }
+    let active = true
+    fetch('/LICENSE')
+      .then((response) => (response.ok ? response.text() : ''))
+      .then((text) => {
+        if (active) {
+          setLicenseText(text || 'LICENSE')
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLicenseText('LICENSE')
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [licenseOpen, licenseText])
 
   const checkUpdate = async () => {
     setChecking(true)
@@ -224,6 +284,15 @@ const AboutPanel = () => {
     setUpdate(result.newer ? 'newer' : 'latest')
   }
 
+  const updateDescription =
+    update === 'newer'
+      ? t('aboutNewVersion', { version: latest?.latest ?? '' })
+      : update === 'latest'
+        ? t('aboutUpToDate')
+        : update === 'failed'
+          ? t('aboutCheckFailed')
+          : undefined
+
   return (
     <>
       <SettingCell
@@ -233,43 +302,32 @@ const AboutPanel = () => {
       />
       <SettingCell
         label={t('aboutCheckUpdate')}
+        description={updateDescription}
         status={null}
         action={
-          <Button
-            variant="outlined"
-            size="m"
-            className={styles.cellButton}
-            disabled={checking}
-            onClick={() => void checkUpdate()}
-          >
-            {t(checking ? 'aboutChecking' : 'aboutCheckNow')}
-          </Button>
-        }
-      />
-      {update ? (
-        <SettingCell
-          label={
-            update === 'newer'
-              ? t('aboutNewVersion', { version: latest?.latest ?? '' })
-              : update === 'latest'
-                ? t('aboutUpToDate')
-                : t('aboutCheckFailed')
-          }
-          status={null}
-          action={
-            update === 'newer' ? (
+          <div className={styles.cellActions}>
+            <Button
+              variant="outlined"
+              size="m"
+              className={styles.cellButton}
+              disabled={checking}
+              onClick={() => void checkUpdate()}
+            >
+              {t(checking ? 'aboutChecking' : 'aboutCheckNow')}
+            </Button>
+            {update === 'newer' ? (
               <Button
-                variant="outlined"
+                variant="primary"
                 size="m"
                 className={styles.cellButton}
                 onClick={() => window.open(latest?.url ?? RELEASES_URL, '_blank')}
               >
                 {t('aboutDownload')}
               </Button>
-            ) : null
-          }
-        />
-      ) : null}
+            ) : null}
+          </div>
+        }
+      />
       <SettingCell
         label={t('aboutProject')}
         status={null}
@@ -298,12 +356,37 @@ const AboutPanel = () => {
           </a>
         }
       />
-      <SettingCell label={t('aboutUpstreamNote')} status={null} action={null} />
       <SettingCell
         label={t('aboutLicense')}
         status={null}
-        action={<span className={styles.statValue}>GPL-3.0-or-later</span>}
+        action={
+          <a
+            className={styles.statValue}
+            href="/LICENSE"
+            onClick={(event) => {
+              event.preventDefault()
+              setLicenseOpen(true)
+            }}
+          >
+            GPL-3.0-or-later
+          </a>
+        }
       />
+      {licenseOpen ? (
+        <Modal
+          title={t('aboutLicense')}
+          closable
+          className={styles.licenseDialog}
+          onClose={() => setLicenseOpen(false)}
+          footer={
+            <Button variant="outlined" onClick={() => setLicenseOpen(false)}>
+              {t('close')}
+            </Button>
+          }
+        >
+          <pre className={styles.licenseText}>{licenseText || '…'}</pre>
+        </Modal>
+      ) : null}
     </>
   )
 }

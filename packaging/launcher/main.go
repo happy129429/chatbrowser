@@ -75,6 +75,19 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(healthInfo{App: "chatbrowser", Version: version})
 	})
+	// 应用内「退出」：结束本地服务，释放 exe 文件占用。仅允许本机页面调用。
+	mux.HandleFunc(healthAt+"/quit", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.Host != addr {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			os.Exit(0)
+		}()
+	})
 	mux.Handle("/", serveStatic(web))
 
 	server := &http.Server{Addr: addr, Handler: mux}

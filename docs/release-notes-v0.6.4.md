@@ -1,15 +1,36 @@
 # Release v0.6.4
 
-- 修复 Windows 启动器在接管旧实例/弹提示时闪出 cmd 黑框：PowerShell 等子进程统一以 `CREATE_NO_WINDOW` 启动。
-- 其余与 v0.6.3 相同：关于页（版本/项目地址/上游 MIT 致谢/GPL 许可）、启动自动检查更新、旧实例版本握手接管、Claude ZIP content 数组兼容、`.zip,.json` 文件选择器。
+关于页整理、应用内许可证、独立退出入口与启动器体验修复。
 
-> 未签名提示：右键 zip → 属性 → 解除锁定；或使用 windows-portable.zip（免 exe，便携版自带 PowerShell 控制台窗口属正常）。
+## 关于页
+
+- 版本、项目主页、上游项目（DeepSeek chat-demo）与许可证一目了然
+- 「已是最新版本 / 发现新版本」并入「检查更新」一行；有新版本时直接出现「前往下载」
+- 许可证改为链接：应用内弹窗查看完整 GPL 文本，点「关闭」即回到原页面（不再跳走）
+- 移除单独的上游说明行（不再提 MIT）
+
+## 退出应用
+
+- 设置左侧新增独立子项「退出应用」（仅桌面/便携启动器显示）：停止本地服务并释放 exe/脚本文件占用
+- 关闭窗口后程序仍在后台运行，需要彻底退出时用它；也可在任务管理器结束 chatbrowser.exe
+
+## 启动器
+
+- 版本握手：固定端口 17890 上有旧版本时自动结束旧实例再接管（便携版提示先关闭旧窗口）
+- 所有子进程使用 CREATE_NO_WINDOW，启动/接管时不再闪 cmd 黑框
+
+## 导入
+
+- Claude ZIP：兼容 `text` 为空、正文位于 `content: [{type:"text",text}]` 的真实导出（修复「文件内容不完整」）
+- 文件选择器统一为 `.zip,.json`
 
 ## 校验 / Checksums (SHA-256)
 
 ```
-9a6bc64aebdf491c0bff27e316daa5c6757e62d1e9bd6e535e6e57870850c343  windows-portable.zip
-84c066149e8e2b97a24b0da40736fbfd1c1a3b78461712e28d53c1f80a12110e  windows-x64.zip
-a4e518978f340a9f9faa9a9f04e3266aa6a78e01702f87c1dd104164d4092a00  linux-x64.tar.gz
-c4efb172b8200f77bada71add96c259ac9ac5f7a4a2eb4b550844c0ec3dc66ea  chatbrowser-android-debug.apk
+c5fe1748dd18a93b44cfe3963205604de083c94f8d70d8e41aceeb23ca80f2fe  windows-portable.zip
+c3fd78312f8ea74a2dd1deb505f05c33f0faafba15da543b51726a4abbac5fbc  windows-x64.zip
+fd252f37ea4d24c065a2cb4107e7f6c789dbbe9dddc43b446846222d3ea28e9b  linux-x64.tar.gz
+28086431e95a01e9d21ae44e6c81aa04cf30b179fa602cb60600c8f27321da5a  chatbrowser-android-debug.apk
 ```
+
+> 未签名提示：右键 zip → 属性 → 解除锁定；或使用 windows-portable.zip（免 exe）。

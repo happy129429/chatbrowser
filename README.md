@@ -80,6 +80,7 @@ Exports produced by the group export and "export all" follow the original archiv
 
 - The desktop launchers are unsigned: Windows SmartScreen/Defender may warn on first run. Use the `windows-portable.zip` (PowerShell, no exe) or unblock the ZIP (Properties → Unblock) before extracting.
 - The launcher uses a fixed port (`127.0.0.1:17890`). A newer build automatically closes a stale older instance; the portable PowerShell build asks you to close it first.
+- Closing the window keeps the launcher running. Use Settings → Quit app (launcher builds only) to stop the server and release the executable, or end `chatbrowser.exe` in Task Manager.
 - Data is stored per origin: the launcher (`127.0.0.1:17890`), the dev server, `file://` pages and the Android app each keep separate storage.
 - External-format import covers the common export shapes of ChatGPT / Claude / z.ai; vendor changes may require mapping updates — please attach a sanitized sample when reporting.
 

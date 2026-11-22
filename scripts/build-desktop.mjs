@@ -87,11 +87,11 @@ for (const target of targets) {
   }
   fs.writeFileSync(
     path.join(outDir, 'README-zh.txt'),
-    '双击 chatbrowser 启动（首次启动会在本地 127.0.0.1:17890 提供服务并自动打开窗口）。\n数据保存在浏览器存储中，与源 ZIP 文件无关。\n关闭窗口后程序仍在后台运行，再次双击即可重新打开（不会重复启动）。\n'
+    '双击 chatbrowser 启动（首次启动会在本地 127.0.0.1:17890 提供服务并自动打开窗口）。\n数据保存在浏览器存储中，与源 ZIP 文件无关。\n关闭窗口后程序仍在后台运行；如需彻底退出并释放文件，请在「设置 → 关于 → 退出应用」中退出。\n'
   )
   fs.writeFileSync(
     path.join(outDir, 'Instructions.txt'),
-    'chatbrowser\n\nDouble-click "chatbrowser" to start. It serves the app at 127.0.0.1:17890 and opens a chromeless window (Edge/Chrome; Firefox falls back to a normal tab).\nData is stored in the browser storage and is independent of your source ZIP files.\nClosing the window keeps the launcher running; double-click again to reopen it (no duplicate instance).\n'
+    'chatbrowser\n\nDouble-click "chatbrowser" to start. It serves the app at 127.0.0.1:17890 and opens a chromeless window (Edge/Chrome; Firefox falls back to a normal tab).\nData is stored in the browser storage and is independent of your source ZIP files.\nClosing the window keeps the launcher running. To quit and release the file, use Settings → About → Quit.\n'
   )
   built.push({ target, outDir })
 }

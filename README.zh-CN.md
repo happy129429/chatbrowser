@@ -80,6 +80,7 @@ pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug（需 Andr
 
 - 桌面启动器未签名：Windows SmartScreen/Defender 首次运行可能提示。可用 `windows-portable.zip`（PowerShell，无 exe）或解压前右键 ZIP → 属性 → 勾选「解除锁定」。
 - 启动器使用固定端口（`127.0.0.1:17890`）。新版会自动结束仍占用端口的旧实例；免 exe 便携版会提示先关闭旧窗口。
+- 关闭窗口后启动器仍在后台运行。需要彻底退出并释放程序文件时，用「设置 → 退出应用」（仅启动器版），或在任务管理器结束 `chatbrowser.exe`。
 - 数据按 origin 隔离：启动器（`127.0.0.1:17890`）、开发服务器、`file://` 页面与 Android App 各自独立存储。
 - 外部格式导入覆盖 ChatGPT / Claude / z.ai 的常见导出形态；官方改版可能需要补充字段映射，反馈时请附脱敏样本。
 

@@ -441,6 +441,29 @@
   }
 }
 
+.cellActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.licenseDialog {
+  max-width: 720px;
+  width: 100%;
+}
+
+.licenseText {
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font:
+    12px/1.6 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+
 .statValue {
   font-size: 14px;
   color: var(--dsw-alias-label-primary);

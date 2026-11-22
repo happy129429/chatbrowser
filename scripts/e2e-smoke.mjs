@@ -451,6 +451,34 @@ const aboutOk =
   aboutText.includes('检查')
 check('关于页包含版本/项目/上游/许可', aboutOk, aboutOk ? 'ok' : aboutText?.slice(0, 160))
 
+const licenseLinkClicked = await evaluate(`(() => {
+  const link = [...document.querySelectorAll('div[role="dialog"] a')].find((a) => a.textContent.includes('GPL-3.0-or-later'))
+  link?.click()
+  return link ? 'ok' : 'no-link'
+})()`)
+await sleep(800)
+const licenseText = await evaluate(`document.querySelector('pre')?.textContent ?? ''`)
+check(
+  '许可证可在应用内查看并关闭',
+  licenseLinkClicked === 'ok' &&
+    typeof licenseText === 'string' &&
+    licenseText.includes('GNU GENERAL PUBLIC LICENSE'),
+  licenseText ? `长度=${licenseText.length}` : 'empty'
+)
+await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '关闭')
+  btn?.click()
+  return 'ok'
+})()`)
+await sleep(300)
+
+if (APP_URL.includes('127.0.0.1:17890')) {
+  const quitTab = await evaluate(
+    `[...document.querySelectorAll('button[role="tab"]')].some((node) => node.textContent.includes('退出应用'))`
+  )
+  check('启动器设置含独立退出子项', quitTab === true)
+}
+
 // ---------- 汇总 ----------
 ws.close()
 cleanup()

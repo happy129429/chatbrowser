@@ -587,3 +587,15 @@ export const IconInfoOutline16 = () => (
     <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
   </svg>
 )
+
+export const IconPowerOutline16 = () => (
+  <svg width={16} height={16} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 2.2v5.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path
+      d="M4.8 4.2a5.1 5.1 0 1 0 6.4 0"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+    />
+  </svg>
+)

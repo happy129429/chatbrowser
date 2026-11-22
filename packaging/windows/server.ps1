@@ -111,6 +111,14 @@ while ($listener.IsListening) {
       $response.Close()
       continue
     }
+    if ($pathPart -eq '/__chatbrowser/quit' -and $request.HttpMethod -eq 'POST') {
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
+      $response.ContentType = 'application/json'
+      $response.OutputStream.Write($bytes, 0, $bytes.Length)
+      $response.Close()
+      $listener.Stop()
+      break
+    }
     $relative = $pathPart.TrimStart('/')
     if ($relative -eq '') { $relative = 'index.html' }
     $file = Join-Path $dist $relative
