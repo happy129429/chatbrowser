@@ -9,7 +9,7 @@ import { IconButton } from '../base/IconButton.js'
 import { showToast } from '../base/toastState.js'
 import { ReadingBars } from './ReadingBars.js'
 
-/** 朗读按钮：未朗读时点击开始，加载中或朗读中点击停止；正文原样提交，由服务端过滤 markdown */
+/** 朗读按钮：未朗读时点击开始，加载中或朗读中点击停止；提交前剥离 markdown 记号 */
 export const ReadAloudButton = ({ messageId, text }: { messageId: string; text: string }) => {
   const t = useTranslate()
   const status = useReadAloud((state) => (state.messageId === messageId ? state.status : 'idle'))

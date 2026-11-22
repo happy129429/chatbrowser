@@ -37,7 +37,7 @@ export type UserMessage = MessageBranch & {
   createdAt: number
 }
 
-/** 思考块：thinking_delta 累积，签名随 signature_delta 到达；历史轮次的思考服务端会丢弃，不回传 */
+/** 思考块：来自归档或旧客户端数据，elapsedSeconds 记录思考用时。 */
 export type ThinkingPart = {
   type: 'thinking'
   thinking: string
@@ -55,11 +55,11 @@ export type TextPart = {
   type: 'text'
   text: string
   citations?: TextCitation[]
-  /** 服务端提示文案，仅用于展示，不作为模型回答参与上下文或续写。 */
+  /** 服务端提示文案（过载、拦截等），仅用于展示。 */
   isTemplate?: boolean
 }
 
-/** 服务端工具调用与结果块按协议原样保存；历史请求只回传 read_link 调用与结果 */
+/** 服务端工具调用与结果块按归档协议原样保存 */
 export type ReplyBlock = ThinkingPart | TextPart | ServerToolBlock
 
 /**

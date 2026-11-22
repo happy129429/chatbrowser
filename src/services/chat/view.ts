@@ -11,13 +11,13 @@ import type { AssistantMessage, ThinkingPart } from './types.js'
 
 /**
  * 由回复的内容块推导界面需要的结构：思考与工具步骤的时间线、带引用角标的正文、可引用的来源列表。
- * 只做纯计算，不改动内容块（内容块要原样回传）。
+ * 只做纯计算，不改动内容块。
  */
 
 export type Source = {
   url: string
   title: string
-  /** 优先使用服务端站点名，没有时使用域名（去掉 www.） */
+  /** 优先使用归档的站点名，没有时使用域名（去掉 www.） */
   siteName: string
   /** 搜索结果为 RFC 3339，阅读链接为爬虫提取的原始日期 */
   publishedAt: string | null
@@ -152,7 +152,7 @@ class SourceRegistry {
 }
 
 /**
- * 文本块拼成一份 markdown：服务端在挂过引用的块之后另起新块，引用位置即块尾。
+ * 文本块拼成一份 markdown：引用来自块尾的引用标记，位置即块尾。
  * 引用之后的空白（含换行）仍留在被引用的块里，所以 [citation:N] 插在块尾空白之前。
  */
 const joinTextBlocks = (

@@ -263,11 +263,11 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
       </div>
       <button
         type="button"
-        className={styles.newChat}
+        className={styles.openArchive}
         disabled={importBusy}
         onClick={() => inputRef.current?.click()}
       >
-        <span className={styles.newChatIcon}>
+        <span className={styles.openArchiveIcon}>
           <IconUploadOutline14 />
         </span>
         {t('openArchive')}

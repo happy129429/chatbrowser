@@ -3,8 +3,8 @@ declare const styles: {
   readonly top: string
   readonly topActions: string
   readonly appName: string
-  readonly newChat: string
-  readonly newChatIcon: string
+  readonly openArchive: string
+  readonly openArchiveIcon: string
   readonly searchState: string
   readonly groupSubHeader: string
   readonly listWrap: string
