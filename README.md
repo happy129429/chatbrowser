@@ -157,14 +157,15 @@ pnpm build        # static site → dist/
 pnpm type && pnpm lint && pnpm e2e
 ```
 
-| Command            | Purpose                                            |
-| ------------------ | -------------------------------------------------- |
-| `pnpm mock`        | Generate mock archives and external samples        |
-| `pnpm e2e`         | Headless smoke tests (Chrome required)             |
-| `pnpm shots`       | Regenerate README screenshots (dev server on 8090) |
-| `pnpm icons`       | Generate platform icons from `assets/icon.svg`     |
-| `pnpm desktop`     | Build Windows/Linux launchers → `release/desktop`  |
-| `pnpm android:apk` | Build the debug APK                                |
+| Command                              | Purpose                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `pnpm mock`                          | Generate mock archives and external samples                                                |
+| `pnpm e2e`                           | Headless smoke tests (Chrome required)                                                     |
+| `pnpm shots`                         | Regenerate README screenshots (dev server on 8090)                                         |
+| `python3 scripts/sanitize-export.py` | Deterministic export sanitizer (same shape/types; `--drop-keys` removes suspicious fields) |
+| `pnpm icons`                         | Generate platform icons from `assets/icon.svg`                                             |
+| `pnpm desktop`                       | Build Windows/Linux launchers → `release/desktop`                                          |
+| `pnpm android:apk`                   | Build the debug APK                                                                        |
 
 See [docs/release-checklist.md](docs/release-checklist.md) for the release process; the archived native-shell proposal lives in [docs/technical-outlook.md](docs/technical-outlook.md).
 

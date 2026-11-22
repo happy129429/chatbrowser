@@ -157,14 +157,15 @@ pnpm build        # 静态站点 → dist/
 pnpm type && pnpm lint && pnpm e2e
 ```
 
-| 命令               | 说明                                          |
-| ------------------ | --------------------------------------------- |
-| `pnpm mock`        | 生成 mock 归档与外部格式样例                  |
-| `pnpm e2e`         | 无头冒烟测试（需 Chrome）                     |
-| `pnpm shots`       | 重新生成 README 截图（需 dev server 在 8090） |
-| `pnpm icons`       | 从 `assets/icon.svg` 生成各平台图标           |
-| `pnpm desktop`     | 构建 Windows/Linux 启动器 → `release/desktop` |
-| `pnpm android:apk` | 构建 debug APK                                |
+| 命令                                 | 说明                                                             |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `pnpm mock`                          | 生成 mock 归档与外部格式样例                                     |
+| `pnpm e2e`                           | 无头冒烟测试（需 Chrome）                                        |
+| `pnpm shots`                         | 重新生成 README 截图（需 dev server 在 8090）                    |
+| `python3 scripts/sanitize-export.py` | 确定性脱敏导出 JSON（保持结构/类型，`--drop-keys` 去掉可疑字段） |
+| `pnpm icons`                         | 从 `assets/icon.svg` 生成各平台图标                              |
+| `pnpm desktop`                       | 构建 Windows/Linux 启动器 → `release/desktop`                    |
+| `pnpm android:apk`                   | 构建 debug APK                                                   |
 
 目录结构：
 
