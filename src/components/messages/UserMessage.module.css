@@ -1,4 +1,6 @@
 .container {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
   display: flex;
   flex-direction: row;
   align-items: flex-start;

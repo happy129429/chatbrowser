@@ -1,4 +1,6 @@
 .message {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
   position: relative;
 
   &:hover .actions,

@@ -261,11 +261,12 @@ const afterReload = JSON.parse(
     })
   })()`)
 )
+// content-visibility 使离屏高度为估算值，scrollTop 数字会偏移；以可见锚点为准
 check(
   '刷新恢复会话与位置',
   afterReload.activeItem?.includes('长会话压测') &&
-    Math.abs((afterReload.scrollTop ?? 0) - beforeReload.scrollTop) <= 2 &&
-    afterReload.first?.id === beforeReload.first?.id,
+    afterReload.first?.id === beforeReload.first?.id &&
+    Math.abs((afterReload.first?.offset ?? 0) - (beforeReload.first?.offset ?? 0)) <= 2,
   `before=${JSON.stringify(beforeReload)} after=${JSON.stringify(afterReload)}`
 )
 
