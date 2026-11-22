@@ -13,7 +13,7 @@ export const en = {
   appName: 'Chat Browser',
   deleteSessionModalContentTitle: 'Delete chat?',
   deleteSessionWithFilesDescription:
-    'This chat and its uploaded files will be permanently deleted and cannot be recovered. Delete this chat?',
+    'The chat will be removed locally and cannot be recovered. Your ZIP source files are untouched. Delete it?',
   cancel: 'Cancel',
   delete: 'Delete',
   sessionItemMenuRenameOption: 'Rename',
@@ -102,7 +102,7 @@ export const en = {
   groupOperationFailed: 'Group operation failed. Please retry.',
   deleteGroupModalTitle: 'Delete group "{name}"?',
   deleteGroupModalDescription:
-    'The {count} chat(s) in this group will also be deleted and cannot be recovered.',
+    'The {count} chats in this group will be removed locally and cannot be recovered. Your ZIP source files are untouched.',
   colorNone: 'None',
   colorBlue: 'Blue',
   colorGreen: 'Green',
@@ -133,7 +133,8 @@ export const en = {
   pinnedToast: 'Pinned {count} chat(s)',
   unpinnedToast: 'Unpinned {count} chat(s)',
   deleteSelectedTitle: 'Delete {count} selected chats?',
-  deleteSelectedDesc: 'The selected chats will be deleted and cannot be recovered.',
+  deleteSelectedDesc:
+    'The selected chats will be removed locally and cannot be recovered. Your ZIP source files are untouched.',
   listEmpty: 'No chats yet. Import a history archive first.',
   historyImportFailed:
     'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
@@ -143,9 +144,10 @@ export const en = {
     'Includes all chat history and locally stored images. Other attachments retain file details only. Your API Key is not included.',
   exportAllDownload: 'Download',
   deleteAllSessions: 'Delete all chats',
-  deleteAllSessionsModalTitle: 'Once deleted, all chats will be cleared and cannot be recovered.',
+  deleteAllSessionsModalTitle:
+    'After deletion, locally imported chats will be cleared and cannot be recovered.',
   deleteAllSessionsModalDescription:
-    'Locally saved attachments and unsent drafts will also be deleted.',
+    'Only data imported into the app is removed. Your ZIP source files are untouched and can be imported again.',
   historyDeleting: 'Deleting...',
   historyDeleted: 'Successfully deleted.',
   historyDeleteFailed: 'Failed to delete chats. Please try again.',

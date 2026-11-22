@@ -11,7 +11,8 @@ export const zh = {
   settings: '设置',
   appName: '对话浏览器',
   deleteSessionModalContentTitle: '永久删除对话',
-  deleteSessionWithFilesDescription: '删除后，该对话及其中上传的文件将不可恢复。确认删除吗？',
+  deleteSessionWithFilesDescription:
+    '该对话将从本地移除，且无法找回；ZIP 源文件不受影响。确认删除吗？',
   cancel: '取消',
   delete: '删除',
   sessionItemMenuRenameOption: '重命名',
@@ -98,7 +99,8 @@ export const zh = {
   groupMenuDelete: '删除分组',
   groupOperationFailed: '分组操作失败，请重试',
   deleteGroupModalTitle: '删除分组「{name}」？',
-  deleteGroupModalDescription: '分组内的 {count} 个对话也将一并删除，且无法找回。',
+  deleteGroupModalDescription:
+    '分组内的 {count} 个对话将从本地移除，且无法找回；ZIP 源文件不受影响。',
   colorNone: '无颜色',
   colorBlue: '蓝色',
   colorGreen: '绿色',
@@ -129,7 +131,7 @@ export const zh = {
   pinnedToast: '已置顶 {count} 个对话',
   unpinnedToast: '已取消置顶 {count} 个对话',
   deleteSelectedTitle: '删除选中的 {count} 个对话？',
-  deleteSelectedDesc: '选中的对话将被删除，且无法找回。',
+  deleteSelectedDesc: '选中的对话将从本地移除，且无法找回；ZIP 源文件不受影响。',
   listEmpty: '还没有对话，先导入历史归档',
   historyImportFailed:
     '文件导入失败，可能是文件格式错误或使用了旧版的对话导出 ZIP 文件，请前往 DeepSeek 重新导出历史对话文件后再次导入。',
@@ -139,8 +141,9 @@ export const zh = {
     '包含所有历史对话及本地图片原件；其他附件仅保留文件信息，不包含 API Key。',
   exportAllDownload: '下载',
   deleteAllSessions: '删除所有对话',
-  deleteAllSessionsModalTitle: '删除后，所有对话都将被清空且无法找回',
-  deleteAllSessionsModalDescription: '本地保存的附件及未发送的草稿也将被删除。',
+  deleteAllSessionsModalTitle: '删除后，本地已导入的对话将被清空且无法找回',
+  deleteAllSessionsModalDescription:
+    '这只影响应用内已导入的数据；ZIP 源文件不受影响，重新导入即可恢复。',
   historyDeleting: '删除中...',
   historyDeleted: '删除成功',
   historyDeleteFailed: '删除失败，请重试',

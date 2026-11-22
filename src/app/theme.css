@@ -130,6 +130,7 @@ body {
   --dsw-alias-brand-primary: var(--dsw-static-blue-500);
   --dsw-alias-brand-text: var(--dsw-static-blue-500);
   --dsw-alias-fill-brand-light: rgba(57, 100, 254, 0.1);
+  --jump-flash-color: #f5f6f7;
   --dsw-alias-button-contrast-fill: var(--dsw-static-neutral-bluish-700);
   --dsw-alias-button-elevated-fill: var(--dsw-static-neutral-bluish-00);
   --dsw-alias-button-ghost-active-border: var(--dsw-static-blue-300);
@@ -182,6 +183,7 @@ body[data-ds-dark-theme] {
   --dsw-alias-brand-primary: var(--dsw-static-blue-450);
   --dsw-alias-brand-text: var(--dsw-static-blue-400);
   --dsw-alias-fill-brand-light: rgba(86, 134, 254, 0.22);
+  --jump-flash-color: #212123;
   --dsw-alias-button-contrast-fill: var(--dsw-static-neutral-bluish-50);
   --dsw-alias-button-elevated-fill: var(--dsw-static-neutral-bluish-750);
   --dsw-alias-button-ghost-active-border: var(--dsw-static-blue-600);

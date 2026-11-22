@@ -61,7 +61,7 @@ body.change-theme *::after {
 
 @keyframes ds-jump-flash {
   0% {
-    background-color: var(--dsw-alias-fill-brand-light);
+    background-color: var(--jump-flash-color);
   }
 
   100% {

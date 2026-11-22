@@ -6,9 +6,10 @@ import {
   type MessageVersions,
 } from '../../services/chat/branches.js'
 import { selectMessageVersion, clearPendingJump, useChatStore } from '../../services/chat/store.js'
-import type { Session } from '../../services/chat/types.js'
+import type { Session, UserMessage as UserMessageType } from '../../services/chat/types.js'
 import { closeSearchPanel } from '../search/searchPanelState.js'
 import { AssistantMessage } from './AssistantMessage.js'
+import { RoundNav } from './RoundNav.js'
 import { ScrollToBottomContext } from './scrollContext.js'
 import { UserMessage } from './UserMessage.js'
 import styles from './MessageList.module.css'
@@ -199,6 +200,10 @@ export const MessageList = ({
   }, [isMobile, releaseJump, scrollToBottom])
 
   const lastIndex = messages.length - 1
+  const rounds = useMemo(
+    () => messages.filter((message): message is UserMessageType => message.role === 'user'),
+    [messages]
+  )
   return (
     <ScrollToBottomContext.Provider value={scrollToBottom}>
       <div ref={isMobile ? undefined : scrollRef} className={styles.container}>
@@ -228,6 +233,14 @@ export const MessageList = ({
         </div>
         {footer}
       </div>
+      {!isMobile ? (
+        <RoundNav
+          rounds={rounds}
+          scrollRef={scrollRef}
+          contentRef={contentRef}
+          onJump={jumpToMessage}
+        />
+      ) : null}
     </ScrollToBottomContext.Provider>
   )
 }
