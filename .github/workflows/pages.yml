@@ -1,9 +1,10 @@
 name: Deploy GitHub Pages
 
 on:
-  # 每次发布 tag 自动部署；也可手动触发
+  # 推 main 即自动部署（发布流程会先推 main）；
+  # 不用 tag 触发，因为 github-pages 环境的保护规则只允许 main 部署。
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:

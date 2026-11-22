@@ -30,6 +30,6 @@
 - [ ] `git push origin main`
 - [ ] `git tag vX.Y.Z && git push origin vX.Y.Z`
 - [ ] 等 `Release packages` 工作流完成（自动创建 GitHub Release）
-- [ ] 等 `Deploy GitHub Pages` 工作流完成（tag 自动触发）
+- [ ] 等 `Deploy GitHub Pages` 工作流完成（推送 main 时自动触发；tag 部署受环境保护规则限制）
 - [ ] 验证 <https://happy129429.github.io/chatbrowser/> 为新版本
 - [ ] 验证 Release 资产可下载、关于页版本号正确

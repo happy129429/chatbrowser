@@ -12,7 +12,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 
 - Data lives in the current browser's IndexedDB, scoped to that site
 - It is **separate** from the desktop and Android builds
-- The Pages site is redeployed automatically for every release tag
+- The Pages site is redeployed automatically on every push to main (the release flow pushes main first)
 - There is no "Quit app" section in the browser build; just close the tab
 
 ## Screenshots
