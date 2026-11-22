@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslate } from '../i18n/index.js'
+import { useSettings } from '../services/settings.js'
 import {
   checkForUpdates,
   dismissUpdate,
@@ -12,10 +13,15 @@ import styles from '../app/App.module.css'
 /** 启动后静默检查 GitHub Release；有新版本时显示可关闭的提示条。 */
 export const UpdateBanner = () => {
   const t = useTranslate()
+  const autoCheckUpdates = useSettings((state) => state.autoCheckUpdates)
   const [info, setInfo] = useState<UpdateResult | null>(null)
 
   useEffect(() => {
     let alive = true
+    if (!autoCheckUpdates) {
+      setInfo(null)
+      return
+    }
     const timer = window.setTimeout(() => {
       void checkForUpdates().then((result) => {
         if (!alive || result.status !== 'ok' || !result.newer || isUpdateDismissed(result.latest)) {
@@ -28,7 +34,7 @@ export const UpdateBanner = () => {
       alive = false
       window.clearTimeout(timer)
     }
-  }, [])
+  }, [autoCheckUpdates])
 
   if (!info) {
     return null

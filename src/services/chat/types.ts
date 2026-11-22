@@ -109,6 +109,8 @@ export type Message = UserMessage | AssistantMessage
 export type SessionGroup = {
   id: string
   name: string
+  /** 默认组是否被用户手动改过名；改过后不再跟随界面语言自动改名 */
+  nameCustomized?: boolean
   /** 标签页组风格的颜色标识；null 表示未配色 */
   color: string | null
   /** 导入时的 ZIP 文件名 */

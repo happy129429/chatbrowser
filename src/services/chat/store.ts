@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
 import { translate } from '../../i18n/index.js'
-import { DEFAULT_GROUP_ID, isDefaultGroup } from './defaultGroup.js'
+import { DEFAULT_GROUP_ID, DEFAULT_GROUP_NAMES, isDefaultGroup } from './defaultGroup.js'
 import { prefetchSearchIndex } from './search.js'
 import { normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -277,13 +277,25 @@ export const initChat = (): Promise<void> => {
         defaultGroup = {
           id: DEFAULT_GROUP_ID,
           name: translate('defaultGroupName'),
+          nameCustomized: false,
           color: null,
           sourceName: '',
           createdAt: 0,
         }
         await db.saveGroup(defaultGroup)
         groups = [...groups, defaultGroup]
+      } else if (!defaultGroup.nameCustomized) {
+        const defaultName = translate('defaultGroupName')
+        if (defaultGroup.name !== defaultName) {
+          // 升级前的旧默认组没有标记：名字仍是内置名就跟随语言，否则视为用户改过名
+          defaultGroup = DEFAULT_GROUP_NAMES.has(defaultGroup.name)
+            ? { ...defaultGroup, name: defaultName }
+            : { ...defaultGroup, nameCustomized: true }
+          await db.saveGroup(defaultGroup)
+        }
       }
+      const resolvedDefault = defaultGroup
+      groups = groups.map((group) => (isDefaultGroup(group.id) ? resolvedDefault : group))
       const ungrouped = summaries.filter((session) => session.groupId === null)
       if (ungrouped.length > 0) {
         await db.moveSessionsToGroup(
@@ -443,6 +455,7 @@ export const clearAllHistory = async (): Promise<void> => {
     const defaultGroup: SessionGroup = {
       id: DEFAULT_GROUP_ID,
       name: translate('defaultGroupName'),
+      nameCustomized: false,
       color: null,
       sourceName: '',
       createdAt: 0,
@@ -609,11 +622,24 @@ export const renameGroup = (id: string, name: string) => {
   if (!group) {
     return
   }
-  const next = { ...group, name }
+  const next = isDefaultGroup(id) ? { ...group, name, nameCustomized: true } : { ...group, name }
   set((state) => ({
     groups: state.groups.map((item) => (item.id === id ? next : item)),
   }))
   void db.saveGroup(next).catch(db.reportStorageError('rename group'))
+}
+
+/** 界面语言变化时同步未改名的默认组；改过名（含改成同名）则保持用户命名。 */
+export const syncDefaultGroupName = (name: string) => {
+  const group = get().groups.find((item) => isDefaultGroup(item.id))
+  if (!group || group.nameCustomized || group.name === name) {
+    return
+  }
+  const next = { ...group, name }
+  set((state) => ({
+    groups: state.groups.map((item) => (item.id === group.id ? next : item)),
+  }))
+  void db.saveGroup(next).catch(db.reportStorageError('sync default group name'))
 }
 
 export const setGroupColor = (id: string, color: string | null) => {

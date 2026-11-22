@@ -20,6 +20,7 @@ import {
 } from '../../services/chat/backup.js'
 import { useChatStore } from '../../services/chat/store.js'
 import {
+  setAutoCheckUpdates,
   setLocalePreference,
   setThemePreference,
   useSettings,
@@ -250,6 +251,7 @@ const QuitPanel = () => {
 const AboutPanel = () => {
   const t = useTranslate()
   const locale = useSettings((state) => state.locale)
+  const autoCheckUpdates = useSettings((state) => state.autoCheckUpdates)
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<'latest' | 'newer' | 'failed' | null>(null)
   const [latest, setLatest] = useState<UpdateResult | null>(null)
@@ -311,7 +313,7 @@ const AboutPanel = () => {
     update === 'newer'
       ? t('aboutNewVersion', { version: latest?.latest ?? '' })
       : update === 'latest'
-        ? t('aboutUpToDate')
+        ? t('aboutUpToDate', { version: latest?.latest ?? '' })
         : update === 'failed'
           ? failureDescription
           : undefined
@@ -349,6 +351,23 @@ const AboutPanel = () => {
               </Button>
             ) : null}
           </div>
+        }
+      />
+      <SettingCell
+        label={t('aboutAutoCheckUpdate')}
+        description={t('aboutAutoCheckUpdateHint')}
+        status={null}
+        action={
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoCheckUpdates}
+            aria-label={t('aboutAutoCheckUpdate')}
+            className={clsx(styles.switch, autoCheckUpdates && styles.switchOn)}
+            onClick={() => setAutoCheckUpdates(!autoCheckUpdates)}
+          >
+            <span className={styles.switchThumb} />
+          </button>
         }
       />
       <SettingCell

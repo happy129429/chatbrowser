@@ -8,19 +8,22 @@ export type LocalePreference = 'system' | Locale
 /** 主题偏好；默认跟随系统 */
 export type ThemePreference = 'light' | 'dark' | 'system'
 
-/** 本机设置，存 localStorage：语言、主题、侧边栏收起状态 */
+/** 本机设置，存 localStorage：语言、主题、侧边栏收起状态、自动检查更新 */
 type Settings = {
   /** 语言偏好；locale 为其解析结果，翻译统一读取 locale */
   localePreference: LocalePreference
   locale: Locale
   themePreference: ThemePreference
   siderCollapsed: boolean
+  /** 启动后是否自动请求 GitHub 检查更新；手动检查不受影响 */
+  autoCheckUpdates: boolean
 }
 
 const KEYS = {
   locale: 'chat-demo:locale',
   themePreference: 'chat-demo:theme-preference',
   siderCollapsed: 'chat-demo:sider-collapsed',
+  autoCheckUpdates: 'chat-demo:auto-check-updates',
 } as const
 
 const read = (key: string) => {
@@ -70,6 +73,7 @@ export const useSettings = create<Settings>(() => ({
   locale: resolveLocale(initialPreference),
   themePreference: initialThemePreference(),
   siderCollapsed: read(KEYS.siderCollapsed) === 'true',
+  autoCheckUpdates: read(KEYS.autoCheckUpdates) !== 'false',
 }))
 
 export const setLocalePreference = (preference: LocalePreference) => {
@@ -85,4 +89,9 @@ export const setThemePreference = (themePreference: ThemePreference) => {
 export const setSiderCollapsed = (siderCollapsed: boolean) => {
   write(KEYS.siderCollapsed, String(siderCollapsed))
   useSettings.setState({ siderCollapsed })
+}
+
+export const setAutoCheckUpdates = (autoCheckUpdates: boolean) => {
+  write(KEYS.autoCheckUpdates, String(autoCheckUpdates))
+  useSettings.setState({ autoCheckUpdates })
 }

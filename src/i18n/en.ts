@@ -90,9 +90,12 @@ export const en = {
   aboutCheckUpdate: 'Check for updates',
   aboutCheckNow: 'Check',
   aboutChecking: 'Checking…',
-  aboutUpToDate: 'You are up to date',
+  aboutUpToDate: 'You are up to date (v{version})',
   aboutNewVersion: 'New version v{version} available',
   aboutCheckFailed: 'Check failed. Please retry later.',
+  aboutAutoCheckUpdate: 'Check for updates on startup',
+  aboutAutoCheckUpdateHint:
+    'When off, no automatic GitHub request is made; manual check above still works.',
   aboutCheckRateLimited:
     'GitHub API rate limit reached. Retry after {time} or use another network.',
   aboutDownload: 'Download',
@@ -127,8 +130,7 @@ export const en = {
   archiveImportPartial: 'Import finished, {failed}/{total} file(s) failed',
   ungroupSession: 'Remove from group',
   defaultGroupName: 'Default group',
-  defaultGroupLockedHint:
-    'The default group cannot be merged, dissolved or deleted; rename, colors and export are allowed.',
+  defaultGroupLockedHint: 'The default group cannot be merged, dissolved or deleted.',
   groupMenuMerge: 'Merge into',
   groupMenuDissolve: 'Dissolve group',
   groupMenuExport: 'Export as…',

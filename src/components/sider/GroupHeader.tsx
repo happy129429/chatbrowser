@@ -86,7 +86,8 @@ export const GroupHeader = ({
     const finish = (name: string) => {
       setEditing(false)
       const trimmed = name.trim()
-      if (trimmed && trimmed !== group.name) {
+      // 默认组即使改成同名也算手动命名，之后不再跟随界面语言
+      if (trimmed && (trimmed !== group.name || locked)) {
         onRename(trimmed)
       }
     }

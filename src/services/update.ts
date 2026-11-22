@@ -3,7 +3,7 @@ export const RELEASES_URL = `https://github.com/${REPO}/releases`
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`
 const CACHE_KEY = 'chat-demo:update-check'
 const DISMISS_KEY = 'chat-demo:update-dismissed'
-const DAY = 24 * 60 * 60 * 1000
+const CACHE_TTL = 30 * 60 * 1000
 const TIMEOUT = 8000
 
 export type UpdateResult = { latest: string; url: string; newer: boolean }
@@ -11,8 +11,6 @@ export type UpdateResult = { latest: string; url: string; newer: boolean }
 export type UpdateCheck =
   | ({ status: 'ok' } & UpdateResult)
   | { status: 'error'; reason: 'rate-limit' | 'network'; resetAt?: number }
-
-type Cached = { at: number; latest: string; url: string }
 
 const parseVersion = (value: string) =>
   value
@@ -32,6 +30,8 @@ export const compareVersions = (a: string, b: string) => {
   }
   return 0
 }
+
+type Cached = { at: number; latest: string; url: string }
 
 const readCache = (): Cached | null => {
   try {
@@ -60,10 +60,10 @@ const writeCache = (latest: string, url: string) => {
   }
 }
 
-/** 查询 GitHub 最新 Release；force=false 时 24 小时内复用缓存。 */
+/** 查询 GitHub 最新 Release；force=false 时 30 分钟内复用缓存。 */
 export const checkForUpdates = async (force = false): Promise<UpdateCheck> => {
   const cached = readCache()
-  if (!force && cached && Date.now() - cached.at < DAY) {
+  if (!force && cached && Date.now() - cached.at < CACHE_TTL) {
     return {
       status: 'ok',
       latest: cached.latest,
@@ -74,6 +74,7 @@ export const checkForUpdates = async (force = false): Promise<UpdateCheck> => {
   try {
     const response = await fetch(API_URL, {
       headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
       signal: AbortSignal.timeout(TIMEOUT),
     })
     if (!response.ok) {

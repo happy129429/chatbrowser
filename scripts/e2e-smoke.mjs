@@ -635,7 +635,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.4') &&
+  aboutText.includes('0.7.5') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
@@ -686,6 +686,26 @@ await evaluate(`(() => {
   return 'ok'
 })()`)
 await sleep(300)
+
+const autoCheckSwitch = await evaluate(`(() => {
+  const node = document.querySelector('button[role="switch"]')
+  return node
+    ? { checked: node.getAttribute('aria-checked'), label: node.getAttribute('aria-label') }
+    : null
+})()`)
+check(
+  '关于页含自动检查更新开关',
+  autoCheckSwitch?.checked === 'true' && autoCheckSwitch?.label === '启动时自动检查更新',
+  autoCheckSwitch ? JSON.stringify(autoCheckSwitch) : 'no-switch'
+)
+await evaluate(`document.querySelector('button[role="switch"]')?.click()`)
+await sleep(200)
+const autoCheckOff = await evaluate(`localStorage.getItem('chat-demo:auto-check-updates')`)
+check('自动检查更新开关可关闭并持久化', autoCheckOff === 'false', String(autoCheckOff))
+await evaluate(`document.querySelector('button[role="switch"]')?.click()`)
+await sleep(200)
+const autoCheckOn = await evaluate(`localStorage.getItem('chat-demo:auto-check-updates')`)
+check('自动检查更新开关可重新开启', autoCheckOn === 'true', String(autoCheckOn))
 
 if (APP_URL.includes('127.0.0.1:17890')) {
   const quitTab = await evaluate(

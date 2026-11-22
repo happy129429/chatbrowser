@@ -7,6 +7,7 @@ import {
   initChat,
   retrySaveSessions,
   selectSession,
+  syncDefaultGroupName,
   useChatStore,
 } from '../services/chat/store.js'
 import { SearchPanel } from '../components/search/SearchPanel.js'
@@ -52,7 +53,8 @@ export const App = () => {
 
   useEffect(() => {
     document.documentElement.lang = locale
-  }, [locale])
+    syncDefaultGroupName(t('defaultGroupName'))
+  }, [locale, t])
 
   useEffect(bindChatPersistence, [])
 
