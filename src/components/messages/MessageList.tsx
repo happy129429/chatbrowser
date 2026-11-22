@@ -50,18 +50,80 @@ export const MessageList = ({
     }
   }, [])
 
-  // 内容变化时，继续遵循当前跟随状态。
+  /** 跳转定位进行中：吸底跟随暂停，内容懒渲染长高时持续重新对准目标。 */
+  const jumpActiveRef = useRef(false)
+  const jumpTargetRef = useRef<string | null>(null)
+  const jumpStableRef = useRef({ height: 0, count: 0 })
+  const jumpReleaseRef = useRef(0)
+
+  const releaseJump = useCallback(() => {
+    jumpActiveRef.current = false
+    jumpTargetRef.current = null
+    window.clearTimeout(jumpReleaseRef.current)
+  }, [])
+
+  const jumpToMessage = useCallback(
+    (messageId: string) => {
+      const el = scrollRef.current
+      const target = contentRef.current?.querySelector<HTMLElement>(
+        `[data-message-id="${CSS.escape(messageId)}"]`
+      )
+      if (!el || !target) {
+        return
+      }
+      stickyRef.current = false
+      jumpActiveRef.current = true
+      jumpTargetRef.current = messageId
+      jumpStableRef.current = { height: 0, count: 0 }
+      window.clearTimeout(jumpReleaseRef.current)
+      // 内容迟迟不再变化（如目标本就渲染完毕）时兜底释放，避免跟随永久失效。
+      jumpReleaseRef.current = window.setTimeout(releaseJump, 1500)
+      target.scrollIntoView({ block: 'center' })
+      target.classList.add('ds-jump-flash')
+      setTimeout(() => target.classList.remove('ds-jump-flash'), 1200)
+      scrollTopRef.current = el.scrollTop
+    },
+    [releaseJump]
+  )
+
+  // 内容变化时，继续遵循当前跟随状态；跳转期间改为持续对准目标，渲染稳定后释放。
   useLayoutEffect(() => {
     const content = contentRef.current
     const scroll = scrollRef.current
     if (!content || !scroll) {
       return
     }
-    const observer = new ResizeObserver(scrollToBottom)
+    const observer = new ResizeObserver(() => {
+      if (!jumpActiveRef.current) {
+        scrollToBottom()
+        return
+      }
+      const targetId = jumpTargetRef.current
+      const target = targetId
+        ? content.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(targetId)}"]`)
+        : null
+      if (!target) {
+        releaseJump()
+        return
+      }
+      const height = content.scrollHeight
+      const stable = jumpStableRef.current.height === height ? jumpStableRef.current.count + 1 : 0
+      jumpStableRef.current = { height, count: stable }
+      if (stable >= 2) {
+        releaseJump()
+        return
+      }
+      const delta =
+        target.getBoundingClientRect().top + target.clientHeight / 2 - scroll.clientHeight / 2
+      if (Math.abs(delta) > 1) {
+        scroll.scrollTop += delta
+        scrollTopRef.current = scroll.scrollTop
+      }
+    })
     observer.observe(content)
     observer.observe(scroll)
     return () => observer.disconnect()
-  }, [isMobile, scrollToBottom])
+  }, [isMobile, releaseJump, scrollToBottom])
 
   // 切换版本后将选择器留在原位置，避免回答长短变化导致操作区跳出视口。
   useLayoutEffect(() => {
@@ -90,18 +152,8 @@ export const MessageList = ({
       return
     }
     clearPendingJump()
-    requestAnimationFrame(() => {
-      const target = contentRef.current?.querySelector<HTMLElement>(
-        `[data-message-id="${CSS.escape(pendingJump.messageId)}"]`
-      )
-      if (!target) {
-        return
-      }
-      target.scrollIntoView({ block: 'center' })
-      target.classList.add('ds-jump-flash')
-      setTimeout(() => target.classList.remove('ds-jump-flash'), 1200)
-    })
-  }, [pendingJump, session.id])
+    requestAnimationFrame(() => jumpToMessage(pendingJump.messageId))
+  }, [pendingJump, session.id, jumpToMessage])
 
   const selectVersion = useCallback(
     (messageId: string, anchorTop: number) => {
@@ -135,8 +187,16 @@ export const MessageList = ({
       scrollTopRef.current = el.scrollTop
     }
     el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [isMobile, scrollToBottom])
+    // 用户主动滚动立即接管，终止跳转锁定
+    const onUserScrollIntent = () => releaseJump()
+    el.addEventListener('wheel', onUserScrollIntent, { passive: true })
+    el.addEventListener('touchstart', onUserScrollIntent, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('wheel', onUserScrollIntent)
+      el.removeEventListener('touchstart', onUserScrollIntent)
+    }
+  }, [isMobile, releaseJump, scrollToBottom])
 
   const lastIndex = messages.length - 1
   return (
