@@ -20,6 +20,7 @@ import { Button } from '../components/base/Button.js'
 import { stopReadAloud } from '../services/speech/readAloud.js'
 import { CollapsedSider } from '../components/sider/CollapsedSider.js'
 import { closeMobileSider } from '../components/sider/mobileSiderState.js'
+import { ArchiveInputHost } from '../components/sider/ArchiveInputHost.js'
 import { MobileSider, Sider } from '../components/sider/Sider.js'
 import { SearchOverlay } from '../components/sider/SearchOverlay.js'
 import styles from './App.module.css'
@@ -121,6 +122,7 @@ export const App = () => {
         <SearchOverlay />
       </div>
       <SettingsDialog />
+      <ArchiveInputHost />
       <Toast />
     </>
   )

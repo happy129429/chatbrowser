@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import {
   IconCloseOutline16,
@@ -14,6 +14,7 @@ import {
 } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
+import { openArchivePicker } from './ArchiveInputHost.js'
 import {
   createGroup,
   dissolveGroup,
@@ -29,7 +30,7 @@ import {
   startShareSelect,
   useChatStore,
 } from '../../services/chat/store.js'
-import { exportGroupArchive, importArchiveFiles } from '../../services/chat/backup.js'
+import { exportGroupArchive } from '../../services/chat/backup.js'
 import type { SessionGroup, SessionSummary } from '../../services/chat/types.js'
 import { Button } from '../base/Button.js'
 import { IconButton } from '../base/IconButton.js'
@@ -62,9 +63,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const [deletePending, setDeletePending] = useState(false)
   const [deletingGroup, setDeletingGroup] = useState<SessionGroup | null>(null)
   const [deleteGroupPending, setDeleteGroupPending] = useState(false)
-  const [importBusy, setImportBusy] = useState(false)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set())
-  const inputRef = useRef<HTMLInputElement>(null)
   /** 正在拖拽的会话 id；组头成为放下目标 */
   const [draggingSession, setDraggingSession] = useState<string | null>(null)
   /** 多选模式：groupId 为 null 表示未分组范围 */
@@ -143,28 +142,6 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
       window.removeEventListener('focus', refresh)
     }
   }, [])
-
-  const importFiles = async (files: File[]) => {
-    if (files.length === 0 || importBusy) {
-      return
-    }
-    setImportBusy(true)
-    try {
-      const outcomes = await importArchiveFiles(files)
-      const imported = outcomes.reduce((count, outcome) => count + outcome.sessions, 0)
-      const failed = outcomes.filter((outcome) => outcome.error).length
-      if (failed === 0) {
-        showToast({
-          key: imported === 1 ? 'historyImportedOne' : 'historyImported',
-          params: { count: imported },
-        })
-      } else {
-        showToast({ key: 'archiveImportPartial', params: { failed, total: outcomes.length } })
-      }
-    } finally {
-      setImportBusy(false)
-    }
-  }
 
   const exportGroup = async (group: SessionGroup) => {
     try {
@@ -267,30 +244,12 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           />
         </div>
       </div>
-      <button
-        type="button"
-        className={styles.openArchive}
-        disabled={importBusy}
-        onClick={() => inputRef.current?.click()}
-      >
+      <button type="button" className={styles.openArchive} onClick={openArchivePicker}>
         <span className={styles.openArchiveIcon}>
           <IconUploadOutline14 />
         </span>
         {t('openArchive')}
       </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".zip,application/zip,application/x-zip-compressed"
-        multiple
-        hidden
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])]
-          event.target.value = ''
-          closeMobileSider()
-          void importFiles(files)
-        }}
-      />
       <div className={styles.listWrap}>
         {selecting ? (
           <div className={styles.selectionBar}>

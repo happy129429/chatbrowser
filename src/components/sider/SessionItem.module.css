@@ -24,7 +24,7 @@
     &:hover,
     &.active {
       .action {
-        display: flex;
+        visibility: visible;
       }
     }
   }
@@ -82,7 +82,7 @@
 
 @media (hover: none) {
   .action {
-    display: flex;
+    visibility: visible;
   }
 }
 
