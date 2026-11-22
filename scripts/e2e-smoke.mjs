@@ -444,7 +444,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.6.4') &&
+  aboutText.includes('0.6.5') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
