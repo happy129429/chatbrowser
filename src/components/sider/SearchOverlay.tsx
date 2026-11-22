@@ -82,6 +82,7 @@ export const SearchOverlay = () => {
   const locale = useSettings((state) => state.locale)
   const open = useSearchOverlay((state) => state.open)
   const sessions = useChatStore((state) => state.sessions)
+  const dataVersion = useChatStore((state) => state.dataVersion)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<SearchHit[]>([])
   const [searchIndex, setSearchIndex] = useState<SearchIndex | null>(null)
@@ -95,13 +96,13 @@ export const SearchOverlay = () => {
     if (!open) {
       return
     }
-    // 打开时聚焦输入框，并异步构建搜索索引；关闭时中止构建。
+    // 打开时聚焦输入框；数据版本变化（含首次）时按需重建索引，命中缓存则瞬时就绪。
     inputRef.current?.focus()
     setBuilding(true)
     setSearchIndex(null)
     const controller = new AbortController()
     buildAbortRef.current = controller
-    void buildSearchIndex(useChatStore.getState().sessions, {
+    void buildSearchIndex(useChatStore.getState().sessions, dataVersion, {
       signal: controller.signal,
       onProgress: ({ scanned, total }) => {
         if (!controller.signal.aborted) {
@@ -118,7 +119,7 @@ export const SearchOverlay = () => {
       controller.abort()
       buildAbortRef.current = null
     }
-  }, [open])
+  }, [open, dataVersion])
 
   // 索引就绪后查询即时返回；无索引时保持空结果。
   useEffect(() => {

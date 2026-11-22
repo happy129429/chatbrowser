@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
+import { prefetchSearchIndex } from './search.js'
 import { normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
 import {
@@ -29,6 +30,8 @@ type ChatState = {
   activeId: string | null
   /** 搜索结果请求的定位：打开会话后滚动到该消息 */
   pendingJump: { sessionId: string; messageId: string } | null
+  /** 会话数据的版本号：导入/删除/重命名等递增，用于搜索索引缓存失效 */
+  dataVersion: number
 }
 
 export const useChatStore = create<ChatState>(() => ({
@@ -42,9 +45,12 @@ export const useChatStore = create<ChatState>(() => ({
   sessionSaveErrors: {},
   activeId: null,
   pendingJump: null,
+  dataVersion: 0,
 }))
 
 const { getState: get, setState: set } = useChatStore
+
+const bumpDataVersion = () => set((state) => ({ dataVersion: state.dataVersion + 1 }))
 
 const sortSessions = (sessions: SessionSummary[]) =>
   [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)
@@ -216,11 +222,13 @@ export const initChat = (): Promise<void> => {
     try {
       const [summaries, groups] = await Promise.all([db.loadSessionSummaries(), db.loadGroups()])
       if (epoch === historyEpoch) {
+        const sorted = sortSessions(summaries)
         set({
           ready: true,
-          sessions: sortSessions(summaries),
+          sessions: sorted,
           groups: groups.sort((a, b) => b.createdAt - a.createdAt),
         })
+        prefetchSearchIndex(sorted, get().dataVersion)
       }
     } catch (error) {
       if (epoch === historyEpoch) {
@@ -322,6 +330,7 @@ export const addHistoryGroup = async (
       sessionCache: {},
       sessionLoadErrors: {},
       sessionSaveErrors: {},
+      dataVersion: state.dataVersion + 1,
     }))
     return summaries.length
   } finally {
@@ -349,7 +358,7 @@ export const clearAllHistory = async (): Promise<void> => {
     sessionAccess.clear()
     unsavedSessions.clear()
     await db.clearAllData()
-    set({
+    set((state) => ({
       ready: true,
       sessions: [],
       groups: [],
@@ -357,7 +366,8 @@ export const clearAllHistory = async (): Promise<void> => {
       sessionLoadErrors: {},
       sessionSaveErrors: {},
       activeId: null,
-    })
+      dataVersion: state.dataVersion + 1,
+    }))
   } finally {
     set({ importingHistory: false })
     retrySaveSessions()
@@ -412,6 +422,7 @@ export const renameSession = (id: string, title: string) => {
   if (getSession(id)) {
     updateSession(id, (session) => ({ ...session, title }))
     persist(id)
+    bumpDataVersion()
   } else {
     set((state) => ({
       sessions: state.sessions.map((session) =>
@@ -419,6 +430,7 @@ export const renameSession = (id: string, title: string) => {
       ),
     }))
     void db.renameSession(id, title).catch(db.reportStorageError('rename session'))
+    bumpDataVersion()
   }
 }
 
@@ -458,6 +470,7 @@ const removeSessionData = async (id: string): Promise<boolean> => {
         Object.entries(state.sessionSaveErrors).filter(([key]) => key !== id)
       ),
       activeId: state.activeId === id ? null : state.activeId,
+      dataVersion: state.dataVersion + 1,
     }))
     return true
   } catch (error) {
@@ -634,6 +647,7 @@ export const removeSessions = async (ids: string[]): Promise<boolean> => {
         Object.entries(state.sessionSaveErrors).filter(([key]) => !idSet.has(key))
       ),
       activeId: state.activeId !== null && idSet.has(state.activeId) ? null : state.activeId,
+      dataVersion: state.dataVersion + 1,
     }))
     return true
   } catch (error) {
@@ -667,6 +681,7 @@ export const removeGroup = async (id: string): Promise<boolean> => {
         Object.entries(state.sessionSaveErrors).filter(([key]) => !idSet.has(key))
       ),
       activeId: state.activeId !== null && idSet.has(state.activeId) ? null : state.activeId,
+      dataVersion: state.dataVersion + 1,
     }))
     return true
   } catch (error) {

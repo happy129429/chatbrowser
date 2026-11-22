@@ -169,48 +169,81 @@ export type BuildOptions = {
   onProgress?: (progress: SearchProgress) => void
 }
 
-/** 遍历全部会话构建搜索索引；signal 中止时提前结束。 */
+/** 索引按数据版本缓存：会话未变化时直接复用，避免每次打开搜索都全量重建。 */
+let cache: { version: number; search: SearchIndex } | null = null
+let building: Promise<SearchIndex | null> | null = null
+
+/**
+ * 遍历全部会话构建搜索索引；signal 中止时提前结束。
+ * version 为数据版本：命中缓存立即返回；同版本已在后台构建时共享该构建。
+ */
 export const buildSearchIndex = async (
   summaries: SessionSummary[],
+  version: number,
   options: BuildOptions
 ): Promise<SearchIndex | null> => {
-  const index = new MiniSearch<SearchDoc>(miniSearchOptions)
-  const titles = new Map<string, string>()
-  const firstMessages = new Map<string, { messageId: string; text: string }>()
-  let scanned = 0
-  const report = () => options.onProgress?.({ scanned, total: summaries.length })
-  report()
-  for (const summary of summaries) {
-    if (options.signal.aborted) {
-      return null
-    }
-    scanned += 1
-    try {
-      const session = await db.loadSession(summary.id)
-      if (!session || options.signal.aborted) {
-        continue
-      }
-      titles.set(session.id, session.title)
-      const texts = searchableTexts(session)
-      if (texts.length > 0) {
-        firstMessages.set(session.id, { messageId: texts[0].messageId, text: texts[0].text })
-      }
-      const docs: SearchDoc[] = texts.map(({ messageId, text }) => ({
-        id: `${session.id}:${messageId}`,
-        sessionId: session.id,
-        messageId,
-        text,
-      }))
-      index.addAll(docs)
-    } catch (error) {
-      db.reportStorageError('search index')(error)
-    }
-    if (scanned % 10 === 0) {
-      report()
-    }
+  if (cache && cache.version === version) {
+    return cache.search
   }
-  report()
-  return { index, titles, firstMessages }
+  if (building) {
+    return building
+  }
+  const promise = (async () => {
+    const index = new MiniSearch<SearchDoc>(miniSearchOptions)
+    const titles = new Map<string, string>()
+    const firstMessages = new Map<string, { messageId: string; text: string }>()
+    let scanned = 0
+    const report = () => options.onProgress?.({ scanned, total: summaries.length })
+    report()
+    for (const summary of summaries) {
+      if (options.signal.aborted) {
+        return null
+      }
+      scanned += 1
+      try {
+        const session = await db.loadSession(summary.id)
+        if (!session || options.signal.aborted) {
+          continue
+        }
+        titles.set(session.id, session.title)
+        const texts = searchableTexts(session)
+        if (texts.length > 0) {
+          firstMessages.set(session.id, { messageId: texts[0].messageId, text: texts[0].text })
+        }
+        const docs: SearchDoc[] = texts.map(({ messageId, text }) => ({
+          id: `${session.id}:${messageId}`,
+          sessionId: session.id,
+          messageId,
+          text,
+        }))
+        index.addAll(docs)
+      } catch (error) {
+        db.reportStorageError('search index')(error)
+      }
+      if (scanned % 10 === 0) {
+        report()
+      }
+    }
+    report()
+    const search: SearchIndex = { index, titles, firstMessages }
+    cache = { version, search }
+    return search
+  })()
+  building = promise.finally(() => {
+    building = null
+  })
+  return building
+}
+
+/** 数据未变化时利用空闲时间后台预建索引，让打开搜索浮层时索引已就绪。 */
+export const prefetchSearchIndex = (summaries: SessionSummary[], version: number) => {
+  if (cache && cache.version === version) {
+    return
+  }
+  const run = () => {
+    void buildSearchIndex(summaries, version, { signal: new AbortController().signal })
+  }
+  window.requestIdleCallback(() => run(), { timeout: 5000 })
 }
 
 /** 在索引上查询；无结果时放宽为 OR 组合再试一次。 */
