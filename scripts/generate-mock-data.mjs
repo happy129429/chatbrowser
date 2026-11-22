@@ -60,7 +60,7 @@ function buildSession({ id, title, pinned = false, start, rounds }) {
       status: round.status ?? 'FINISHED',
       thinking_enabled: round.fragments.some((f) => f.type === 'THINK'),
       search_enabled: round.fragments.some((f) => f.type.startsWith('TOOL_')),
-      accumulated_token_usage: round.tokens,
+      accumulated_token_usage: tokens,
       inserted_at: iso(cursor),
       fragments: round.fragments,
     })

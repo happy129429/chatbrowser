@@ -23,24 +23,30 @@ export const SessionView = ({
   const isMobile = useIsMobile()
   const title = session.title || t('untitledChat')
   const { rounds, tokens } = useMemo(() => {
-    let tokenTotal: number | null = null
+    const visible = getVisibleMessages(session)
     let roundCount = 0
-    for (const message of getVisibleMessages(session)) {
+    for (const message of visible) {
       if (message.role === 'user') {
         roundCount += 1
-        continue
-      }
-      const { usage } = message
-      if (usage) {
-        tokenTotal =
-          (tokenTotal ?? 0) +
-          usage.input_tokens +
-          usage.cache_creation_input_tokens +
-          usage.cache_read_input_tokens +
-          usage.output_tokens
       }
     }
-    return { rounds: roundCount, tokens: tokenTotal }
+    // 归档带分支累计 token：最后一个回答的累计值即整段会话用量；旧数据回退用量求和。
+    const usageOf = (message: (typeof visible)[number]) =>
+      message.role === 'assistant'
+        ? (message.accumulatedTokens ??
+          (message.usage
+            ? message.usage.input_tokens +
+              message.usage.cache_creation_input_tokens +
+              message.usage.cache_read_input_tokens +
+              message.usage.output_tokens
+            : null))
+        : null
+    const lastUsage =
+      [...visible]
+        .reverse()
+        .map(usageOf)
+        .find((value) => value !== null) ?? null
+    return { rounds: roundCount, tokens: lastUsage }
   }, [session])
   return (
     <div className={styles.view}>

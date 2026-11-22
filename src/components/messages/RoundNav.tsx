@@ -1,11 +1,14 @@
 import clsx from 'clsx'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { UserMessage } from '../../services/chat/types.js'
 import styles from './RoundNav.module.css'
 
 /**
- * 一轮对话的导航条：右侧竖排小条，一条对应一轮「提问」。
- * 蓝色为滚动位置所在的当前轮；悬停变灰并显示该轮提问开头；点击跳转到提问位置。
+ * 一轮对话的导航条（官方样式）：
+ * - 收起时右侧只显示每轮一根小短线，当前轮蓝色加宽；
+ * - 悬停导航区域展开浮层，纵向列出全部轮的提问开头（右对齐），
+ *   当前轮文字与短线为蓝色，点击任意一行跳到该轮；
+ * - 展开时自动把当前轮滚到可见位置。
  */
 export const RoundNav = ({
   rounds,
@@ -20,7 +23,8 @@ export const RoundNav = ({
   onJump: (messageId: string) => void
 }) => {
   const [current, setCurrent] = useState(0)
-  const [hover, setHover] = useState(-1)
+  const [expanded, setExpanded] = useState(false)
+  const activeRowRef = useRef<HTMLButtonElement>(null)
 
   // 滚动与内容高度变化时，以视口纵向中点所在轮次为当前轮。
   useEffect(() => {
@@ -50,35 +54,57 @@ export const RoundNav = ({
     }
   }, [rounds, scrollRef, contentRef])
 
+  // 展开时把当前轮滚到浮层可视区域。
+  useEffect(() => {
+    if (expanded) {
+      activeRowRef.current?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [expanded])
+
   if (rounds.length < 2) {
     return null
   }
 
   const preview = (round: UserMessage) => {
     const text = round.content.replace(/\s+/g, ' ').trim()
-    return text ? text.slice(0, 80) : '…'
+    return text || '…'
   }
 
   return (
-    <div className={clsx(styles.rail, rounds.length > 24 && styles.railCrowded)}>
-      {rounds.map((round, index) => (
-        <button
-          key={round.id}
-          type="button"
-          className={clsx(
-            styles.bar,
-            index === current && styles.barCurrent,
-            hover === index && styles.barHover
-          )}
-          onClick={() => onJump(round.id)}
-          onMouseEnter={() => setHover(index)}
-          onMouseLeave={() => setHover(-1)}
-        >
-          <span className={clsx(styles.label, index === current && styles.labelCurrent)}>
-            {preview(round)}
-          </span>
-        </button>
-      ))}
+    <div
+      className={styles.rail}
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+    >
+      {expanded ? (
+        <div className={styles.card} role="list">
+          {rounds.map((round, index) => (
+            <button
+              key={round.id}
+              ref={index === current ? activeRowRef : undefined}
+              type="button"
+              role="listitem"
+              className={clsx(styles.row, index === current && styles.rowActive)}
+              onClick={() => onJump(round.id)}
+            >
+              <span className={styles.rowText}>{preview(round)}</span>
+              <span className={styles.dash} />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.bars}>
+          {rounds.map((round, index) => (
+            <button
+              key={round.id}
+              type="button"
+              className={clsx(styles.bar, index === current && styles.barCurrent)}
+              aria-label={preview(round)}
+              onClick={() => onJump(round.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
