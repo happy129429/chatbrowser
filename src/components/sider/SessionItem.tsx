@@ -101,24 +101,14 @@ export const SessionItem = memo(function SessionItem({
     icon: <span className={clsx(styles.moveDot, colorDotClass(group.color))} />,
     onSelect: () => onMove?.(group.id),
   }))
-  const ungroupOption =
-    session.groupId !== null && onMove
-      ? [
-          {
-            key: 'ungroup',
-            label: t('ungroupSession'),
-            icon: <span className={clsx(styles.moveDot, styles.moveDotNone)} />,
-            onSelect: () => onMove(null),
-          },
-        ]
-      : []
-
   return (
     <div
       className={clsx(styles.item, active && styles.active)}
       draggable={!!onDragStart}
       onDragStart={(event) => {
-        event.dataTransfer.setData('text/plain', session.id)
+        // 自定义 MIME 给应用内拖拽，text/plain 只放可读标题，避免把内部 id 拖到地址栏
+        event.dataTransfer.setData('application/x-chatbrowser-session', session.id)
+        event.dataTransfer.setData('text/plain', displayTitle)
         event.dataTransfer.effectAllowed = 'move'
         onDragStart?.()
       }}
@@ -157,7 +147,6 @@ export const SessionItem = memo(function SessionItem({
               onSelect: () => onExportAs?.(),
             },
             ...moveOptions,
-            ...ungroupOption,
             {
               key: 'delete',
               label: t('delete'),

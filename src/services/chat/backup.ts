@@ -149,7 +149,7 @@ export const importArchiveFile = (file: File): Promise<number> =>
     // 先探测 ZIP 内是否含 ChatGPT / Claude 的 conversations JSON
     const { externalSessionsFromZip } = await import('./history/external.js')
     const external = await externalSessionsFromZip(file, group.id)
-    if (external && external.sessions.length > 0) {
+    if (external && (external.sessions.length > 0 || external.extras.length > 0)) {
       if (external.extras.length > 0) {
         group.extras = external.extras
       }
@@ -206,17 +206,104 @@ export const importExternalFile = (file: File): Promise<number> =>
     })
   })
 
+/** 同一次导出的分卷文件模式（Anthropic 等） */
+const PART_FILE = /^(conversations|projects|users|memories|light_metadata)(-\d+)?\.(zip|json)$/i
+
+/** 当用户一次选中同一导出的多个分卷时，合并为一个组；其它情况一个文件一个组。 */
+export const groupArchiveFiles = (files: File[]): File[][] => {
+  if (files.length > 1 && files.every((file) => PART_FILE.test(file.name))) {
+    return [files]
+  }
+  return files.map((file) => [file])
+}
+
+const batchName = (files: File[]) => {
+  const first = files.find(
+    (file) => PART_FILE.exec(file.name)?.[1]?.toLowerCase() === 'conversations'
+  )
+  const kind = PART_FILE.exec((first ?? files[0]).name)?.[1]?.toLowerCase()
+  return kind ? `${kind}-export` : 'imported-export'
+}
+
+/** 多个分卷导入为同一个归档组；会话按 ID 去重，附加信息合并。 */
+const importArchiveBatch = (files: File[]): Promise<number> =>
+  enqueueBackup(async () => {
+    const group: SessionGroup = {
+      id: createId(),
+      name: batchName(files),
+      color: null,
+      sourceName: files.map((file) => file.name).join(', '),
+      createdAt: Date.now(),
+    }
+    const {
+      externalSessionsFromZip,
+      externalToSessions,
+      detectExternalSource,
+      extrasFromJsonFile,
+    } = await import('./history/external.js')
+    const sessions = new Map<string, Session>()
+    const extras: { title: string; content: string }[] = []
+    for (const file of files) {
+      try {
+        if (/\.json$/i.test(file.name)) {
+          const parsed = JSON.parse(await file.text()) as unknown
+          if (detectExternalSource(parsed)) {
+            for (const session of externalToSessions(parsed, group.id)) {
+              sessions.set(session.id, session)
+            }
+          }
+          extras.push(...extrasFromJsonFile(file.name, parsed))
+        } else {
+          const external = await externalSessionsFromZip(file, group.id)
+          if (external) {
+            for (const session of external.sessions) {
+              sessions.set(session.id, session)
+            }
+            extras.push(...external.extras)
+          }
+        }
+      } catch {
+        // 单个分卷失败不阻止其它分卷
+      }
+    }
+    const uniqueExtras = [
+      ...new Map(extras.map((extra) => [extra.title + '\u0000' + extra.content, extra])).values(),
+    ]
+    if (sessions.size === 0 && uniqueExtras.length === 0) {
+      throw new BackupError('backupIncomplete')
+    }
+    if (uniqueExtras.length > 0) {
+      group.extras = uniqueExtras
+    }
+    return addHistoryGroup(group, async () => {
+      for (const session of sessions.values()) {
+        await db.addStagingSession(session)
+      }
+    })
+  })
+
 /** 依次导入多个文件（ZIP 或外部 JSON）；单个失败不影响后续文件。返回逐个文件的结果。 */
 export type ArchiveImportOutcome = {
   file: File
   /** 成功导入的会话数；失败为 0 */
   sessions: number
   error?: unknown
+  /** 合并导入的分卷文件（单个文件导入时缺省） */
+  batch?: File[]
 }
 
 export const importArchiveFiles = async (files: File[]): Promise<ArchiveImportOutcome[]> => {
   const outcomes: ArchiveImportOutcome[] = []
-  for (const file of files) {
+  for (const batch of groupArchiveFiles(files)) {
+    if (batch.length > 1) {
+      try {
+        outcomes.push({ file: batch[0], sessions: await importArchiveBatch(batch), batch })
+      } catch (error) {
+        outcomes.push({ file: batch[0], sessions: 0, error, batch })
+      }
+      continue
+    }
+    const file = batch[0]
     try {
       const sessions = isExternalJson(file)
         ? await importExternalFile(file)

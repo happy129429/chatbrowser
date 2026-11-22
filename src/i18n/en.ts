@@ -122,8 +122,13 @@ export const en = {
   archiveDropHint:
     'Drop an AI-assistant ZIP or ChatGPT / Claude / z.ai JSON here, or click to browse',
   archiveImporting: 'Importing…',
+  archiveBatchMerged:
+    'Detected split parts: merged {files} files into one archive group ({count} conversations)',
   archiveImportPartial: 'Import finished, {failed}/{total} file(s) failed',
   ungroupSession: 'Remove from group',
+  defaultGroupName: 'Default group',
+  defaultGroupLockedHint:
+    'The default group cannot be merged, dissolved or deleted; rename, colors and export are allowed.',
   groupMenuMerge: 'Merge into',
   groupMenuDissolve: 'Dissolve group',
   groupMenuExport: 'Export as…',

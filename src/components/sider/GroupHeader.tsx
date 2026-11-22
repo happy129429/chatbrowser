@@ -47,6 +47,7 @@ export const GroupHeader = ({
   collapsed,
   otherGroups,
   droppable,
+  locked = false,
   onDropSession,
   onToggle,
   onRename,
@@ -64,6 +65,7 @@ export const GroupHeader = ({
   otherGroups: SessionGroup[]
   /** 有会话正在拖拽时成为放下目标 */
   droppable?: boolean
+  locked?: boolean
   onDropSession?: () => void
   onToggle: () => void
   onRename: (name: string) => void
@@ -148,6 +150,17 @@ export const GroupHeader = ({
         />
         <Menu
           options={[
+            ...(locked
+              ? [
+                  {
+                    key: 'default-lock-note',
+                    label: t('defaultGroupLockedHint'),
+                    icon: <IconInfoOutline16 />,
+                    disabled: true,
+                    onSelect: () => {},
+                  },
+                ]
+              : []),
             {
               key: 'rename',
               label: t('sessionItemMenuRenameOption'),
@@ -176,18 +189,24 @@ export const GroupHeader = ({
               ),
               onSelect: () => onSetColor(null),
             },
-            ...otherGroups.map((target) => ({
-              key: `merge-${target.id}`,
-              label: `${t('groupMenuMerge')}：${target.name}`,
-              icon: <ColorDot color={target.color} />,
-              onSelect: () => onMerge(target.id),
-            })),
-            {
-              key: 'dissolve',
-              label: t('groupMenuDissolve'),
-              icon: <IconCloseOutline16 />,
-              onSelect: onDissolve,
-            },
+            ...(locked
+              ? []
+              : otherGroups.map((target) => ({
+                  key: `merge-${target.id}`,
+                  label: `${t('groupMenuMerge')}：${target.name}`,
+                  icon: <ColorDot color={target.color} />,
+                  onSelect: () => onMerge(target.id),
+                }))),
+            ...(locked
+              ? []
+              : [
+                  {
+                    key: 'dissolve',
+                    label: t('groupMenuDissolve'),
+                    icon: <IconCloseOutline16 />,
+                    onSelect: onDissolve,
+                  },
+                ]),
             ...(onShowExtras
               ? [
                   {
@@ -204,13 +223,17 @@ export const GroupHeader = ({
               icon: <IconDownloadOutline16 />,
               onSelect: onExport,
             },
-            {
-              key: 'delete',
-              label: t('groupMenuDelete'),
-              icon: <IconTrashOutline16 />,
-              danger: true,
-              onSelect: onDelete,
-            },
+            ...(locked
+              ? []
+              : [
+                  {
+                    key: 'delete',
+                    label: t('groupMenuDelete'),
+                    icon: <IconTrashOutline16 />,
+                    danger: true,
+                    onSelect: onDelete,
+                  },
+                ]),
           ]}
         >
           {({ toggle }) => (

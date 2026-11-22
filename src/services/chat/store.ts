@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
+import { translate } from '../../i18n/index.js'
+import { DEFAULT_GROUP_ID, isDefaultGroup } from './defaultGroup.js'
 import { prefetchSearchIndex } from './search.js'
 import { normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -268,7 +270,30 @@ export const initChat = (): Promise<void> => {
   set({ initError: false })
   initTask = (async () => {
     try {
-      const [summaries, groups] = await Promise.all([db.loadSessionSummaries(), db.loadGroups()])
+      let [summaries, groups] = await Promise.all([db.loadSessionSummaries(), db.loadGroups()])
+      // 确保默认组存在，并把历史遗留的 null 组会话迁入
+      let defaultGroup = groups.find((group) => isDefaultGroup(group.id))
+      if (!defaultGroup) {
+        defaultGroup = {
+          id: DEFAULT_GROUP_ID,
+          name: translate('defaultGroupName'),
+          color: null,
+          sourceName: '',
+          createdAt: 0,
+        }
+        await db.saveGroup(defaultGroup)
+        groups = [...groups, defaultGroup]
+      }
+      const ungrouped = summaries.filter((session) => session.groupId === null)
+      if (ungrouped.length > 0) {
+        await db.moveSessionsToGroup(
+          ungrouped.map((session) => session.id),
+          DEFAULT_GROUP_ID
+        )
+        summaries = summaries.map((session) =>
+          session.groupId === null ? { ...session, groupId: DEFAULT_GROUP_ID } : session
+        )
+      }
       if (epoch === historyEpoch) {
         const sorted = sortSessions(summaries)
         const savedActive = readActiveSession()
@@ -415,10 +440,18 @@ export const clearAllHistory = async (): Promise<void> => {
     sessionAccess.clear()
     unsavedSessions.clear()
     await db.clearAllData()
+    const defaultGroup: SessionGroup = {
+      id: DEFAULT_GROUP_ID,
+      name: translate('defaultGroupName'),
+      color: null,
+      sourceName: '',
+      createdAt: 0,
+    }
+    await db.saveGroup(defaultGroup)
     set((state) => ({
       ready: true,
       sessions: [],
-      groups: [],
+      groups: [defaultGroup],
       sessionCache: {},
       sessionLoadErrors: {},
       sessionSaveErrors: {},
@@ -651,7 +684,7 @@ export const createGroup = async (name: string): Promise<SessionGroup> => {
 
 /** 合并组：源组的会话并入目标组后删除源组。 */
 export const mergeGroups = async (sourceId: string, targetId: string) => {
-  if (get().importingHistory || sourceId === targetId) {
+  if (get().importingHistory || sourceId === targetId || isDefaultGroup(sourceId)) {
     return
   }
   const ids = get()
@@ -664,15 +697,15 @@ export const mergeGroups = async (sourceId: string, targetId: string) => {
   }))
 }
 
-/** 解散组：会话保留并取消分组。 */
+/** 解散组：会话保留并移入默认组。 */
 export const dissolveGroup = async (id: string) => {
-  if (get().importingHistory) {
+  if (get().importingHistory || isDefaultGroup(id)) {
     return
   }
   const ids = get()
     .sessions.filter((session) => session.groupId === id)
     .map((session) => session.id)
-  await moveSessionsToGroup(ids, null)
+  await moveSessionsToGroup(ids, DEFAULT_GROUP_ID)
   await db.deleteGroupRecord(id).catch(db.reportStorageError('delete dissolved group'))
   set((state) => ({
     groups: state.groups.filter((group) => group.id !== id),
@@ -715,7 +748,7 @@ export const removeSessions = async (ids: string[]): Promise<boolean> => {
 
 /** 删除组及其全部会话；本地原件仅在没有其他会话引用时清理。 */
 export const removeGroup = async (id: string): Promise<boolean> => {
-  if (get().importingHistory || deletingSessions.size > 0) {
+  if (get().importingHistory || deletingSessions.size > 0 || isDefaultGroup(id)) {
     return false
   }
   const ids = get()

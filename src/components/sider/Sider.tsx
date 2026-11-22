@@ -14,6 +14,7 @@ import {
 } from '../base/icons.js'
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
+import { isDefaultGroup } from '../../services/chat/defaultGroup.js'
 import { openArchivePicker } from './ArchiveInputHost.js'
 import { Markdown } from '../markdown/Markdown.js'
 import {
@@ -282,7 +283,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           </div>
         ) : null}
         <div className={styles.list}>
-          {sessions.length === 0 ? (
+          {sessions.length === 0 && archiveGroups.length === 0 ? (
             <div className={styles.searchState}>{t('listEmpty')}</div>
           ) : selecting ? (
             selectionSections.map((section) => (
@@ -344,6 +345,7 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                       collapsed={collapsedIds.has(group.id)}
                       otherGroups={archiveGroups.filter((item) => item.id !== group.id)}
                       droppable={draggingSession !== null}
+                      locked={isDefaultGroup(group.id)}
                       onDropSession={() => {
                         if (draggingSession !== null) {
                           moveSessions([draggingSession], group.id)

@@ -827,8 +827,21 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
           : null
       nodes.set(id, { message, id, parentUuid })
     })
-    const parentOf = (node: { parentUuid: string | null }) =>
-      node.parentUuid && nodes.has(node.parentUuid) ? node.parentUuid : null
+    // Claude 导出可能把 parent_message_uuid 截断成 uuid 前缀，按唯一前缀匹配
+    const resolveId = (reference: string | null): string | null => {
+      if (!reference) {
+        return null
+      }
+      if (nodes.has(reference)) {
+        return reference
+      }
+      if (reference.length < 8) {
+        return null
+      }
+      const matches = [...nodes.keys()].filter((id) => id.startsWith(reference))
+      return matches.length === 1 ? matches[0] : null
+    }
+    const parentOf = (node: { parentUuid: string | null }) => resolveId(node.parentUuid)
 
     // 从导出数组最后一条回溯当前分支，并为路径上的节点设置 selectedChildId。
     const path: string[] = []
@@ -920,7 +933,7 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
 export type ExternalZipResult = { sessions: Session[]; extras: GroupExtra[] }
 
 /** 从 ChatGPT 的 user.json / Claude 的 projects.json 中提取账号级附加信息。 */
-const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] => {
+export const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] => {
   const lower = name.toLowerCase()
   const extras: GroupExtra[] = []
   if (lower.endsWith('user.json')) {
@@ -1028,6 +1041,15 @@ const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] => {
       })
     }
   }
+  // 暂未结构化解析的元数据（memories / light_metadata 等）先原样保留
+  if (extras.length === 0 && /(memory|memories|metadata)/i.test(name)) {
+    const raw = JSON.stringify(parsed, null, 2)
+    extras.push(
+      raw.length <= 512 * 1024
+        ? { title: `文件：${name}`, content: '```json\n' + raw + '\n```' }
+        : { title: `文件：${name}`, content: '文件过大，未内联显示。' }
+    )
+  }
   return extras
 }
 
@@ -1039,7 +1061,7 @@ export const externalSessionsFromZip = async (
   if (!(await isZipFile(file))) {
     return null
   }
-  let conversations: Session[] | null = null
+  const conversations: Session[] = []
   const extras: GroupExtra[] = []
   try {
     for await (const entry of readArchive(file)) {
@@ -1065,9 +1087,10 @@ export const externalSessionsFromZip = async (
       } catch {
         continue
       }
-      if (!conversations && detectExternalSource(parsed)) {
+      if (detectExternalSource(parsed)) {
         try {
-          conversations = externalToSessions(parsed, groupId)
+          // 分卷导出会有 conversations-000.json、conversations-001.json…全部合并
+          conversations.push(...externalToSessions(parsed, groupId))
           continue
         } catch (error) {
           if (error instanceof BackupError) {
@@ -1084,7 +1107,7 @@ export const externalSessionsFromZip = async (
     }
     throw error
   }
-  return conversations ? { sessions: conversations, extras } : null
+  return conversations.length > 0 || extras.length > 0 ? { sessions: conversations, extras } : null
 }
 
 /** 解析外部 JSON 为会话列表；无法识别时抛 backupUnrecognized。 */

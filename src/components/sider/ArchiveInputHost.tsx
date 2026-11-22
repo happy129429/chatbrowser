@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { importArchiveFiles } from '../../services/chat/backup.js'
+import { groupArchiveFiles, importArchiveFiles } from '../../services/chat/backup.js'
 import { showToast } from '../base/toastState.js'
 
 let open: (() => void) | null = null
@@ -35,15 +35,24 @@ export const ArchiveInputHost = () => {
           return
         }
         busy = true
+        const batches = groupArchiveFiles(files)
+        const merged = batches.find((batch) => batch.length > 1)
         void importArchiveFiles(files)
           .then((outcomes) => {
             const imported = outcomes.reduce((count, outcome) => count + outcome.sessions, 0)
             const failed = outcomes.filter((outcome) => outcome.error).length
             if (failed === 0) {
-              showToast({
-                key: imported === 1 ? 'historyImportedOne' : 'historyImported',
-                params: { count: imported },
-              })
+              if (merged) {
+                showToast({
+                  key: 'archiveBatchMerged',
+                  params: { files: merged.length, count: imported },
+                })
+              } else {
+                showToast({
+                  key: imported === 1 ? 'historyImportedOne' : 'historyImported',
+                  params: { count: imported },
+                })
+              }
             } else {
               showToast({ key: 'archiveImportPartial', params: { failed, total: outcomes.length } })
             }

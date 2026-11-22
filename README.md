@@ -94,7 +94,8 @@ location /chatbrowser/ {
 
 DeepSeek is the upstream project's native format and the base for this app's archive and conversion pipeline, so it has the most complete support. Other formats aim to migrate without losing information where possible; depending on what each vendor exports, some fields can only be dropped or kept as metadata.
 
-- Import multiple files at once; each import becomes an archive group with incremental merges
+- Import multiple files at once; Anthropic-style split exports (`conversations-000.zip`, `memories-000.zip`, …) selected together merge into one group
+- Each import becomes an archive group with incremental merges; groups can also be merged later from the group menu
 - System prompts are viewable inside external conversations; account-level memories/instructions from the group menu
 
 ## Features
@@ -102,7 +103,7 @@ DeepSeek is the upstream project's native format and the base for this app's arc
 - Full rendering: Markdown, code highlighting, KaTeX, Mermaid, reasoning timeline, web search sources, message branches and attachments
 - External conversation summaries (Claude `summary`) appear as a collapsible panel; attachments without originals show name/type
 - Safety-refused replies show only the notice by default; in the archive you can use "Show original content" to reveal the reasoning and text that were sent
-- Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete
+- Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete; ungrouped sessions live in a protected Default group (rename/color/export allowed, merge/dissolve/delete disabled)
 - Global search with highlighted excerpts and jump-to-message; cached index per data version
 - Export as…: groups or single conversations to AI Assistant-compatible ZIP, AI Assistant extended ZIP (sidecar keeps system prompts, summaries, group info, citations and thinking state), or Claude JSON (thinking/citations/attachment metadata); includes an option to anonymize IDs
 - Round-level export: self-contained HTML (MathML, Prism, sources) or Markdown

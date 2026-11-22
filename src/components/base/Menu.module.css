@@ -45,3 +45,12 @@
     background-color: var(--dsw-alias-interactive-bg-hover-danger);
   }
 }
+
+.disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.disabled:hover {
+  background: none;
+}
