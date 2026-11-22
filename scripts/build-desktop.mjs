@@ -33,30 +33,20 @@ run('pnpm', ['build'])
 rmrf(webDir)
 fs.cpSync(path.join(root, 'dist'), webDir, { recursive: true })
 
-// 3. Windows 可执行文件图标（生成 rsrc_windows_amd64.syso，仅参与 windows 构建）
-fs.copyFileSync(
-  path.join(root, 'assets', 'icons', 'icon.ico'),
-  path.join(launcherDir, 'winres', 'icon.ico')
-)
+// 3. Windows 可执行文件图标（rsrc_windows_amd64.syso 已入库；仅图标更新或缺失时重新生成）
+const icoPath = path.join(root, 'assets', 'icons', 'icon.ico')
+fs.copyFileSync(icoPath, path.join(launcherDir, 'winres', 'icon.ico'))
 const syso = path.join(launcherDir, 'rsrc_windows_amd64.syso')
-rmrf(syso)
-run(
-  go,
-  [
-    'run',
-    'github.com/akavel/rsrc@latest',
-    '-ico',
-    'winres/icon.ico',
-    '-o',
-    'rsrc_windows_amd64.syso',
-    '-arch',
-    'amd64',
-  ],
-  {
-    cwd: launcherDir,
-    env: { ...process.env, GOOS: 'windows', GOARCH: 'amd64' },
+const sysoStale = !fs.existsSync(syso) || fs.statSync(icoPath).mtimeMs > fs.statSync(syso).mtimeMs
+if (sysoStale) {
+  // 注意：生成工具必须用宿主机平台编译执行，不要设置 GOOS
+  const args = ['run', 'github.com/akavel/rsrc', '-ico', 'winres/icon.ico', '-o', 'rsrc_windows_amd64.syso', '-arch', 'amd64']
+  try {
+    run(go, args, { cwd: launcherDir, env: { ...process.env, GOPROXY: 'off' } })
+  } catch {
+    run(go, args, { cwd: launcherDir })
   }
-)
+}
 
 // 4. 交叉编译
 rmrf(releaseDir)

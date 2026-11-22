@@ -82,14 +82,19 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept SDK licenses and install packages
+      # GitHub 的 ubuntu runner 预装 Android SDK；自带的 setup-android 动作会因
+      # preview 版 cmdline-tools 的许可交互而失败，这里直接用预装环境。
+      - name: Prepare Android SDK
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null || true
-          echo "ANDROID_HOME=$ANDROID_HOME"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
+          echo "ANDROID_SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-34" "build-tools;34.0.0" >/dev/null || true
+          echo "$ANDROID_HOME" >> /dev/null
+          ls "$ANDROID_HOME/platforms" | tail -3
           java -version 2>&1 | head -1
 
       - name: Install dependencies

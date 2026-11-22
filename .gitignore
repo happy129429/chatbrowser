@@ -26,3 +26,6 @@ android/keystore.properties
 
 # 启动器构建时复制的 dist
 packaging/launcher/web/
+
+# GitHub Action 构建报错日志
+github_log
