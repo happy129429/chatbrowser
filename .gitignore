@@ -19,3 +19,8 @@ android/build/
 android/.gradle/
 android/local.properties
 android/capacitor-cordova-android-plugins/build/
+
+# Android 签名配置
+android/keystore.properties
+*.jks
+*.keystore

@@ -108,7 +108,45 @@ for (const { target, outDir } of built) {
   }
 }
 
+// 6. 免 exe 便携版（Windows）：PowerShell 伺服 dist，规避未签名 exe 拦截
+{
+  const portableDir = path.join(releaseDir, 'windows-portable')
+  fs.mkdirSync(portableDir, { recursive: true })
+  fs.cpSync(path.join(root, 'dist'), path.join(portableDir, 'dist'), { recursive: true })
+  fs.copyFileSync(
+    path.join(root, 'packaging', 'windows', 'server.ps1'),
+    path.join(portableDir, 'server.ps1')
+  )
+  fs.copyFileSync(
+    path.join(root, 'packaging', 'windows', 'start-chatbrowser.cmd'),
+    path.join(portableDir, 'start-chatbrowser.cmd')
+  )
+  fs.copyFileSync(path.join(root, 'LICENSE'), path.join(portableDir, 'LICENSE'))
+  fs.writeFileSync(
+    path.join(portableDir, '使用说明.txt'),
+    '双击 start-chatbrowser.cmd 启动（使用 Windows 自带 PowerShell，无需安装，也没有 exe）。\r\n' +
+      '首次可能提示“是否允许 PowerShell 运行”，选择允许即可。\r\n' +
+      '本地服务地址固定为 127.0.0.1:17890，与桌面版共享同一份浏览器数据。\r\n'
+  )
+  const files = {}
+  const walk = (dir, base) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      const name = base ? `${base}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        walk(full, name)
+      } else {
+        files[name] = new Uint8Array(fs.readFileSync(full))
+      }
+    }
+  }
+  walk(portableDir, '')
+  fs.writeFileSync(path.join(releaseDir, 'windows-portable.zip'), zipSync(files))
+  console.log('打包 release/desktop/windows-portable.zip')
+}
+
 console.log('\n完成：')
 for (const { target } of built) {
   console.log(`  release/desktop/${target.dir}/`)
 }
+console.log('  release/desktop/windows-portable.zip（免 exe 便携版）')

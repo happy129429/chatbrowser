@@ -1,17 +1,1 @@
-;(self.rspackChunkchatbrowser = self.rspackChunkchatbrowser || []).push([
-  [8560],
-  {
-    4979() {
-      var e, a, s
-      ;((a = (e = Prism).util.clone(e.languages.typescript)),
-        (e.languages.tsx = e.languages.extend('jsx', a)),
-        delete e.languages.tsx.parameter,
-        delete e.languages.tsx['literal-property'],
-        ((s = e.languages.tsx.tag).pattern = RegExp(
-          '(^|[^\\w$]|(?=</))(?:' + s.pattern.source + ')',
-          s.pattern.flags
-        )),
-        (s.lookbehind = !0))
-    },
-  },
-])
+(self.rspackChunkchatbrowser=self.rspackChunkchatbrowser||[]).push([[8560],{4979(){var e,a,s;a=(e=Prism).util.clone(e.languages.typescript),e.languages.tsx=e.languages.extend("jsx",a),delete e.languages.tsx.parameter,delete e.languages.tsx["literal-property"],(s=e.languages.tsx.tag).pattern=RegExp("(^|[^\\w$]|(?=</))(?:"+s.pattern.source+")",s.pattern.flags),s.lookbehind=!0}}]);
