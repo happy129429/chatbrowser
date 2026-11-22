@@ -257,6 +257,23 @@ check(
   `summary=${claudeSummary} id=${claudeOriginalId}`
 )
 
+const claudePromptOpened = await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((node) => node.textContent.includes('系统提示词'))
+  btn?.click()
+  return btn ? 'ok' : 'no-prompt'
+})()`)
+await sleep(300)
+const claudePromptText = await evaluate(`(() => {
+  const panels = [...document.querySelectorAll('div[class*="systemPrompt"]')]
+  const panel = panels.find((node) => node.textContent.includes('系统提示词'))
+  return panel?.textContent ?? ''
+})()`)
+check(
+  'Claude 注入的系统提示词可查看',
+  claudePromptOpened === 'ok' && claudePromptText.includes('会话级注入的系统提示'),
+  claudePromptText.slice(0, 40)
+)
+
 const claudeExtras = await evaluate(`(() => {
   const main = document.querySelector('main')
   const badge = [...document.querySelectorAll('span')].find((node) => node.textContent === '思考已截断')
@@ -618,7 +635,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.2') &&
+  aboutText.includes('0.7.3') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

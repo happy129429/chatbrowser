@@ -609,6 +609,7 @@ const claudeContent = (
   text: string
   blocks: AssistantMessage['blocks']
   unsupported: { type: string; count: number }[]
+  injected: string[]
 } => {
   const raw = Array.isArray(message.content)
     ? message.content.map(record).filter((block): block is Loose => block !== null)
@@ -616,6 +617,7 @@ const claudeContent = (
   const texts: string[] = []
   const thinkings: string[] = []
   const unsupported = new Map<string, number>()
+  const injected: string[] = []
   const textCitations = new Map<number, TextCitation[]>()
   const thinkingFlags: { truncated?: boolean; hidden?: boolean; signature?: string } = {}
   let startedAt: number | undefined
@@ -674,6 +676,14 @@ const claudeContent = (
       if (typeof block.signature === 'string' && block.signature.trim()) {
         thinkingFlags.signature = block.signature
       }
+    } else if (block.type === 'injected_prompt_block') {
+      // Claude 的系统提示注入（记忆快照 / system-reminder），属于会话级系统提示
+      const prompt = [block.prompt, block.text, block.content].find(
+        (value): value is string => typeof value === 'string' && value.trim() !== ''
+      )
+      if (prompt) {
+        injected.push(prompt.trim())
+      }
     } else if (typeof block.type === 'string') {
       unsupported.set(block.type, (unsupported.get(block.type) ?? 0) + 1)
     }
@@ -705,6 +715,7 @@ const claudeContent = (
     text,
     blocks,
     unsupported: [...unsupported.entries()].map(([type, count]) => ({ type, count })),
+    injected,
   }
 }
 
@@ -769,10 +780,13 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
     // 旧样本没有消息 uuid：退回顺序轮次解析。
     if (raw.length === 0 || !raw.every((message) => typeof message.uuid === 'string')) {
       const rounds: Round[] = []
+      const fallbackPrompt: string[] = []
       let pendingQuestion = ''
       let pendingAt = 0
       for (const message of raw) {
-        const { text } = claudeContent(message)
+        const parsed = claudeContent(message)
+        const { text } = parsed
+        fallbackPrompt.push(...parsed.injected)
         const at = toMs(message.created_at, Date.now())
         const sender = message.sender ?? message.role
         if (sender === 'human' || sender === 'user') {
@@ -793,6 +807,9 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       if (session) {
         if (summary) {
           session.summary = summary
+        }
+        if (fallbackPrompt.length > 0) {
+          session.systemPrompt = [...new Set(fallbackPrompt)].join('\n\n---\n\n')
         }
         sessions.push(session)
       }
@@ -830,12 +847,16 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
     }
 
     const messages: Message[] = []
+    const injectedPrompts = new Set<string>()
     for (const node of nodes.values()) {
       const at = toMs(node.message.created_at, createdAt)
       const parentId = parentOf(node)
       const selectedChildId = nextOnPath.get(node.id)
       const sender = roleOf(node.message.sender) ?? roleOf(node.message.role)
       const content = claudeContent(node.message)
+      for (const prompt of content.injected) {
+        injectedPrompts.add(prompt)
+      }
       if (sender === 'user') {
         const unsupportedText =
           content.unsupported.length > 0
@@ -888,6 +909,9 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       messages,
       rootMessageId: path[0] ?? messages[0].id,
       ...(summary ? { summary } : {}),
+      ...(injectedPrompts.size > 0
+        ? { systemPrompt: [...injectedPrompts].join('\n\n---\n\n') }
+        : {}),
     })
   }
   return sessions

@@ -729,6 +729,13 @@ const claude = [
         text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
         content: [
           {
+            type: 'injected_prompt_block',
+            prompt: '<system-reminder>会话级注入的系统提示（示例记忆快照）。</system-reminder>',
+            injection_source: 'memory_block_head',
+            initial_turn_only: false,
+            skip_on_truncated_continuation: false,
+          },
+          {
             type: 'text',
             text: '帮我把这句改学术一点：We did a lot of tests and the result is good.',
             citations: [],
