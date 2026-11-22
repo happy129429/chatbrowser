@@ -810,13 +810,16 @@ writeFileSync(
   zipSync({
     'conversations.json': strToU8(JSON.stringify(claude)),
     'projects.json': strToU8(
-      JSON.stringify([
-        {
-          uuid: 'proj-1',
-          name: '论文项目',
-          prompt_template: '你是学术写作助手，回答保持严谨、简洁。',
-        },
-      ])
+      JSON.stringify({
+        projects: [
+          {
+            uuid: 'proj-1',
+            name: '论文项目',
+            prompt_template: '你是学术写作助手，回答保持严谨、简洁。',
+            docs: [{ uuid: 'doc-1', filename: '写作规范.md' }],
+          },
+        ],
+      })
     ),
   })
 )

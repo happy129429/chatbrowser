@@ -922,19 +922,86 @@ const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] => {
       }
     }
   }
-  if (lower.endsWith('projects.json') && Array.isArray(parsed)) {
-    for (const item of parsed) {
+  if (lower.endsWith('projects.json')) {
+    // 兼容数组、{projects:[...]}、{data:[...]} 与单个项目对象
+    const wrapper = record(parsed)
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(wrapper?.projects)
+        ? wrapper.projects
+        : Array.isArray(wrapper?.data)
+          ? wrapper.data
+          : wrapper
+            ? [wrapper]
+            : []
+    for (const item of list) {
       const project = record(item)
       if (!project) {
         continue
       }
-      const prompt = typeof project.prompt_template === 'string' ? project.prompt_template : ''
-      if (prompt.trim()) {
+      const name =
+        typeof project.name === 'string' && project.name.trim() ? project.name : '未命名项目'
+      const prompt = [
+        project.prompt_template,
+        project.system_prompt,
+        project.instructions,
+        project.custom_instructions,
+        project.prompt,
+      ].find((value): value is string => typeof value === 'string' && value.trim() !== '')
+      if (prompt) {
+        extras.push({ title: `项目：${name}`, content: prompt.trim() })
+      }
+      const docs = Array.isArray(project.docs) ? project.docs : []
+      const docNames = docs
+        .map(record)
+        .filter((doc): doc is Loose => doc !== null)
+        .map((doc) =>
+          typeof doc.filename === 'string'
+            ? doc.filename
+            : typeof doc.name === 'string'
+              ? doc.name
+              : typeof doc.file_name === 'string'
+                ? doc.file_name
+                : ''
+        )
+        .filter(Boolean)
+      if (docNames.length > 0) {
         extras.push({
-          title: `项目：${typeof project.name === 'string' ? project.name : '未命名项目'}`,
-          content: prompt.trim(),
+          title: `项目文件：${name}`,
+          content: docNames.map((doc) => `- ${doc}`).join('\n'),
         })
       }
+    }
+  }
+  if (lower.endsWith('users.json')) {
+    const wrapper = record(parsed)
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(wrapper?.users)
+        ? wrapper.users
+        : wrapper
+          ? [wrapper]
+          : []
+    const memories = new Set<string>()
+    for (const item of list) {
+      const user = record(item)
+      if (!user) {
+        continue
+      }
+      for (const value of [
+        ...(Array.isArray(user.memories) ? user.memories : []),
+        ...(Array.isArray(user.memory) ? user.memory : []),
+      ]) {
+        if (typeof value === 'string' && value.trim()) {
+          memories.add(value.trim())
+        }
+      }
+    }
+    if (memories.size > 0) {
+      extras.push({
+        title: '记忆',
+        content: [...memories].map((item) => `- ${item}`).join('\n'),
+      })
     }
   }
   return extras

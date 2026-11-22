@@ -361,6 +361,42 @@ check(
     extrasText.includes('自定义指令'),
   extrasText.slice(0, 60)
 )
+
+await send('Input.dispatchKeyEvent', {
+  type: 'keyDown',
+  key: 'Escape',
+  code: 'Escape',
+  windowsVirtualKeyCode: 27,
+})
+await sleep(400)
+const claudeMenuOpened = await evaluate(`(() => {
+  const headers = [...document.querySelectorAll('div[class*="groupHeader"]')]
+  const target = headers.find((node) => node.textContent.includes('claude-export'))
+  if (!target) return 'no-header'
+  const buttons = target.querySelectorAll('button')
+  buttons[buttons.length - 1]?.click()
+  return 'ok'
+})()`)
+await sleep(600)
+const claudeExtrasItem = await evaluate(`(() => {
+  const items = [...document.querySelectorAll('div[role="menuitem"]')]
+  const item = items.find((node) => node.textContent.includes('附加信息') || node.textContent.includes('Archive notes'))
+  item?.click()
+  return item ? 'ok' : items.map((node) => node.textContent.trim()).join(',')
+})()`)
+await sleep(600)
+const claudeExtrasText = await evaluate(
+  `document.querySelector('div[class*="extrasList"]')?.textContent ?? ''`
+)
+check(
+  'Claude 项目提示词与文件进入组附加信息',
+  claudeMenuOpened === 'ok' &&
+    claudeExtrasItem === 'ok' &&
+    claudeExtrasText.includes('项目：论文项目') &&
+    claudeExtrasText.includes('学术写作助手') &&
+    claudeExtrasText.includes('写作规范.md'),
+  `${claudeMenuOpened} | ${claudeExtrasItem} | ${claudeExtrasText.slice(0, 40)}`
+)
 await send('Input.dispatchKeyEvent', {
   type: 'keyDown',
   key: 'Escape',
@@ -582,7 +618,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.1') &&
+  aboutText.includes('0.7.2') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

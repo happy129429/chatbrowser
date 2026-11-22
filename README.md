@@ -15,6 +15,16 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 - The Pages site is redeployed automatically on every push to main (the release flow pushes main first)
 - There is no "Quit app" section in the browser build; just close the tab
 
+## Quick start
+
+1. **Import**: drop an export file onto the welcome screen, or use "Open archive" / Settings → Data
+2. **Browse**: pick a conversation on the left; use the round navigator to jump, the reading position is remembered
+3. **Organize**: the conversation `…` menu renames/pins/shares/exports; the group header menu colors, merges and shows "Archive notes"
+4. **Search**: top-right search or `Ctrl/⌘ K`, then click a result to jump
+5. **Export**: "Share" on a conversation exports selected rounds as HTML/Markdown; "Export as…" writes an archive ZIP or Claude JSON
+
+> See the deployment options above; privacy, disclaimer and trademark notes are below.
+
 ## Screenshots
 
 | Archive list                               | Global search                                 |
@@ -25,13 +35,39 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 | --------------------------------------------------- | ----------------------------------------- |
 | ![Round navigation](docs/screenshots/round-nav.png) | ![Statistics](docs/screenshots/stats.png) |
 
-## Three ways to use it
+## Ways to use and deploy
 
-| Option  | Best for               | How to start                                                             |
-| ------- | ---------------------- | ------------------------------------------------------------------------ |
-| Web     | No install, quick look | Open https://happy129429.github.io/chatbrowser/                          |
-| Desktop | Long-term, stable data | Download `windows-x64.zip` / `linux-x64.tar.gz` from Releases and launch |
-| Android | Phone                  | Install `chatbrowser-android.apk` from Releases                          |
+| Option                    | Best for                                       | How to start                                                          |
+| ------------------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
+| Web                       | No install, quick look                         | Open https://happy129429.github.io/chatbrowser/                       |
+| Self-hosted static site   | Private deployment, intranet/NAS, full control | Run `pnpm build` and serve `dist/` from any static server             |
+| Desktop (Windows/Linux)   | Long-term, stable data                         | Download `windows-x64.zip` / `linux-x64.tar.gz` from Releases         |
+| Windows portable (no exe) | Cannot run an exe or Defender blocks it        | Download `windows-portable.zip`, double-click `start-chatbrowser.cmd` |
+| Android                   | Phone                                          | Install `chatbrowser-android.apk` from Releases                       |
+
+### Self-hosted static site (private deployment)
+
+No backend, database or API key: host the build output like any static website.
+
+```sh
+pnpm install
+pnpm build
+# upload the dist/ directory to your server
+```
+
+- Works with nginx / Caddy / Apache / a NAS web server / object storage static hosting
+- The app has no client-side router, so no SPA rewrite rules are required; the directory just needs `index.html` and `static/`
+- **Keep the URL stable**: data is scoped to the origin (scheme + host + port); changing domain/port shows an empty library
+- HTTPS is recommended; plain HTTP on an intranet works but some browser APIs are limited
+- Private deployment uploads no conversation data; the update check still requests the GitHub API, which can be blocked at the network level
+- Example (nginx, deployed under a subpath):
+
+```nginx
+location /chatbrowser/ {
+  alias /srv/chatbrowser/dist/;
+  try_files $uri $uri/ /chatbrowser/index.html;
+}
+```
 
 ### Desktop (Windows / Linux)
 
@@ -68,7 +104,7 @@ DeepSeek is the upstream project's native format and the base for this app's arc
 - Safety-refused replies show only the notice by default; in the archive you can use "Show original content" to reveal the reasoning and text that were sent
 - Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete
 - Global search with highlighted excerpts and jump-to-message; cached index per data version
-- Export as…: groups or single conversations to DeepSeek-compatible ZIP, DeepSeek extended ZIP (sidecar keeps system prompts, summaries, group info, citations and thinking state), or Claude JSON (thinking/citations/attachment metadata); includes an option to anonymize IDs
+- Export as…: groups or single conversations to AI Assistant-compatible ZIP, AI Assistant extended ZIP (sidecar keeps system prompts, summaries, group info, citations and thinking state), or Claude JSON (thinking/citations/attachment metadata); includes an option to anonymize IDs
 - Round-level export: self-contained HTML (MathML, Prism, sources) or Markdown
 - Round navigation, scroll restoration, session restore, read-aloud, token/round statistics
 - Chinese/English UI (follows the browser by default), light/dark themes, mobile layout

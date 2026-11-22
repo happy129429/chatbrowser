@@ -15,6 +15,16 @@
 - 每次推送 main（发布流程会先推 main）Pages 会自动重新部署
 - 浏览器地址栏页面没有「退出应用」子项，关闭标签页即可
 
+## 快速上手
+
+1. **导入**：打开应用，把导出文件拖进欢迎页，或点「打开归档」/ 设置 → 数据管理
+2. **浏览**：左侧选择会话；长会话用右侧轮次导航跳转，阅读位置会自动记住
+3. **整理**：会话 `…` 菜单可重命名/置顶/分享/导出为…；分组标题 `…` 可配色、合并、查看「附加信息」
+4. **搜索**：右上搜索或 `Ctrl/⌘ K`，结果可点击定位
+5. **导出**：会话右上「分享」按轮次导出 HTML/Markdown；「导出为…」可导出归档 ZIP 或 Claude JSON
+
+> 更详细的部署方式见上文；隐私、免责与商标说明见文末。
+
 ## 截图
 
 | 归档列表                               | 全局搜索                                 |
@@ -25,13 +35,39 @@
 | ------------------------------------------- | ----------------------------------- |
 | ![轮次导航](docs/screenshots/round-nav.png) | ![统计](docs/screenshots/stats.png) |
 
-## 三种使用方式
+## 使用与部署方式
 
-| 方式    | 适合场景           | 获取与启动                                                                 |
-| ------- | ------------------ | -------------------------------------------------------------------------- |
-| 网页版  | 不想安装，临时使用 | 打开 https://happy129429.github.io/chatbrowser/                            |
-| 桌面版  | 长期使用、数据稳定 | 下载 Release 里的 `windows-x64.zip` / `linux-x64.tar.gz`，解压后双击启动器 |
-| Android | 手机查看           | 下载 Release 里的 `chatbrowser-android.apk` 安装                           |
+| 方式                    | 适合场景                         | 获取与启动                                                      |
+| ----------------------- | -------------------------------- | --------------------------------------------------------------- |
+| 网页版                  | 不想安装，临时使用               | 打开 https://happy129429.github.io/chatbrowser/                 |
+| 自建静态站              | 私有部署、内网/NAS、完全自己掌控 | `pnpm build` 后把 `dist/` 放到任意静态服务器                    |
+| 桌面版（Windows/Linux） | 长期使用、数据稳定               | 下载 Release 里的 `windows-x64.zip` / `linux-x64.tar.gz`        |
+| Windows 免 exe 便携版   | 不能运行 exe、被 Defender 拦截   | 下载 `windows-portable.zip`，解压后双击 `start-chatbrowser.cmd` |
+| Android                 | 手机查看                         | 下载 Release 里的 `chatbrowser-android.apk` 安装                |
+
+### 自建静态站（私有部署）
+
+不需要后端、数据库或 API Key，把构建产物当普通静态网站托管即可：
+
+```sh
+pnpm install
+pnpm build
+# 然后把 dist/ 整个目录上传到服务器
+```
+
+- 可用 nginx / Caddy / Apache / NAS 自带 Web 服务 / 对象存储静态托管
+- 应用没有前端路由，无需 SPA 重写规则，只要该目录能访问 `index.html` 和 `static/`
+- **必须使用固定 URL**：数据按 origin（协议+域名+端口）隔离，换域名/端口会看到空库
+- 建议 HTTPS；内网 HTTP 也能用，只是部分浏览器 API 受限
+- 私有部署不会上传任何对话数据；更新检查仍会请求 GitHub API，可在网络层屏蔽 `api.github.com`
+- 示例（nginx，部署在子路径）：
+
+```nginx
+location /chatbrowser/ {
+  alias /srv/chatbrowser/dist/;
+  try_files $uri $uri/ /chatbrowser/index.html;
+}
+```
 
 ### 桌面版（Windows / Linux）
 
@@ -68,7 +104,7 @@ DeepSeek 是上游项目的原生格式，也是本应用归档与转换的基�
 - 安全拒绝回复默认只显示提示，归档浏览可点「显示原始内容」查看已下发的思考与正文
 - 归档组管理：重命名、配色、折叠、组间移动、合并、解散、导出组 ZIP、删除
 - 全局搜索：标题/提问/回答正文，摘录高亮、点击定位；按数据版本缓存索引
-- 导出为…：组或单会话可导出 DeepSeek 兼容 ZIP、DeepSeek 扩展 ZIP（旁路保存系统提示词/摘要/分组信息/引用与思考状态）、Claude JSON（含 thinking/citations/附件元数据）；支持「匿名化 ID」重映射
+- 导出为…：组或单会话可导出 AI 助手兼容 ZIP、AI 助手扩展 ZIP（旁路保存系统提示词/摘要/分组信息/引用与思考状态）、Claude JSON（含 thinking/citations/附件元数据）；支持「匿名化 ID」重映射
 - 按轮次导出：自包含 HTML（渲染结果、MathML、代码高亮、来源）或 Markdown
 - 轮次导航、阅读位置记忆、刷新恢复会话、朗读、统计面板（轮数/token/思考时长）
 - 中英文界面（默认跟随浏览器）、明暗主题、移动端布局
