@@ -1,8 +1,7 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [main]
+  # 仅手动触发，避免每次推送 main 都运行 Pages 部署
   workflow_dispatch:
 
 permissions:
