@@ -51,6 +51,8 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 - DeepSeek export `deepseek_data-*.zip` (full pipeline: branches, tool steps, images, reasoning)
 - ChatGPT export (`conversations.json` ZIP with the `mapping` tree)
 - Claude export (`conversations.json` ZIP with `chat_messages` / `content` arrays)
+- z.ai / OpenWebUI native exports (`chat.history.messages` object tree + `currentId`, imports the active branch)
+- Single-session `turn_history` envelopes (`session_metadata` / `global_context` system instructions)
 - z.ai and similar formats (`messages` / `chat_history` etc.)
 - Import multiple files at once; each import becomes an archive group with incremental merges
 - System prompts are preserved for external chats; account-level memories/instructions from the group menu

@@ -130,7 +130,7 @@ export const en = {
   colorRed: 'Red',
   colorPurple: 'Purple',
   colorCyan: 'Cyan',
-  exportChat: 'Export chat',
+  shareChat: 'Share',
   share: 'Share',
   sessionStatsLineOne: '{rounds} round · {tokens} tokens',
   sessionStatsLine: '{rounds} rounds · {tokens} tokens',

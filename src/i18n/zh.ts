@@ -128,7 +128,7 @@ export const zh = {
   colorRed: '红色',
   colorPurple: '紫色',
   colorCyan: '青色',
-  exportChat: '导出对话',
+  shareChat: '分享',
   share: '分享',
   sessionStatsLineOne: '{rounds} 轮 · {tokens} tokens',
   sessionStatsLine: '{rounds} 轮 · {tokens} tokens',

@@ -143,7 +143,7 @@ export const SessionItem = memo(function SessionItem({
             },
             {
               key: 'export-chat',
-              label: t('exportChat'),
+              label: t('shareChat'),
               icon: <IconShareOutline16 />,
               onSelect: () => onExportChat?.(),
             },

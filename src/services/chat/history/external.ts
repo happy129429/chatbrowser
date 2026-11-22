@@ -9,7 +9,7 @@ import { BackupError } from './errors.js'
  * DeepSeek 官方 ZIP 仍走 history/ 的完整管线（分支、工具步骤等）。
  */
 
-export type ExternalSource = 'chatgpt' | 'claude' | 'generic'
+export type ExternalSource = 'chatgpt' | 'claude' | 'generic' | 'openwebui' | 'turns'
 
 type Loose = Record<string, unknown>
 
@@ -59,6 +59,15 @@ const toConversationList = (parsed: unknown): unknown[] | null => {
   if (Array.isArray(wrapper.list)) {
     return wrapper.list
   }
+  // OpenWebUI / z.ai 原生：单会话，消息树在 chat.history.messages（对象）
+  const chat = record(wrapper.chat)
+  if (chat && record(record(chat.history)?.messages)) {
+    return [wrapper]
+  }
+  // 单会话 turn_history 封装（session_metadata / global_context）
+  if (Array.isArray(wrapper.turn_history)) {
+    return [wrapper]
+  }
   if (Array.isArray(wrapper.messages)) {
     return [wrapper]
   }
@@ -80,11 +89,18 @@ export const detectExternalSource = (parsed: unknown): ExternalSource | null => 
   if (!first) {
     return null
   }
+  const chat = record(first.chat)
+  if (chat && record(record(chat.history)?.messages)) {
+    return 'openwebui'
+  }
   if (record(first.mapping)) {
     return 'chatgpt'
   }
   if (Array.isArray(first.chat_messages)) {
     return 'claude'
+  }
+  if (Array.isArray(first.turn_history)) {
+    return 'turns'
   }
   for (const key of ['messages', 'chat_history', 'history', 'turns', 'records']) {
     const messages = first[key]
@@ -137,13 +153,177 @@ const roleOf = (value: unknown): 'user' | 'assistant' | 'system' | null => {
   if (['user', 'human', 'customer'].includes(role)) {
     return 'user'
   }
-  if (['assistant', 'ai', 'model', 'bot', 'gpt'].includes(role)) {
+  if (['assistant', 'ai', 'model', 'bot', 'gpt', 'ai model', 'aimodel', 'chatbot'].includes(role)) {
     return 'assistant'
   }
   if (['system', 'developer', 'instructions'].includes(role)) {
     return 'system'
   }
   return null
+}
+
+/** OpenWebUI / z.ai 原生：chat.history.messages 对象树 + currentId（支持分支）。 */
+const fromOpenWebUI = (parsed: unknown[], groupId: string): Session[] => {
+  const sessions: Session[] = []
+  for (const item of parsed) {
+    const conversation = record(item)
+    const chat = conversation ? record(conversation.chat) : null
+    const history = chat ? record(chat.history) : null
+    const map = history ? record(history.messages) : null
+    if (!conversation || !chat || !history || !map) {
+      continue
+    }
+    const entries = Object.entries(map)
+      .map(([key, value]) => ({ key, message: record(value) }))
+      .filter((entry): entry is { key: string; message: Loose } => entry.message !== null)
+    if (entries.length === 0) {
+      continue
+    }
+    // 先按 currentId 回溯父链；脱敏样本里 id 被替换时退回时间顺序
+    const path: Loose[] = []
+    const seen = new Set<string>()
+    let cursor: string | undefined =
+      typeof history.currentId === 'string' ? history.currentId : undefined
+    while (cursor && !seen.has(cursor)) {
+      seen.add(cursor)
+      const hit = entries.find((entry) => entry.key === cursor || entry.message.id === cursor)
+      if (!hit) {
+        break
+      }
+      path.push(hit.message)
+      cursor = typeof hit.message.parentId === 'string' ? hit.message.parentId : undefined
+    }
+    path.reverse()
+    const ordered =
+      path.length >= 2
+        ? path
+        : entries
+            .map((entry) => entry.message)
+            .sort((a, b) => toMs(a.timestamp, 0) - toMs(b.timestamp, 0))
+    const rounds: Round[] = []
+    let pendingQuestion = ''
+    let pendingAt = 0
+    for (const message of ordered) {
+      const role = roleOf(message.role)
+      const text = contentText(message.content ?? message.text)
+      if (!role || !text.trim()) {
+        continue
+      }
+      const at = toMs(message.timestamp, Date.now())
+      if (role === 'user') {
+        if (pendingQuestion) {
+          rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
+        }
+        pendingQuestion = text
+        pendingAt = at
+      } else if (role === 'assistant') {
+        rounds.push({ question: pendingQuestion, answer: text, at: pendingAt || at })
+        pendingQuestion = ''
+      }
+    }
+    if (pendingQuestion) {
+      rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
+    }
+    const rawId =
+      (typeof conversation.id === 'string' && conversation.id) ||
+      (typeof chat.id === 'string' && chat.id) ||
+      createId()
+    const session = toSession(
+      'openwebui',
+      groupId,
+      rawId,
+      (typeof conversation.title === 'string' && conversation.title.trim()) || '导入的对话',
+      toMs(conversation.created_at ?? conversation.timestamp, Date.now()),
+      toMs(conversation.updated_at ?? conversation.timestamp, Date.now()),
+      rounds
+    )
+    if (session) {
+      sessions.push(session)
+    }
+  }
+  return sessions
+}
+
+/** 单会话 turn_history 封装：session_metadata + metadata.sender + global_context 系统指令。 */
+const fromTurns = (parsed: unknown[], groupId: string): Session[] => {
+  const sessions: Session[] = []
+  for (const item of parsed) {
+    const conversation = record(item)
+    const entries =
+      conversation && Array.isArray(conversation.turn_history) ? conversation.turn_history : null
+    if (!conversation || !entries) {
+      continue
+    }
+    const metadata = record(conversation.session_metadata)
+    const context = record(conversation.global_context)
+    const systemParts: string[] = []
+    if (context) {
+      for (const [key, value] of Object.entries(context)) {
+        if (
+          typeof value === 'string' &&
+          value.trim() &&
+          /system.*(instruction|prompt)|prompt_template|^instructions?$/i.test(key)
+        ) {
+          systemParts.push(value.trim())
+        }
+      }
+    }
+    const rounds: Round[] = []
+    let pendingQuestion = ''
+    let pendingAt = 0
+    let lastAt = 0
+    for (const entry of entries) {
+      const turn = record(entry)
+      if (!turn) {
+        continue
+      }
+      const turnMetadata = record(turn.metadata)
+      const role = roleOf(turn.role) ?? roleOf(turnMetadata?.sender)
+      const text = contentText(turn.content ?? turn.text)
+      const at = toMs(turnMetadata?.created_at ?? turn.created_at ?? turn.timestamp, Date.now())
+      if (!role || !text.trim()) {
+        continue
+      }
+      lastAt = at
+      if (role === 'system') {
+        systemParts.push(text.trim())
+        continue
+      }
+      if (role === 'user') {
+        if (pendingQuestion) {
+          rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
+        }
+        pendingQuestion = text
+        pendingAt = at
+      } else {
+        rounds.push({ question: pendingQuestion, answer: text, at: pendingAt || at })
+        pendingQuestion = ''
+      }
+    }
+    if (pendingQuestion) {
+      rounds.push({ question: pendingQuestion, answer: '', at: pendingAt })
+    }
+    const session = toSession(
+      'turns',
+      groupId,
+      (typeof conversation.conversation_id === 'string' && conversation.conversation_id) ||
+        (typeof conversation.id === 'string' && conversation.id) ||
+        createId(),
+      (typeof conversation.title === 'string' && conversation.title.trim()) ||
+        (typeof metadata?.title === 'string' && metadata.title.trim()) ||
+        '导入的对话',
+      toMs(metadata?.timestamp_start, lastAt || Date.now()),
+      toMs(metadata?.timestamp_end, lastAt || Date.now()),
+      rounds
+    )
+    if (session) {
+      if (systemParts.length > 0) {
+        session.systemPrompt = systemParts.join('\n\n---\n\n')
+      }
+      sessions.push(session)
+    }
+  }
+  return sessions
 }
 
 /** 通用格式（z.ai 等）：按 messages 顺序配对提问与回答，system 归入系统提示。 */
@@ -556,7 +736,11 @@ export const externalToSessions = (parsed: unknown, groupId: string): Session[] 
       ? fromChatGpt(list, groupId)
       : source === 'claude'
         ? fromClaude(list, groupId)
-        : fromGeneric(list, groupId)
+        : source === 'openwebui'
+          ? fromOpenWebUI(list, groupId)
+          : source === 'turns'
+            ? fromTurns(list, groupId)
+            : fromGeneric(list, groupId)
   if (sessions.length === 0) {
     throw new BackupError('backupIncomplete')
   }

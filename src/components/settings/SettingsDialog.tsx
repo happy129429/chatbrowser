@@ -255,7 +255,7 @@ const AboutPanel = () => {
       return
     }
     let active = true
-    fetch('/LICENSE')
+    fetch('LICENSE')
       .then((response) => (response.ok ? response.text() : ''))
       .then((text) => {
         if (active) {
@@ -363,7 +363,7 @@ const AboutPanel = () => {
         action={
           <a
             className={styles.statValue}
-            href="/LICENSE"
+            href="LICENSE"
             onClick={(event) => {
               event.preventDefault()
               setLicenseOpen(true)

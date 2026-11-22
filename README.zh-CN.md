@@ -51,6 +51,8 @@
 - DeepSeek 官方导出 `deepseek_data-*.zip`（完整管线：分支、工具步骤、图片、思考内容）
 - ChatGPT 导出（`conversations.json` ZIP，含 `mapping` 树）
 - Claude 导出（`conversations.json` ZIP，含 `chat_messages` / `content` 数组）
+- z.ai / OpenWebUI 原生导出（`chat.history.messages` 对象树 + `currentId`，按当前分支导入）
+- 单会话 `turn_history` 封装（`session_metadata` / `global_context` 系统指令）
 - z.ai 等通用格式（`messages` / `chat_history` 等字段）
 - 支持一次导入多个文件；每次导入生成一个归档组，**增量导入**，不覆盖已有数据
 - 外部对话保留系统提示词（会话内可查看），账号级记忆/自定义指令/项目提示词从组菜单「附加信息」查看

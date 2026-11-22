@@ -797,8 +797,86 @@ const zai = {
   },
 }
 writeFileSync(path.join(outDir, 'zai-sample.json'), JSON.stringify(zai, null, 2))
-console.log(
-  '外部格式样例: chatgpt-sample(.zip/.json) / claude-sample(.zip/.json) / zai-sample.json'
-)
+// z.ai / OpenWebUI 原生形态：chat.history.messages 对象树 + currentId 分支
+const zaiBase = Math.floor((now - 6 * 86400000) / 1000)
+const zaiNative = [
+  {
+    id: 'zai-native-1',
+    title: 'z.ai 原生：分支历史',
+    timestamp: zaiBase,
+    created_at: zaiBase,
+    updated_at: zaiBase + 600,
+    chat: {
+      id: 'zai-native-chat',
+      models: ['glm-4'],
+      params: {},
+      history: {
+        currentId: 'zai-a2',
+        messages: {
+          'zai-u1': {
+            id: 'zai-u1',
+            parentId: null,
+            childrenIds: ['zai-a1', 'zai-a2'],
+            role: 'user',
+            timestamp: zaiBase,
+            content: '请解释一下什么是 RAG',
+          },
+          'zai-a1': {
+            id: 'zai-a1',
+            parentId: 'zai-u1',
+            childrenIds: [],
+            role: 'assistant',
+            timestamp: zaiBase + 10,
+            content: '旧分支回答（不应显示）',
+          },
+          'zai-a2': {
+            id: 'zai-a2',
+            parentId: 'zai-u1',
+            childrenIds: [],
+            role: 'assistant',
+            timestamp: zaiBase + 20,
+            content: '当前分支回答：RAG 是检索增强生成。',
+          },
+        },
+      },
+    },
+  },
+]
+writeFileSync(path.join(outDir, 'zai-history-sample.json'), JSON.stringify(zaiNative, null, 2))
+
+// turn_history 单会话封装（含 session_metadata / global_context，故意保留行注释）
+const turnsBase = new Date(now - 3 * 86400000).toISOString()
+const claudeTurns = {
+  conversation_id: 'turns-1',
+  title: 'Claude turn_history 示例',
+  session_metadata: {
+    source: 'native_export',
+    timestamp_start: turnsBase,
+    timestamp_end: new Date(now - 3 * 86400000 + 60000).toISOString(),
+    status: 'COMPLETED',
+  },
+  turn_history: [
+    {
+      role: 'user',
+      metadata: { uuid: 'turns-m1', sender: 'human', created_at: turnsBase },
+      content: '把这段内容压缩成一句摘要。',
+      attachments: [],
+    },
+    {
+      role: 'assistant',
+      metadata: { uuid: 'turns-m2', sender: 'AI Model', created_at: turnsBase },
+      content: '这是压缩后的摘要结果。',
+      citations: [],
+      system_prompt_applied: true,
+    },
+  ],
+  global_context: {
+    system_instructions: '会话级系统指令：保持简洁。',
+    user_profile_mock: '[Mock User Profile Details]',
+  },
+}
+writeFileSync(path.join(outDir, 'claude-turns-sample.json'), JSON.stringify(claudeTurns, null, 2))
+
+console.log('外部格式样例: chatgpt / claude / zai / zai-history / claude-turns')
 
 console.log(`输出目录: ${outDir}`)

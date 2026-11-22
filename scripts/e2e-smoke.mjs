@@ -163,6 +163,12 @@ const claudeBase64 = fs
   .readFileSync(path.join(root, 'mock', 'claude-sample.zip'))
   .toString('base64')
 const zaiBase64 = fs.readFileSync(path.join(root, 'mock', 'zai-sample.json')).toString('base64')
+const zaiHistoryBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'zai-history-sample.json'))
+  .toString('base64')
+const claudeTurnsBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'claude-turns-sample.json'))
+  .toString('base64')
 await evaluate(`(() => {
   const input = document.querySelector('input[type="file"][multiple]')
   const dt = new DataTransfer()
@@ -171,6 +177,12 @@ await evaluate(`(() => {
   dt.items.add(toFile(${JSON.stringify(chatgptBase64)}, 'chatgpt-sample.zip', 'application/zip'))
   dt.items.add(toFile(${JSON.stringify(claudeBase64)}, 'claude-export.zip', 'application/zip'))
   dt.items.add(toFile(${JSON.stringify(zaiBase64)}, 'zai-sample.json', 'application/json'))
+  dt.items.add(
+    toFile(${JSON.stringify(zaiHistoryBase64)}, 'zai-history-sample.json', 'application/json')
+  )
+  dt.items.add(
+    toFile(${JSON.stringify(claudeTurnsBase64)}, 'claude-turns-sample.json', 'application/json')
+  )
   input.files = dt.files
   input.dispatchEvent(new Event('change', { bubbles: true }))
   return 'ok'
@@ -179,14 +191,14 @@ let withExternal = 0
 for (let i = 0; i < 30; i++) {
   await sleep(500)
   withExternal = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
-  if (withExternal >= 16) {
+  if (withExternal >= 18) {
     break
   }
 }
 const hasChatGptTitle = await evaluate(
   `[...document.querySelectorAll('div[class*="item-"]')].some((el) => el.textContent.includes('Rust 所有权'))`
 )
-check('导入 ChatGPT(ZIP) / Claude / z.ai', withExternal === 16, `会话数=${withExternal}`)
+check('导入 ChatGPT(ZIP) / Claude / z.ai', withExternal === 18, `会话数=${withExternal}`)
 check('外部会话标题正确', hasChatGptTitle === true)
 
 const acceptAttr = await evaluate(
@@ -209,6 +221,38 @@ check(
   'Claude content 数组正文可导入',
   typeof claudeContent === 'string' && claudeContent.includes('conducted extensive experiments'),
   claudeContent.includes('conducted extensive experiments') ? 'ok' : 'missing'
+)
+
+await clickByText('div[class*="item-"]', 'z.ai 原生：分支历史')
+await sleep(1200)
+const zaiNativeText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'z.ai 原生消息树按 currentId 取分支',
+  typeof zaiNativeText === 'string' &&
+    zaiNativeText.includes('当前分支回答') &&
+    !zaiNativeText.includes('旧分支回答'),
+  zaiNativeText.includes('当前分支回答') ? 'ok' : 'missing'
+)
+
+await clickByText('div[class*="item-"]', 'Claude turn_history')
+await sleep(1200)
+const turnsText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+const turnsPrompt = await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((node) => node.textContent.includes('系统提示词') || node.textContent.includes('System prompt'))
+  btn?.click()
+  return btn ? 'ok' : 'no-prompt-button'
+})()`)
+await sleep(300)
+const turnsPromptText = await evaluate(
+  `document.querySelector('div[class*="systemPromptBody"]')?.textContent ?? ''`
+)
+check(
+  'turn_history 封装与全局系统指令可导入',
+  typeof turnsText === 'string' &&
+    turnsText.includes('压缩成一句摘要') &&
+    turnsPrompt === 'ok' &&
+    turnsPromptText.includes('会话级系统指令'),
+  turnsPromptText.slice(0, 40)
 )
 
 // 系统提示词面板（ChatGPT system 消息）
@@ -444,7 +488,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.6.6') &&
+  aboutText.includes('0.6.7') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
