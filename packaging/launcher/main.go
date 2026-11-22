@@ -181,7 +181,9 @@ func terminateStale() bool {
 			"if($p.ProcessName -eq 'chatbrowser'){Stop-Process -Id $p.Id -Force;exit 0};" +
 			"exit 1"
 		encoded := encodePowerShell(script)
-		if err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded).Run(); err == nil {
+		cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded)
+		hideWindow(cmd)
+		if err := cmd.Run(); err == nil {
 			return true
 		}
 		return false
@@ -310,6 +312,7 @@ func tryStart(name string, args ...string) bool {
 		return false
 	}
 	cmd := exec.Command(path, args...)
+	hideWindow(cmd)
 	if err := cmd.Start(); err != nil {
 		return false
 	}
