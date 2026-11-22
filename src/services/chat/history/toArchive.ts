@@ -208,6 +208,10 @@ const contextTokens = (message: AssistantMessage) =>
     : 0)
 
 /** 消息按父节点优先重新编号为 1…n，保证 parent_id 小于 id。 */
+/** 归档里的消息 ID 按父链顺序编号；扩展 sidecar 用同一编号定位消息。 */
+export const orderedMessages = (session: Session): Message[] =>
+  numberMessages(normalizeSession(session).messages).ordered
+
 const numberMessages = (messages: Message[]) => {
   const byId = new Map(messages.map((message) => [message.id, message]))
   const ids = new Map<string, number>()

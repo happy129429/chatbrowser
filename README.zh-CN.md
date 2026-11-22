@@ -50,7 +50,7 @@
 
 - DeepSeek 官方导出 `deepseek_data-*.zip`（完整管线：分支、工具步骤、图片、思考内容）
 - ChatGPT 导出（`conversations.json` ZIP，含 `mapping` 树）
-- Claude 导出（`conversations.json` ZIP）：保留会话摘要、原始消息 UUID/parent 链、附件文件名元数据；思考块与正文分离
+- Claude 导出（`conversations.json` ZIP）：保留会话摘要、原始消息 UUID/parent 链、附件文件名、引用角标（citations）与思考块状态（截断/隐藏/签名）；思考与正文分离
 - z.ai / OpenWebUI 原生导出（`chat.history.messages` 对象树 + `currentId`，按当前分支导入）
 - 单会话 `turn_history` 封装（`session_metadata` / `global_context` 系统指令）
 - z.ai 等通用格式（`messages` / `chat_history` 等字段）
@@ -64,7 +64,7 @@
 - 安全拒绝回复默认只显示提示，归档浏览可点「显示原始内容」查看已下发的思考与正文
 - 归档组管理：重命名、配色、折叠、组间移动、合并、解散、导出组 ZIP、删除
 - 全局搜索：标题/提问/回答正文，摘录高亮、点击定位；按数据版本缓存索引
-- 导出为…：组或单会话可导出 DeepSeek 兼容 ZIP、DeepSeek 扩展 ZIP（会话系统提示词/分组信息旁路保留）、Claude JSON；支持「匿名化 ID」重映射
+- 导出为…：组或单会话可导出 DeepSeek 兼容 ZIP、DeepSeek 扩展 ZIP（旁路保存系统提示词/摘要/分组信息/引用与思考状态）、Claude JSON（含 thinking/citations/附件元数据）；支持「匿名化 ID」重映射
 - 按轮次导出：自包含 HTML（渲染结果、MathML、代码高亮、来源）或 Markdown
 - 轮次导航、阅读位置记忆、刷新恢复会话、朗读、统计面板（轮数/token/思考时长）
 - 中英文界面（默认跟随浏览器）、明暗主题、移动端布局

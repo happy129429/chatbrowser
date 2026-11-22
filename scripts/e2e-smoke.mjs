@@ -257,6 +257,18 @@ check(
   `summary=${claudeSummary} id=${claudeOriginalId}`
 )
 
+const claudeExtras = await evaluate(`(() => {
+  const main = document.querySelector('main')
+  const badge = [...document.querySelectorAll('span')].find((node) => node.textContent === '思考已截断')
+  const citation = document.querySelector('.ds-markdown-cite')
+  return { badge: !!badge, citation: !!citation, text: main?.textContent?.length ?? 0 }
+})()`)
+check(
+  'Claude 引用角标与截断标记可渲染',
+  claudeExtras.badge === true && claudeExtras.citation === true,
+  `badge=${claudeExtras.badge} citation=${claudeExtras.citation}`
+)
+
 const claudeThinkingTitle = await evaluate(
   `[...document.querySelectorAll('div[class*="title"]')].some((node) => node.textContent.includes('已思考'))`
 )
@@ -565,7 +577,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.6.9') &&
+  aboutText.includes('0.7.0') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

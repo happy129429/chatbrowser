@@ -2,6 +2,7 @@ import { createId } from '../../../utils/id.js'
 import { ArchiveError, isZipFile, readArchive, readEntry } from './zipReader.js'
 import type { AssistantMessage, FileAttachment, Message, Session, UserMessage } from '../types.js'
 import { getFileViewType, isImage } from '../../../utils/file.js'
+import type { TextCitation } from '../../api/types.js'
 import { BackupError } from './errors.js'
 
 /**
@@ -607,10 +608,31 @@ const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage
     : []
   const texts: string[] = []
   const thinkings: string[] = []
+  const textCitations = new Map<number, TextCitation[]>()
+  const thinkingFlags: { truncated?: boolean; hidden?: boolean; signature?: string } = {}
+  let startedAt: number | undefined
+  let endedAt: number | undefined
   let thinkingSeconds = 0
   for (const block of raw) {
     if (block.type === 'text' && typeof block.text === 'string') {
       texts.push(block.text)
+      const citations = Array.isArray(block.citations)
+        ? block.citations
+            .map(record)
+            .filter((citation): citation is Loose => citation !== null)
+            .map((citation) => ({
+              type: 'web_search_result_location' as const,
+              url: typeof citation.url === 'string' ? citation.url : '',
+              title: typeof citation.title === 'string' ? citation.title : null,
+              cited_text: typeof citation.cited_text === 'string' ? citation.cited_text : '',
+              encrypted_index:
+                typeof citation.encrypted_index === 'string' ? citation.encrypted_index : '',
+            }))
+            .filter((citation) => citation.url !== '')
+        : []
+      if (citations.length > 0) {
+        textCitations.set(texts.length - 1, citations)
+      }
     } else if (block.type === 'thinking') {
       const summary = Array.isArray(block.summaries)
         ? block.summaries
@@ -632,6 +654,17 @@ const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage
       const stop = typeof block.stop_timestamp === 'string' ? Date.parse(block.stop_timestamp) : NaN
       if (Number.isFinite(start) && Number.isFinite(stop) && stop > start) {
         thinkingSeconds += (stop - start) / 1000
+        startedAt = startedAt === undefined ? start : Math.min(startedAt, start)
+        endedAt = endedAt === undefined ? stop : Math.max(endedAt, stop)
+      }
+      if (block.truncated === true || block.cut_off === true) {
+        thinkingFlags.truncated = true
+      }
+      if (block.hidden === true || block.thinking_hidden === true) {
+        thinkingFlags.hidden = true
+      }
+      if (typeof block.signature === 'string' && block.signature.trim()) {
+        thinkingFlags.signature = block.signature
       }
     }
   }
@@ -641,12 +674,23 @@ const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage
     blocks.push({
       type: 'thinking',
       thinking: thinkings.join('\n\n'),
+      ...thinkingFlags,
+      ...(startedAt !== undefined ? { startedAt } : {}),
+      ...(endedAt !== undefined ? { endedAt } : {}),
       ...(thinkingSeconds > 0 ? { elapsedSeconds: thinkingSeconds } : {}),
     })
   }
-  if (text.trim()) {
-    blocks.push({ type: 'text', text })
-  }
+  texts.forEach((blockText, index) => {
+    if (!blockText.trim()) {
+      return
+    }
+    const citations = textCitations.get(index)
+    blocks.push({
+      type: 'text',
+      text: blockText,
+      ...(citations ? { citations } : {}),
+    })
+  })
   return { text, blocks }
 }
 

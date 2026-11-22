@@ -137,6 +137,8 @@ export const en = {
   share: 'Share',
   sessionStatsLineOne: '{rounds} round · {tokens} tokens',
   sessionStatsLine: '{rounds} rounds · {tokens} tokens',
+  thinkingTruncated: 'Reasoning truncated',
+  thinkingHidden: 'Reasoning hidden',
   sessionSummaryTitle: 'Conversation summary',
   systemPromptTitle: 'System prompt',
   groupExtrasMenu: 'Archive notes',

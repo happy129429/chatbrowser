@@ -48,6 +48,10 @@ export type ThinkingPart = {
   endedAt?: number
   /** 仅有耗时、没有事件时间时保存秒数。 */
   elapsedSeconds?: number
+  /** 服务端标记思考被截断 */
+  truncated?: boolean
+  /** 服务端隐藏了思考正文（仅保留摘要） */
+  hidden?: boolean
 }
 
 /** 文本块：text_delta 累积，citations_delta 追加引用 */

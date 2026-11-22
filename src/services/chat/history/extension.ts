@@ -1,8 +1,21 @@
-import type { Session, SessionGroup } from '../types.js'
+import type { AssistantMessage, Session, SessionGroup } from '../types.js'
+import type { TextCitation } from '../../api/types.js'
 import { EXT_PATH } from './paths.js'
 import { readArchive, readEntry, skipEntry } from './zipReader.js'
 
 /** chatbrowser_ext.json：官方 schema 之外的应用扩展数据（可选旁路文件）。 */
+export type MessageExtension = {
+  /** 归档中的消息 ID（按父链顺序编号，字符串形式） */
+  id: string
+  citations?: { textIndex: number; citations: TextCitation[] }[]
+  thinking?: {
+    thinkingIndex: number
+    signature?: string
+    truncated?: boolean
+    hidden?: boolean
+  }[]
+}
+
 export type ArchiveExtension = {
   format: 'chatbrowser-ext'
   version: 1
@@ -11,7 +24,12 @@ export type ArchiveExtension = {
     color?: string | null
     extras?: { title: string; content: string }[]
   }
-  sessions?: { id: string; systemPrompt?: string; summary?: string }[]
+  sessions?: {
+    id: string
+    systemPrompt?: string
+    summary?: string
+    messages?: MessageExtension[]
+  }[]
 }
 
 const record = (value: unknown) =>
@@ -34,6 +52,39 @@ export const readExtension = (value: unknown): ArchiveExtension | null => {
           id: typeof item.id === 'string' ? item.id : '',
           systemPrompt: typeof item.systemPrompt === 'string' ? item.systemPrompt : undefined,
           summary: typeof item.summary === 'string' ? item.summary : undefined,
+          messages: Array.isArray(item.messages)
+            ? item.messages
+                .map(record)
+                .filter((entry): entry is Record<string, unknown> => entry !== null)
+                .map((entry) => ({
+                  id: typeof entry.id === 'string' ? entry.id : String(entry.id ?? ''),
+                  citations: Array.isArray(entry.citations)
+                    ? entry.citations
+                        .map(record)
+                        .filter((value): value is Record<string, unknown> => value !== null)
+                        .map((value) => ({
+                          textIndex: typeof value.textIndex === 'number' ? value.textIndex : 0,
+                          citations: Array.isArray(value.citations)
+                            ? (value.citations as TextCitation[])
+                            : [],
+                        }))
+                    : undefined,
+                  thinking: Array.isArray(entry.thinking)
+                    ? entry.thinking
+                        .map(record)
+                        .filter((value): value is Record<string, unknown> => value !== null)
+                        .map((value) => ({
+                          thinkingIndex:
+                            typeof value.thinkingIndex === 'number' ? value.thinkingIndex : 0,
+                          signature:
+                            typeof value.signature === 'string' ? value.signature : undefined,
+                          truncated: value.truncated === true,
+                          hidden: value.hidden === true,
+                        }))
+                    : undefined,
+                }))
+                .filter((entry) => entry.id !== '')
+            : undefined,
         }))
         .filter((item) => item.id !== '')
     : undefined
@@ -81,7 +132,8 @@ export const toExtension = (
   group: SessionGroup | null,
   prompts: Map<string, string>,
   groupExtras?: { title: string; content: string }[],
-  summaries: Map<string, string> = new Map()
+  summaries: Map<string, string> = new Map(),
+  messages: Map<string, MessageExtension[]> = new Map()
 ): ArchiveExtension => ({
   format: 'chatbrowser-ext',
   version: 1,
@@ -92,12 +144,59 @@ export const toExtension = (
         extras: groupExtras && groupExtras.length > 0 ? groupExtras : undefined,
       }
     : undefined,
-  sessions: [...new Set([...prompts.keys(), ...summaries.keys()])].map((id) => ({
-    id,
-    systemPrompt: prompts.get(id),
-    summary: summaries.get(id),
-  })),
+  sessions: [...new Set([...prompts.keys(), ...summaries.keys(), ...messages.keys()])].map(
+    (id) => ({
+      id,
+      systemPrompt: prompts.get(id),
+      summary: summaries.get(id),
+      messages: messages.get(id),
+    })
+  ),
 })
+
+export const sessionMessages = (
+  extension: ArchiveExtension | null
+): Map<string, MessageExtension[]> =>
+  new Map(
+    (extension?.sessions ?? [])
+      .filter((item) => item.messages && item.messages.length > 0)
+      .map((item) => [item.id, item.messages as MessageExtension[]])
+  )
+
+/** 把消息级扩展（citations / thinking 状态）应用到已导入的本地会话。 */
+export const applyMessageExtensions = (session: Session, entries: MessageExtension[]) => {
+  const byId = new Map(session.messages.map((message) => [String(message.id), message]))
+  for (const entry of entries) {
+    const message = byId.get(entry.id)
+    if (!message || message.role !== 'assistant') {
+      continue
+    }
+    const reply = message as AssistantMessage
+    const textBlocks = reply.blocks.filter((block) => block.type === 'text')
+    for (const item of entry.citations ?? []) {
+      const block = textBlocks[item.textIndex]
+      if (block && block.type === 'text' && item.citations.length > 0) {
+        block.citations = item.citations
+      }
+    }
+    const thinkingBlocks = reply.blocks.filter((block) => block.type === 'thinking')
+    for (const item of entry.thinking ?? []) {
+      const block = thinkingBlocks[item.thinkingIndex]
+      if (!block || block.type !== 'thinking') {
+        continue
+      }
+      if (item.signature) {
+        block.signature = item.signature
+      }
+      if (item.truncated) {
+        block.truncated = true
+      }
+      if (item.hidden) {
+        block.hidden = true
+      }
+    }
+  }
+}
 
 export const sessionSummaries = (extension: ArchiveExtension | null): Map<string, string> =>
   new Map(

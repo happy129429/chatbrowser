@@ -756,11 +756,20 @@ const claude = [
             truncated: true,
             hidden: false,
             thinking_hidden: false,
+            signature: 'mock-signature-abc123',
           },
           {
             type: 'text',
             text: 'We conducted extensive experiments, and the results demonstrate strong performance.',
-            citations: [],
+            citations: [
+              {
+                type: 'web_search_result_location',
+                url: 'https://example.com/paper',
+                title: '示例论文来源',
+                cited_text: 'extensive experiments demonstrate strong performance',
+                encrypted_index: '',
+              },
+            ],
           },
         ],
         created_at: new Date(now - 5 * 86400000 + 30000).toISOString(),

@@ -10,7 +10,9 @@ import {
   sessionFilesDir,
 } from './paths.js'
 import {
+  applyMessageExtensions,
   readExtension,
+  sessionMessages,
   sessionPrompts,
   sessionSummaries,
   type ArchiveExtension,
@@ -108,6 +110,7 @@ export const importArchive = async (
   let currentSessionId: string | undefined
   const prompts = sessionPrompts(extension ?? null)
   const summaries = sessionSummaries(extension ?? null)
+  const messageExt = sessionMessages(extension ?? null)
 
   const saveImage = async (entry: ArchiveEntry, id: string) => {
     if (stored.has(id)) {
@@ -143,6 +146,10 @@ export const importArchive = async (
         const summary = summaries.get(sessionId)
         if (summary) {
           local.session.summary = summary
+        }
+        const messages = messageExt.get(sessionId)
+        if (messages) {
+          applyMessageExtensions(local.session, messages)
         }
         if (local.session.id !== sessionId || imported.has(sessionId)) {
           fail('backupIncomplete')

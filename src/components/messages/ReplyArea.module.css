@@ -272,3 +272,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.thinkingFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.thinkingBadge {
+  padding: 0 6px;
+  border-radius: 4px;
+  background-color: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 18px;
+}

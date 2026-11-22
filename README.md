@@ -50,7 +50,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 
 - DeepSeek export `deepseek_data-*.zip` (full pipeline: branches, tool steps, images, reasoning)
 - ChatGPT export (`conversations.json` ZIP with the `mapping` tree)
-- Claude export (`conversations.json` ZIP): keeps the conversation summary, original message UUID/parent chain and attachment filenames; thinking blocks are separated from the answer
+- Claude export (`conversations.json` ZIP): keeps the summary, original message UUID/parent chain, attachment filenames, citation markers and thinking state (truncated/hidden/signature); reasoning is separated from the answer
 - z.ai / OpenWebUI native exports (`chat.history.messages` object tree + `currentId`, imports the active branch)
 - Single-session `turn_history` envelopes (`session_metadata` / `global_context` system instructions)
 - z.ai and similar formats (`messages` / `chat_history` etc.)
@@ -64,7 +64,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 - Safety-refused replies show only the notice by default; in the archive you can use "Show original content" to reveal the reasoning and text that were sent
 - Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete
 - Global search with highlighted excerpts and jump-to-message; cached index per data version
-- Export as…: groups or single conversations to DeepSeek-compatible ZIP, DeepSeek extended ZIP (system prompts and group info kept in a sidecar), or Claude JSON; includes an option to anonymize IDs
+- Export as…: groups or single conversations to DeepSeek-compatible ZIP, DeepSeek extended ZIP (sidecar keeps system prompts, summaries, group info, citations and thinking state), or Claude JSON (thinking/citations/attachment metadata); includes an option to anonymize IDs
 - Round-level export: self-contained HTML (MathML, Prism, sources) or Markdown
 - Round navigation, scroll restoration, session restore, read-aloud, token/round statistics
 - Chinese/English UI (follows the browser by default), light/dark themes, mobile layout

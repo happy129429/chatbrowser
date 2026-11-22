@@ -101,8 +101,11 @@ const StepItem = ({
   sources: Source[]
   isLast: boolean
 }) => {
+  const t = useTranslate()
   switch (step.type) {
-    case 'thinking':
+    case 'thinking': {
+      const truncated = step.blocks.some((block) => block.truncated)
+      const hidden = step.blocks.some((block) => block.hidden)
       return (
         <ContentItem isLast={isLast} active={false}>
           <Markdown
@@ -111,8 +114,17 @@ const StepItem = ({
             cacheKey={`${message.id}-${step.key}`}
             disableLink
           />
+          {truncated || hidden ? (
+            <div className={styles.thinkingFlags}>
+              {truncated ? (
+                <span className={styles.thinkingBadge}>{t('thinkingTruncated')}</span>
+              ) : null}
+              {hidden ? <span className={styles.thinkingBadge}>{t('thinkingHidden')}</span> : null}
+            </div>
+          ) : null}
         </ContentItem>
       )
+    }
     case 'text':
       return (
         <ContentItem isLast={isLast} active={false}>

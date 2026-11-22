@@ -2,10 +2,10 @@ import * as db from '../db.js'
 import type { Session } from '../types.js'
 import { EXPORT_FORMAT_VERSION, type Manifest, type SessionIndexEntry } from './format.js'
 import { EXT_PATH, INDEX_PATH, MANIFEST_PATH, imagePath, sessionPath } from './paths.js'
-import { promptOf, toExtension } from './extension.js'
+import { promptOf, toExtension, type MessageExtension } from './extension.js'
 import { anonymizeSession } from '../converters/anonymize.js'
 import type { SessionGroup } from '../types.js'
-import { toIndexEntry, toSessionFile } from './toArchive.js'
+import { orderedMessages, toIndexEntry, toSessionFile } from './toArchive.js'
 import { writeArchive } from './zipWriter.js'
 
 const json = (value: unknown) => new Blob([JSON.stringify(value)], { type: 'application/json' })
@@ -25,6 +25,7 @@ export const exportArchive = async (
   const originals = new Map<string, Blob | undefined>()
   const prompts = new Map<string, string>()
   const summaries = new Map<string, string>()
+  const messagesExt = new Map<string, MessageExtension[]>()
   for await (const original of sessions) {
     const anonymized = options.anonymize ? anonymizeSession(original) : null
     const session = anonymized?.session ?? original
@@ -45,6 +46,46 @@ export const exportArchive = async (
         }
       }
     }
+    if (options.extended) {
+      const extras: MessageExtension[] = []
+      orderedMessages(session).forEach((message, index) => {
+        if (message.role !== 'assistant') {
+          return
+        }
+        const citations: MessageExtension['citations'] = []
+        const thinking: MessageExtension['thinking'] = []
+        let textIndex = 0
+        let thinkingIndex = 0
+        for (const block of message.blocks) {
+          if (block.type === 'text') {
+            if (block.citations && block.citations.length > 0) {
+              citations.push({ textIndex, citations: block.citations })
+            }
+            textIndex += 1
+          } else if (block.type === 'thinking') {
+            if (block.signature || block.truncated || block.hidden) {
+              thinking.push({
+                thinkingIndex,
+                signature: block.signature,
+                truncated: block.truncated,
+                hidden: block.hidden,
+              })
+            }
+            thinkingIndex += 1
+          }
+        }
+        if (citations.length > 0 || thinking.length > 0) {
+          extras.push({
+            id: String(index + 1),
+            ...(citations.length > 0 ? { citations } : {}),
+            ...(thinking.length > 0 ? { thinking } : {}),
+          })
+        }
+      })
+      if (extras.length > 0) {
+        messagesExt.set(session.id, extras)
+      }
+    }
     const images = new Map<string, Blob>()
     const data = toSessionFile(session, ({ id, name, isImage }) => {
       const blob = originals.get(id)
@@ -63,7 +104,13 @@ export const exportArchive = async (
   }
   entries.push({ name: INDEX_PATH, blob: json(index) })
   if (options.extended) {
-    const extension = toExtension(options.group ?? null, prompts, options.group?.extras, summaries)
+    const extension = toExtension(
+      options.group ?? null,
+      prompts,
+      options.group?.extras,
+      summaries,
+      messagesExt
+    )
     entries.push({ name: EXT_PATH, blob: json(extension) })
   }
   return writeArchive(entries.concat(imageEntries))
