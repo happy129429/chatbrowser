@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 A local chat history browser forked from [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo). Instead of talking to the DeepSeek API, it loads the official **chat history export** (`deepseek_data-*.zip`) and renders conversations with the original UI — fully offline, no API key.
 
-> **Credits**: This project was developed by **GLM-5.3-Flash (Z.ai)**; the human contributors provided only the original idea and feedback. It stands on the shoulders of [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) — many thanks for the excellent UI and rendering pipeline.
+> **Credits**: This project was developed by **GLM-5.3-Flash (Z.ai)** and **DeepSeek-V4.1-Flash-1017**; the human contributors provided only the original idea and feedback. It stands on the shoulders of [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) — many thanks for the excellent UI and rendering pipeline.
 
 ## Getting started
 

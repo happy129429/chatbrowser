@@ -9,6 +9,7 @@
     "dev": "rspack serve -c rspack.config.ts",
     "build": "rm -rf dist && NODE_ENV=production rspack build -c rspack.config.ts",
     "type": "tsc -p tsconfig.json",
+    "mock": "node scripts/generate-mock-data.mjs",
     "lint": "oxlint src rspack.config.ts",
     "format": "oxfmt --write ."
   },

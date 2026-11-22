@@ -9,7 +9,6 @@
   align-items: flex-end;
   justify-content: center;
   gap: 5px;
-  overflow: hidden;
   transform: translateY(-50%);
 }
 
@@ -56,6 +55,7 @@
   top: 50%;
   right: calc(100% + 10px);
   display: none;
+  width: max-content;
   max-width: 320px;
   overflow: hidden;
   padding: 7px 12px;

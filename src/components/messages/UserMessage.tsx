@@ -31,6 +31,7 @@ export const UserMessage = memo(function UserMessage({
   return (
     <div
       className={clsx(styles.container, isFirst && styles.isFirst)}
+      data-message-id={message.id}
       onClick={share ? (event) => event.stopPropagation() : undefined}
     >
       {share ? (
