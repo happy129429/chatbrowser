@@ -35,6 +35,32 @@ pnpm build
 
 产物在 `dist/`，可部署到任意静态服务器。
 
+## 下载
+
+预构建产物见 [Releases](https://github.com/happy129429/chatbrowser/releases)：
+
+| 包 | 平台 | 使用方式 |
+| --- | --- | --- |
+| `windows-x64.zip` | Windows 10/11 | 解压后双击 `chatbrowser.exe`，自动用 Edge/Chrome 打开无地址栏应用窗口（本地服务固定为 `http://127.0.0.1:17890`）。 |
+| `linux-x64.tar.gz` | Linux x86_64 | 解压运行 `./chatbrowser`（或把 `chatbrowser.desktop` 装进应用菜单）。 |
+| `chatbrowser-android.apk` | Android 6+ | 直接安装 APK，打开后导入 ZIP 即可。 |
+
+注意：
+
+- **数据按 origin 隔离**：启动器固定使用 `127.0.0.1:17890`，重启后数据仍在；而开发服务器（`localhost:8090`）、`file://` 页面、Android App 各自是独立仓库。每台设备固定用一种打开方式即可。
+- 桌面启动器优先 Chromium 系（Edge/Chrome/Chromium）以获得 `--app` 独立窗口，Firefox 只能退回普通标签页；IndexedDB 按浏览器隔离，固定用同一个浏览器才能看到同一份数据。
+- Android 上导出文件保存到**「文档」目录**（系统 WebView 不支持 blob 下载链接）；桌面/网页端照常下载。
+- 附件中的 APK 为 debug 签名（可直接安装）；自行构建见 `pnpm android:apk`。
+
+### 构建产物
+
+```sh
+pnpm icons        # 从 assets/icon.svg 重新生成各平台图标（需 Chrome）
+pnpm desktop      # Windows/Linux 单文件启动器 → release/desktop（需 Go）
+pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug（需 Android SDK + JDK 17）
+```
+
+
 ## 功能
 
 - 导入一个或多个历史导出 ZIP；每次导入生成一个归档组，**增量导入**，不覆盖已有数据。

@@ -118,6 +118,7 @@ export const en = {
   roundsSelected: '{count} round(s) selected',
   exportHtml: 'Export HTML',
   exportMarkdown: 'Export Markdown',
+  exportSaved: 'Saved to the Documents folder',
   exportFailed: 'Export failed. Please retry.',
   settingDialogAsideStatsOptionLabel: 'Statistics',
   statsGroups: 'Archive groups',

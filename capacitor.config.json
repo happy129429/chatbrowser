@@ -1,0 +1,11 @@
+{
+  "appId": "io.github.happy129429.chatbrowser",
+  "appName": "对话浏览器",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

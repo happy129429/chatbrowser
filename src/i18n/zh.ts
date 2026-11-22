@@ -116,6 +116,7 @@ export const zh = {
   roundsSelected: '已选择 {count} 组对话',
   exportHtml: '导出 HTML',
   exportMarkdown: '导出 Markdown',
+  exportSaved: '已保存到「文档」目录',
   exportFailed: '导出失败，请重试',
   settingDialogAsideStatsOptionLabel: '统计',
   statsGroups: '归档组',

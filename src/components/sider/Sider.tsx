@@ -15,6 +15,7 @@ import {
 import { setSiderCollapsed } from '../../services/settings.js'
 import { groupSessions } from '../../services/chat/sessionGroups.js'
 import { openArchivePicker } from './ArchiveInputHost.js'
+import { saveBlob } from '../../utils/saveFile.js'
 import {
   createGroup,
   dissolveGroup,
@@ -42,15 +43,6 @@ import { colorDotClass, GroupHeader } from './GroupHeader.js'
 import { openSearchOverlay } from './searchOverlayState.js'
 import { SessionItem } from './SessionItem.js'
 import styles from './Sider.module.css'
-
-const downloadBlob = (name: string, blob: Blob) => {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = name
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
-}
 
 /** 展开的侧边栏：名称与收起按钮、打开归档、未分组会话（按时间）+ 归档组（标签页组风格）；移动端放在抽屉里 */
 export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
@@ -146,7 +138,10 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const exportGroup = async (group: SessionGroup) => {
     try {
       const { name, blob } = await exportGroupArchive(group.id)
-      downloadBlob(name, blob)
+      const result = await saveBlob(name, blob)
+      if (result === 'saved') {
+        showToast({ key: 'exportSaved' })
+      }
     } catch {
       showToast({ key: 'groupOperationFailed', type: 'error' })
     }

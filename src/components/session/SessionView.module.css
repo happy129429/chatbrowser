@@ -33,6 +33,10 @@
   color: var(--dsw-alias-label-primary);
 }
 
+.headerSpacer {
+  flex: 1;
+}
+
 .sessionStats {
   flex-shrink: 0;
   font-size: 12px;

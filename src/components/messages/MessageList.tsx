@@ -15,6 +15,7 @@ import {
   useChatStore,
 } from '../../services/chat/store.js'
 import { exportRounds, type ExportRound } from '../../services/chat/export.js'
+import { saveBlob } from '../../utils/saveFile.js'
 import type { Message, Session, UserMessage as UserMessageType } from '../../services/chat/types.js'
 import { closeSearchPanel } from '../search/searchPanelState.js'
 import { showToast } from '../base/toastState.js'
@@ -433,12 +434,10 @@ export const MessageList = ({
             : null,
       }))
       const { name, blob } = await exportRounds(session, chosenRounds, format)
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = name
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      const result = await saveBlob(name, blob)
+      if (result === 'saved') {
+        showToast({ key: 'exportSaved' })
+      }
       exitShareSelect()
     } catch {
       showToast({ key: 'exportFailed', type: 'error' })

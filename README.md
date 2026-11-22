@@ -35,6 +35,32 @@ pnpm build
 
 The output is written to `dist/` and can be deployed to any static server.
 
+## Downloads
+
+Prebuilt packages are attached to [Releases](https://github.com/happy129429/chatbrowser/releases):
+
+| Package | Platform | How to use |
+| --- | --- | --- |
+| `windows-x64.zip` | Windows 10/11 | Unzip and double-click `chatbrowser.exe`. A chromeless app window opens (Edge/Chrome); the launcher serves the UI at `http://127.0.0.1:17890`. |
+| `linux-x64.tar.gz` | Linux x86_64 | Extract, run `./chatbrowser` (or install `chatbrowser.desktop` for a menu entry). |
+| `chatbrowser-android.apk` | Android 6+ | Sideload the APK, open the app, import a ZIP. |
+
+Notes:
+
+- **Data lives per origin.** The launcher uses the fixed address `127.0.0.1:17890`, so imports persist across restarts; the dev server (`localhost:8090`), `file://` pages and the Android app each keep their own storage. Keep using one entry point per device.
+- The desktop launcher prefers Chromium-based browsers (Edge/Chrome/Chromium) for the `--app` window; Firefox falls back to a normal tab. IndexedDB is per browser, so don't switch browsers if you want the same data.
+- On Android, exports are written to the **Documents** folder (system WebView cannot download blob links); on desktop/web they download normally.
+- The attached APK is a debug-signed build for direct installation; see `pnpm android:apk` to roll your own.
+
+### Building the packages
+
+```sh
+pnpm icons        # regenerate platform icons from assets/icon.svg (needs Chrome)
+pnpm desktop      # Windows/Linux single-file launchers → release/desktop (needs Go)
+pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug (needs Android SDK + JDK 17)
+```
+
+
 ## Features
 
 - Import one or more history export ZIPs; each becomes an archive group, and imports are additive — existing data is never replaced.

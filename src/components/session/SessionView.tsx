@@ -62,6 +62,7 @@ export const SessionView = ({
                 tokens: tokens === null ? '—' : tokens.toLocaleString('en-US'),
               })}
             </span>
+            <span className={styles.headerSpacer} />
             <IconButton
               icon={<IconShareOutline16 />}
               tooltip={t('share')}

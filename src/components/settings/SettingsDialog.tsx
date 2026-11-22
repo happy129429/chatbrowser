@@ -26,6 +26,7 @@ import {
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { collectChatStats, type ChatStats } from '../../services/chat/stats.js'
+import { saveBlob } from '../../utils/saveFile.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
@@ -472,12 +473,10 @@ const ExportHistory = ({ disabled }: { disabled: boolean }) => {
     setStatus(null)
     try {
       const { name, blob } = await exportHistory()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = name
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+      const result = await saveBlob(name, blob)
+      if (result === 'saved') {
+        showToast({ key: 'exportSaved' })
+      }
     } catch (error) {
       setStatus(errorStatus('historyExportFailed', error))
     } finally {
