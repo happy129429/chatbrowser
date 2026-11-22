@@ -10,7 +10,6 @@ build/
 !.env.example
 tmp/
 mock/
-packaging/launcher/rsrc_windows_amd64.syso
 release/
 
 # Capacitor Android 构建产物
@@ -24,3 +23,6 @@ android/capacitor-cordova-android-plugins/build/
 android/keystore.properties
 *.jks
 *.keystore
+
+# 启动器构建时复制的 dist
+packaging/launcher/web/
