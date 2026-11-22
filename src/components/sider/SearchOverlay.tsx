@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslate } from '../../i18n/index.js'
 import { useSettings } from '../../services/settings.js'
-import { searchSessions, type SearchHit } from '../../services/chat/search.js'
+import {
+  buildSearchIndex,
+  searchIndexed,
+  titleOnlySessions,
+  type SearchHit,
+  type SearchIndex,
+} from '../../services/chat/search.js'
 import { openSessionMessage, useChatStore } from '../../services/chat/store.js'
 import {
   IconChatBubbleOutline16,
@@ -37,7 +43,7 @@ const hitDate = (
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-/** 按会话分组（扫描顺序即会话按更新时间降序）；保留首次出现顺序。 */
+/** 按会话分组（命中按相关性排序；保留首次出现顺序）。 */
 type HitGroup = { sessionId: string; hits: SearchHit[] }
 
 const groupHits = (hits: SearchHit[]): HitGroup[] => {
@@ -68,8 +74,8 @@ const Snippet = ({ text }: { text: string }) => {
 }
 
 /**
- * 全局搜索浮层：顶部圆角搜索框（放大镜 + 关闭），下方按会话更新的时间排列的命中列表。
- * 同一会话折叠为一行，带「N 个匹配」徽标；展开后逐条命中摘录，点击跳转到对应消息。
+ * 全局搜索浮层：顶部圆角搜索框（放大镜 + 关闭），下方按会话分组、按相关性排序的命中列表。
+ * 打开浮层时异步构建 MiniSearch 索引，之后每次查询即时返回。
  */
 export const SearchOverlay = () => {
   const t = useTranslate()
@@ -78,58 +84,61 @@ export const SearchOverlay = () => {
   const sessions = useChatStore((state) => state.sessions)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<SearchHit[]>([])
-  const [scanning, setScanning] = useState(false)
+  const [searchIndex, setSearchIndex] = useState<SearchIndex | null>(null)
+  const [building, setBuilding] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const inputRef = useRef<HTMLInputElement>(null)
-  const abortRef = useRef<AbortController | null>(null)
+  const buildAbortRef = useRef<AbortController | null>(null)
   const [now] = useState(Date.now)
 
   useEffect(() => {
     if (!open) {
       return
     }
-    // 打开时聚焦输入框；关闭后清理进行中的扫描。
+    // 打开时聚焦输入框，并异步构建搜索索引；关闭时中止构建。
     inputRef.current?.focus()
+    setBuilding(true)
+    setSearchIndex(null)
+    const controller = new AbortController()
+    buildAbortRef.current = controller
+    void buildSearchIndex(useChatStore.getState().sessions, {
+      signal: controller.signal,
+      onProgress: ({ scanned, total }) => {
+        if (!controller.signal.aborted) {
+          setBuilding(scanned < total)
+        }
+      },
+    }).then((index) => {
+      if (!controller.signal.aborted) {
+        setSearchIndex(index)
+        setBuilding(false)
+      }
+    })
     return () => {
-      abortRef.current?.abort()
+      controller.abort()
+      buildAbortRef.current = null
     }
   }, [open])
 
-  // 搜索防抖；新查询中止上一轮扫描，展开状态随之重置。
+  // 索引就绪后查询即时返回；无索引时保持空结果。
   useEffect(() => {
     const trimmed = query.trim()
-    abortRef.current?.abort()
-    if (trimmed === '') {
+    if (trimmed === '' || !searchIndex) {
       setHits([])
-      setScanning(false)
       setExpanded(new Set())
       return
     }
-    setScanning(true)
-    setHits([])
+    const messageHits = searchIndexed(searchIndex, trimmed)
+    const messageSessions = new Set(messageHits.map((hit) => hit.sessionId))
+    const titleHits = titleOnlySessions(
+      searchIndex,
+      useChatStore.getState().sessions,
+      trimmed,
+      messageSessions
+    )
+    setHits([...messageHits, ...titleHits])
     setExpanded(new Set())
-    const controller = new AbortController()
-    abortRef.current = controller
-    const timer = setTimeout(() => {
-      void searchSessions(useChatStore.getState().sessions, trimmed, {
-        signal: controller.signal,
-        onProgress: ({ hits: progressHits, scanned, total }) => {
-          if (!controller.signal.aborted) {
-            setHits([...progressHits])
-            setScanning(scanned < total)
-          }
-        },
-      }).finally(() => {
-        if (!controller.signal.aborted) {
-          setScanning(false)
-        }
-      })
-    }, 250)
-    return () => {
-      clearTimeout(timer)
-      controller.abort()
-    }
-  }, [query, open])
+  }, [query, searchIndex])
 
   const groups = useMemo(() => groupHits(hits), [hits])
 
@@ -186,7 +195,7 @@ export const SearchOverlay = () => {
         <div className={styles.results}>
           {query.trim() !== '' && groups.length === 0 ? (
             <div className={styles.state}>
-              {scanning ? t('searchScanning') : t('searchNoResults')}
+              {building ? t('searchScanning') : t('searchNoResults')}
             </div>
           ) : null}
           {groups.map(({ sessionId, hits: sessionHits }) => {
