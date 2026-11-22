@@ -237,6 +237,46 @@ export const MessageList = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareActive])
 
+  // 轮次小字：提问计轮；token 取相邻回答的累计差值（归档携带累计值时）或本轮用量。
+  const roundStatsById = useMemo(() => {
+    const map = new Map<string, { round: number; tokens: number | null }>()
+    const usageOf = (message: Message) =>
+      message.role === 'assistant'
+        ? (message.accumulatedTokens ??
+          (message.usage
+            ? message.usage.input_tokens +
+              message.usage.cache_creation_input_tokens +
+              message.usage.cache_read_input_tokens +
+              message.usage.output_tokens
+            : null))
+        : null
+    let roundIndex = 0
+    let previous: number | null = null
+    for (const message of messages) {
+      if (message.role === 'user') {
+        roundIndex += 1
+        continue
+      }
+      const own = usageOf(message)
+      const tokens =
+        message.accumulatedTokens !== undefined && previous !== null
+          ? Math.max(0, message.accumulatedTokens - previous)
+          : message.usage
+            ? message.usage.input_tokens +
+              message.usage.cache_creation_input_tokens +
+              message.usage.cache_read_input_tokens +
+              message.usage.output_tokens
+            : null
+      if (roundIndex > 0) {
+        map.set(message.id, { round: roundIndex, tokens })
+      }
+      if (own !== null) {
+        previous = own
+      }
+    }
+    return map
+  }, [messages])
+
   const assistantByParent = useMemo(() => {
     const map = new Map<string, Message>()
     for (const message of messages) {
@@ -322,22 +362,7 @@ export const MessageList = ({
                       ? undefined
                       : () => startShareSelect(session.id, [message.parentId as string])
                   }
-                  stats={(() => {
-                    const roundIndex = rounds.findIndex((round) => round.id === message.parentId)
-                    if (roundIndex === -1) {
-                      return undefined
-                    }
-                    const tokens = message.usage
-                      ? message.usage.input_tokens +
-                        message.usage.cache_creation_input_tokens +
-                        message.usage.cache_read_input_tokens +
-                        message.usage.output_tokens
-                      : null
-                    return {
-                      round: roundIndex + 1,
-                      tokens,
-                    }
-                  })()}
+                  stats={roundStatsById.get(message.id) ?? undefined}
                 />
               )
             )}

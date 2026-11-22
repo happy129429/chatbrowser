@@ -83,8 +83,10 @@ export type AssistantMessage = MessageBranch & {
   blocks: ReplyBlock[]
   stopReason?: StopReason
   stopDetails?: StopDetails
-  /** 最近一次请求的用量 */
+  /** 最近一次请求的用量（旧客户端数据才有） */
   usage?: MessageUsage
+  /** 归档携带的分支累计上下文 token；0 视为未知 */
+  accumulatedTokens?: number
   /** 旧客户端留下的请求错误；归档导入的数据不含此字段 */
   error?: {
     kind: string

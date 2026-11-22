@@ -5,7 +5,7 @@ export type ChatStats = {
   groups: number
   sessions: number
   rounds: number
-  /** 各回答（含缓存）输入与输出 token 之和；全部缺失时为 null */
+  /** 所有会话最终上下文 token 之和；全部缺失时为 null */
   tokens: number | null
   /** 思考总秒数；没有任何可计量的思考块时为 null */
   thinkSeconds: number | null
@@ -24,19 +24,21 @@ export const collectChatStats = async (): Promise<ChatStats> => {
       continue
     }
     sessions += 1
-    for (const message of getVisibleMessages(session)) {
+    const visible = getVisibleMessages(session)
+    const usageOf = (message: (typeof visible)[number]) =>
+      message.role === 'assistant'
+        ? (message.accumulatedTokens ??
+          (message.usage
+            ? message.usage.input_tokens +
+              message.usage.cache_creation_input_tokens +
+              message.usage.cache_read_input_tokens +
+              message.usage.output_tokens
+            : null))
+        : null
+    for (const message of visible) {
       if (message.role === 'user') {
         rounds += 1
         continue
-      }
-      const { usage } = message
-      if (usage) {
-        tokens =
-          (tokens ?? 0) +
-          usage.input_tokens +
-          usage.cache_creation_input_tokens +
-          usage.cache_read_input_tokens +
-          usage.output_tokens
       }
       for (const block of message.blocks) {
         if (block.type !== 'thinking') {
@@ -55,6 +57,16 @@ export const collectChatStats = async (): Promise<ChatStats> => {
           thinkSeconds = (thinkSeconds ?? 0) + seconds
         }
       }
+    }
+    // 会话的 token 总量：归档的分支累计值以最后一个回答为准（即整段上下文）；
+    // 没有累计值时退回逐条求和。
+    const sessionTokens =
+      [...visible]
+        .reverse()
+        .map(usageOf)
+        .find((value) => value !== null) ?? null
+    if (sessionTokens !== null) {
+      tokens = (tokens ?? 0) + sessionTokens
     }
   }
   return { groups: groups.length, sessions, rounds, tokens, thinkSeconds }

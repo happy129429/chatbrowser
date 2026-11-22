@@ -219,6 +219,8 @@ const toAssistant = (message: ChatMessage): AssistantMessage => {
     thinking: message.thinking_enabled,
     search: message.search_enabled,
     status: replyStatus[message.status],
+    accumulatedTokens:
+      message.accumulated_token_usage > 0 ? message.accumulated_token_usage : undefined,
     // 拒绝回复丢弃模型正文和思考，保留模板提示与工具步骤。
     ...(refused ? { stopReason: 'refusal' as const } : {}),
     blocks: refused
