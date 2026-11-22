@@ -32,3 +32,6 @@ github_log
 
 # 本地交接文档（不提交）
 HANDOVER.md
+
+# 构建时生成的第三方许可清单
+THIRD_PARTY_NOTICES.txt

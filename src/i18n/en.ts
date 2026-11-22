@@ -1,5 +1,5 @@
 export const en = {
-  welcomeMessageChat250808: 'Browse your DeepSeek chats',
+  welcomeMessageChat250808: 'Browse your AI assistant chats',
   expandSiderbarButton: 'Open sidebar',
   collapseSiderbarButton: 'Close sidebar',
   untitledChat: 'New chat',
@@ -75,7 +75,7 @@ export const en = {
   messageThinking: 'Thinking',
   backupInvalidJson: 'The file is not valid JSON.',
   backupUnrecognized:
-    'File not recognized. Supports DeepSeek ZIP exports and ChatGPT / Claude / z.ai JSON exports.',
+    'File not recognized. Supports AI-assistant ZIP exports (e.g. DeepSeek) and ChatGPT / Claude / z.ai JSON exports.',
   backupNewerVersion: 'This file uses a newer version. Please update the app before importing.',
   backupInvalidVersion: 'The file version is invalid and cannot be imported.',
   backupIncomplete: 'The file is incomplete and cannot be imported.',
@@ -97,6 +97,9 @@ export const en = {
   aboutProject: 'Project',
   aboutUpstream: 'Upstream project',
   aboutLicense: 'License',
+  aboutThirdParty: 'Third-party licenses',
+  aboutPrivacy: 'Privacy & disclaimer',
+  aboutView: 'View',
   aboutQuit: 'Quit app',
   aboutQuitHint: 'Stop the local server and quit',
   aboutQuitAction: 'Quit',
@@ -110,11 +113,12 @@ export const en = {
   avatarMenuSettingsDialogThemeSelectSystemOption: 'System',
   historyImport: 'Import chat history',
   historyImportDescription:
-    'Import a DeepSeek history ZIP or a ChatGPT / Claude / z.ai JSON export as a new archive group. Existing chats are kept.',
+    'Import an AI-assistant history ZIP (e.g. DeepSeek) or a ChatGPT / Claude / z.ai JSON export as a new archive group. Existing chats are kept.',
   historyImportedOne: 'Imported 1 chat',
   historyImported: 'Imported {count} chats',
   openArchive: 'Open archives',
-  archiveDropHint: 'Drop a DeepSeek ZIP or ChatGPT / Claude / z.ai JSON here, or click to browse',
+  archiveDropHint:
+    'Drop an AI-assistant ZIP or ChatGPT / Claude / z.ai JSON here, or click to browse',
   archiveImporting: 'Importing…',
   archiveImportPartial: 'Import finished, {failed}/{total} file(s) failed',
   ungroupSession: 'Remove from group',
@@ -150,9 +154,13 @@ export const en = {
   exportAs: 'Export as…',
   exportTargetGroup: 'Group',
   exportTargetSession: 'Conversation',
-  exportFormatDeepseek: 'DeepSeek-compatible ZIP',
-  exportFormatDeepseekDesc: 'Official fields only; re-importable into this app',
-  exportFormatExtended: 'DeepSeek extended ZIP',
+  aiAssistant: 'AI Assistant',
+  includeSummary: 'Include conversation summary',
+  unsupportedBlocks:
+    'This message contains content blocks that were not exported ({types}); their contents are not in the export file.',
+  exportFormatDeepseek: 'AI Assistant ZIP (compatible)',
+  exportFormatDeepseekDesc: 'Common archive fields only; re-importable into this app',
+  exportFormatExtended: 'AI Assistant extended ZIP',
   exportFormatExtendedDesc: 'Also stores system prompts and group info (sidecar file)',
   exportFormatClaude: 'Claude JSON',
   exportFormatClaudeDesc: 'Current branch only; reasoning, tools and attachments may be lost',
@@ -172,7 +180,7 @@ export const en = {
   statsRounds: 'Rounds',
   statsTokens: 'Total tokens',
   statsScopeHint:
-    'Only archives that carry usage data are counted (DeepSeek native exports); external formats usually have no token data.',
+    'Only archives that carry usage data are counted (native archive formats); external formats usually have no token data.',
   statsThinking: 'Total thinking time',
   statsScanning: 'Computing…',
   statsSeconds: '{count} s',
@@ -206,7 +214,7 @@ export const en = {
     'The selected chats will be removed locally and cannot be recovered. Your ZIP source files are untouched.',
   listEmpty: 'No chats yet. Import a history archive first.',
   historyImportFailed:
-    'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from DeepSeek again and retry the import.',
+    'File import failed. The file format may be invalid, or the ZIP file may use an older chat export format. Please export your chat history from the corresponding AI assistant again and retry the import.',
   historyExportFailed: 'Export failed: {message}',
   exportAllLabel: 'Export all chats',
   historyExportDescription:

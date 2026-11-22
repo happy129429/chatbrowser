@@ -46,16 +46,20 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 - Install the debug-signed APK (Android 6+), then import ZIP/JSON files
 - Exports are written to the system **Documents** folder (WebView cannot download blob URLs)
 
-## Import formats
+## Import formats and support level
 
-- DeepSeek export `deepseek_data-*.zip` (full pipeline: branches, tool steps, images, reasoning)
-- ChatGPT export (`conversations.json` ZIP with the `mapping` tree)
-- Claude export (`conversations.json` ZIP): keeps the summary, original message UUID/parent chain, attachment filenames, citation markers and thinking state (truncated/hidden/signature); reasoning is separated from the answer
-- z.ai / OpenWebUI native exports (`chat.history.messages` object tree + `currentId`, imports the active branch)
-- Single-session `turn_history` envelopes (`session_metadata` / `global_context` system instructions)
-- z.ai and similar formats (`messages` / `chat_history` etc.)
+| Format                                          | Support                                                 | What is preserved                                                                                                                                      |
+| ----------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **DeepSeek export ZIP** (`deepseek_data-*.zip`) | **Most complete** (same origin as the upstream project) | Branch tree, reasoning, tool steps, web search sources, original images, token usage                                                                   |
+| ChatGPT export (ZIP/JSON)                       | Compatibility import                                    | Active branch, system prompts, memories/custom instructions; no tool steps or original images                                                          |
+| Claude export (ZIP/JSON)                        | Compatibility import                                    | Conversation summary, original message UUID/parent chain, thinking blocks (truncated/hidden/signature), citations, attachment filenames (no originals) |
+| z.ai / OpenWebUI native exports                 | Compatibility import                                    | `chat.history.messages` object tree + `currentId`, imports the active branch; content may be missing in the vendor export                              |
+| `turn_history` envelopes                        | Compatibility import                                    | `session_metadata` / `global_context` system instructions                                                                                              |
+
+DeepSeek is the upstream project's native format and the base for this app's archive and conversion pipeline, so it has the most complete support. Other formats aim to migrate without losing information where possible; depending on what each vendor exports, some fields can only be dropped or kept as metadata.
+
 - Import multiple files at once; each import becomes an archive group with incremental merges
-- System prompts are preserved for external chats; account-level memories/instructions from the group menu
+- System prompts are viewable inside external conversations; account-level memories/instructions from the group menu
 
 ## Features
 
@@ -89,6 +93,24 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 - No sync or built-in backup between entries/browsers — export a group ZIP before switching
 - Vendor export formats may change; attach a sanitized sample when reporting import issues
 - z.ai's "export archived conversation" may only include the first user prompt; the remaining message bodies are missing from the export itself
+
+## Privacy
+
+- Conversations, groups, attachments and settings stay in your browser (IndexedDB / localStorage). Nothing is uploaded; data is **not encrypted at rest**, and clearing browser data or uninstalling the app deletes it permanently
+- No accounts, analytics, telemetry or ads; the app does not read data from other websites
+- There are only two kinds of network requests: source links you click, and the update check against `api.github.com`. For the latter GitHub can see your IP address, User-Agent and request time (standard HTTP logs); **no local conversation data is sent**. Results are cached for 24 hours
+- To delete local data use Settings → Data → Delete all conversations
+
+## Disclaimer
+
+- This software is provided "as is" under GPL-3.0-or-later, without warranties of any kind; the authors are not liable for data loss, incorrect exports or vendor format changes
+- Only import data you have the right to use. Importing other people's conversations may involve their privacy; make sure you have permission
+- Desktop builds are unsigned and may be blocked by SmartScreen/Defender; obtain them only from this repository's Releases or build from source
+- This is an unofficial project with **no affiliation with or endorsement by** DeepSeek, Anthropic, OpenAI or Zhipu
+
+## Trademarks
+
+DeepSeek, ChatGPT, Claude, z.ai and other names/trademarks belong to their respective owners. Their use here only describes file formats and compatibility, and does not imply any official partnership or endorsement.
 
 ## Development
 

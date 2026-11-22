@@ -48,7 +48,7 @@ const checkExtra = (bytes: Uint8Array) => {
   const view = viewOf(bytes)
   let offset = 0
   while (offset < bytes.length) {
-    if (offset + 4 > bytes.length || view.getUint16(offset, true) === 1) {
+    if (offset + 4 > bytes.length) {
       invalid()
     }
     offset += 4 + view.getUint16(offset + 2, true)
@@ -83,6 +83,61 @@ type Entry = {
   compressedSize: number
   size: number
   offset: number
+  zip64: boolean
+}
+
+const uint64 = (view: DataView, offset: number): number => {
+  const value = view.getBigUint64(offset, true)
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    invalid()
+  }
+  return Number(value)
+}
+
+/** 解析 ZIP64 extra 中缺失的 64 位字段（按未压缩、压缩、偏移、磁盘顺序）。 */
+const zip64Values = (
+  bytes: Uint8Array,
+  needSize: boolean,
+  needCompressed: boolean,
+  needOffset: boolean
+): { size?: number; compressedSize?: number; offset?: number; disk?: number } => {
+  const view = viewOf(bytes)
+  let cursor = 0
+  while (cursor + 4 <= bytes.length) {
+    const id = view.getUint16(cursor, true)
+    const length = view.getUint16(cursor + 2, true)
+    if (cursor + 4 + length > bytes.length) {
+      invalid()
+    }
+    if (id === 1) {
+      const data = viewOf(bytes.subarray(cursor + 4, cursor + 4 + length))
+      let position = 0
+      const result: { size?: number; compressedSize?: number; offset?: number; disk?: number } = {}
+      const take = () => {
+        if (position + 8 > data.byteLength) {
+          invalid()
+        }
+        const value = uint64(data, position)
+        position += 8
+        return value
+      }
+      if (needSize) {
+        result.size = take()
+      }
+      if (needCompressed) {
+        result.compressedSize = take()
+      }
+      if (needOffset) {
+        result.offset = take()
+      }
+      if (data.byteLength >= position + 4) {
+        result.disk = data.getUint32(position, true)
+      }
+      return result
+    }
+    cursor += 4 + length
+  }
+  return invalid()
 }
 
 const readDirectory = async (file: File): Promise<{ entries: Entry[]; offset: number }> => {
@@ -103,18 +158,48 @@ const readDirectory = async (file: File): Promise<{ entries: Entry[]; offset: nu
   if (end < 0) {
     invalid()
   }
-  const count = tailView.getUint16(end + 10, true)
-  const size = tailView.getUint32(end + 12, true)
-  const offset = tailView.getUint32(end + 16, true)
-  if (
-    tailView.getUint16(end + 4, true) !== 0 ||
-    tailView.getUint16(end + 6, true) !== 0 ||
-    tailView.getUint16(end + 8, true) !== count ||
-    count === 0xffff ||
-    size === 0xffffffff ||
-    offset === 0xffffffff ||
-    offset + size !== tailStart + end
-  ) {
+  const count16 = tailView.getUint16(end + 10, true)
+  const size32 = tailView.getUint32(end + 12, true)
+  const offset32 = tailView.getUint32(end + 16, true)
+  if (tailView.getUint16(end + 4, true) !== 0 || tailView.getUint16(end + 6, true) !== 0) {
+    invalid()
+  }
+  let count = count16
+  let size = size32
+  let offset = offset32
+  let directoryEnd = tailStart + end
+  const needsZip64 = count16 === 0xffff || size32 === 0xffffffff || offset32 === 0xffffffff
+  if (needsZip64) {
+    // ZIP64 EOCD locator 紧挨在普通 EOCD 之前
+    const locatorAt = tailStart + end - 20
+    if (locatorAt < 0) {
+      invalid()
+    }
+    const locator = viewOf(await readBytes(file, locatorAt, 20))
+    if (
+      locator.getUint32(0, true) !== 0x07064b50 ||
+      locator.getUint32(4, true) !== 0 ||
+      locator.getUint32(16, true) !== 1
+    ) {
+      invalid()
+    }
+    const eocd64At = uint64(locator, 8)
+    const eocd64 = viewOf(await readBytes(file, eocd64At, 56))
+    if (
+      eocd64.getUint32(0, true) !== 0x06064b50 ||
+      eocd64.getUint32(16, true) !== 0 ||
+      eocd64.getUint32(20, true) !== 0
+    ) {
+      invalid()
+    }
+    count = uint64(eocd64, 32)
+    size = uint64(eocd64, 40)
+    offset = uint64(eocd64, 48)
+    directoryEnd = eocd64At
+  } else if (tailView.getUint16(end + 8, true) !== count) {
+    invalid()
+  }
+  if (offset + size !== directoryEnd) {
     invalid()
   }
   const entries: Entry[] = []
@@ -130,21 +215,43 @@ const readDirectory = async (file: File): Promise<{ entries: Entry[]; offset: nu
     }
     const flags = view.getUint16(8, true)
     const method = view.getUint16(10, true)
-    const compressedSize = view.getUint32(20, true)
-    const entrySize = view.getUint32(24, true)
+    const compressed32 = view.getUint32(20, true)
+    const size32Raw = view.getUint32(24, true)
     const nameLength = view.getUint16(28, true)
     const extraLength = view.getUint16(30, true)
     const next = cursor + 46 + nameLength + extraLength + view.getUint16(32, true)
-    const entryOffset = view.getUint32(42, true)
+    const offset32Raw = view.getUint32(42, true)
+    const diskStart = view.getUint16(34, true)
+    const extraBytes = await readBytes(file, offset + cursor + 46 + nameLength, extraLength)
+    let compressedSize = compressed32
+    let entrySize = size32Raw
+    let entryOffset = offset32Raw
+    const needsZip64Entry =
+      compressed32 === 0xffffffff ||
+      size32Raw === 0xffffffff ||
+      offset32Raw === 0xffffffff ||
+      diskStart === 0xffff
+    if (needsZip64Entry) {
+      const values = zip64Values(
+        extraBytes,
+        size32Raw === 0xffffffff,
+        compressed32 === 0xffffffff,
+        offset32Raw === 0xffffffff
+      )
+      entrySize = values.size ?? entrySize
+      compressedSize = values.compressedSize ?? compressedSize
+      entryOffset = values.offset ?? entryOffset
+      if (diskStart === 0xffff && (values.disk ?? 1) !== 0) {
+        invalid()
+      }
+    }
     // 只允许 deflate 选项、data descriptor 与 UTF-8 标志。
     if (
       flags & ~0x80e ||
       (method !== 0 && method !== 8) ||
-      compressedSize === 0xffffffff ||
-      entrySize === 0xffffffff ||
       (method === 0 && compressedSize !== entrySize) ||
       entryOffset >= offset ||
-      view.getUint16(34, true) !== 0 ||
+      (diskStart !== 0 && diskStart !== 0xffff) ||
       ((view.getUint32(38, true) >>> 16) & 0xf000) === 0xa000 ||
       next > size
     ) {
@@ -158,7 +265,7 @@ const readDirectory = async (file: File): Promise<{ entries: Entry[]; offset: nu
       invalid()
     }
     paths.add(identity)
-    checkExtra(await readBytes(file, offset + cursor + 46 + nameLength, extraLength))
+    checkExtra(extraBytes)
     entries.push({
       path,
       name,
@@ -168,6 +275,7 @@ const readDirectory = async (file: File): Promise<{ entries: Entry[]; offset: nu
       compressedSize,
       size: entrySize,
       offset: entryOffset,
+      zip64: needsZip64Entry,
     })
     cursor = next
   }
@@ -195,13 +303,16 @@ const readEntryOffset = async (file: File, entry: Entry, boundary: number) => {
   ) {
     invalid()
   }
-  for (const [position, expected] of [
-    [14, entry.crc],
-    [18, entry.compressedSize],
-    [22, entry.size],
-  ]) {
-    const actual = view.getUint32(position, true)
-    if (actual !== expected && (!(entry.flags & 8) || actual !== 0)) {
+  if ((entry.flags & 8) === 0) {
+    const crc = view.getUint32(14, true)
+    const localCompressed = view.getUint32(18, true)
+    const localSize = view.getUint32(22, true)
+    // ZIP64 本地头允许把尺寸标为 0xffffffff，实际值以中央目录与 extra 为准。
+    const sentinel = localCompressed === 0xffffffff && localSize === 0xffffffff
+    if (!sentinel && (localCompressed !== entry.compressedSize || localSize !== entry.size)) {
+      invalid()
+    }
+    if (crc !== entry.crc) {
       invalid()
     }
   }
@@ -211,14 +322,27 @@ const readEntryOffset = async (file: File, entry: Entry, boundary: number) => {
   }
   checkExtra(metadata.subarray(nameLength))
   if (entry.flags & 8) {
-    if (end + 12 > boundary) {
+    const localWide =
+      view.getUint32(18, true) === 0xffffffff || view.getUint32(22, true) === 0xffffffff
+    const wide =
+      entry.zip64 || localWide || entry.compressedSize > 0xffffffff || entry.size > 0xffffffff
+    const length = wide ? 20 : 12
+    if (end + 4 + length > boundary) {
       invalid()
     }
-    const descriptor = viewOf(await readBytes(file, end, Math.min(16, boundary - end)))
+    const descriptor = viewOf(await readBytes(file, end, Math.min(24, boundary - end)))
     const shift = descriptor.getUint32(0, true) === 0x08074b50 ? 4 : 0
-    if (
-      shift + 12 > descriptor.byteLength ||
-      descriptor.getUint32(shift, true) !== entry.crc ||
+    if (shift + length > descriptor.byteLength || descriptor.getUint32(shift, true) !== entry.crc) {
+      invalid()
+    }
+    if (wide) {
+      if (
+        uint64(descriptor, shift + 4) !== entry.compressedSize ||
+        uint64(descriptor, shift + 12) !== entry.size
+      ) {
+        invalid()
+      }
+    } else if (
       descriptor.getUint32(shift + 4, true) !== entry.compressedSize ||
       descriptor.getUint32(shift + 8, true) !== entry.size
     ) {

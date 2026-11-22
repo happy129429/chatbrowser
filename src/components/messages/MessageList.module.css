@@ -81,6 +81,20 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
+".shareSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shareSummary input {
+  accent-color: var(--dsw-alias-button-primary-fill);
+}
+
 .shareActions {
   display: flex;
   align-items: center;
@@ -106,7 +120,21 @@
     flex: 1;
   }
 
-  .shareActions {
+  ".shareSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shareSummary input {
+  accent-color: var(--dsw-alias-button-primary-fill);
+}
+
+.shareActions {
     width: 100%;
     margin-left: 0;
   }

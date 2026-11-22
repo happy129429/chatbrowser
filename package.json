@@ -1,13 +1,13 @@
 {
   "name": "chatbrowser",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "本地浏览 DeepSeek 历史对话导出的静态应用。",
   "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "rspack serve -c rspack.config.ts",
-    "build": "rm -rf dist && NODE_ENV=production rspack build -c rspack.config.ts",
+    "build": "pnpm notices && rm -rf dist && NODE_ENV=production rspack build -c rspack.config.ts",
     "type": "tsc -p tsconfig.json",
     "mock": "node scripts/generate-mock-data.mjs",
     "e2e": "node scripts/e2e-smoke.mjs",
@@ -17,7 +17,8 @@
     "icons": "node scripts/build-icons.mjs",
     "desktop": "node scripts/build-desktop.mjs",
     "android:sync": "pnpm build && cap sync android",
-    "android:apk": "pnpm android:sync && cd android && ./gradlew assembleDebug"
+    "android:apk": "pnpm android:sync && cd android && ./gradlew assembleDebug",
+    "notices": "node scripts/generate-notices.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6",

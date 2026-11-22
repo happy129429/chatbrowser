@@ -244,33 +244,35 @@ const QuitPanel = () => {
 /** 关于：版本、检查更新、项目地址、上游项目与许可（应用内查看许可证）。 */
 const AboutPanel = () => {
   const t = useTranslate()
+  const locale = useSettings((state) => state.locale)
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<'latest' | 'newer' | 'failed' | null>(null)
   const [latest, setLatest] = useState<UpdateResult | null>(null)
-  const [licenseOpen, setLicenseOpen] = useState(false)
-  const [licenseText, setLicenseText] = useState('')
+  const [legalDoc, setLegalDoc] = useState<'license' | 'notices' | null>(null)
+  const [legalTexts, setLegalTexts] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    if (!licenseOpen || licenseText) {
+    if (!legalDoc || legalTexts[legalDoc]) {
       return
     }
+    const file = legalDoc === 'license' ? 'LICENSE' : 'THIRD_PARTY_NOTICES.txt'
     let active = true
-    fetch('LICENSE')
+    fetch(file)
       .then((response) => (response.ok ? response.text() : ''))
       .then((text) => {
         if (active) {
-          setLicenseText(text || 'LICENSE')
+          setLegalTexts((previous) => ({ ...previous, [legalDoc]: text || file }))
         }
       })
       .catch(() => {
         if (active) {
-          setLicenseText('LICENSE')
+          setLegalTexts((previous) => ({ ...previous, [legalDoc]: file }))
         }
       })
     return () => {
       active = false
     }
-  }, [licenseOpen, licenseText])
+  }, [legalDoc, legalTexts])
 
   const checkUpdate = async () => {
     setChecking(true)
@@ -366,26 +368,58 @@ const AboutPanel = () => {
             href="LICENSE"
             onClick={(event) => {
               event.preventDefault()
-              setLicenseOpen(true)
+              setLegalDoc('license')
             }}
           >
             GPL-3.0-or-later
           </a>
         }
       />
-      {licenseOpen ? (
+      <SettingCell
+        label={t('aboutPrivacy')}
+        status={null}
+        action={
+          <a
+            className={styles.statValue}
+            href={`https://github.com/happy129429/chatbrowser/blob/main/${
+              locale.startsWith('zh') ? 'README.zh-CN.md' : 'README.md'
+            }`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t('aboutView')}
+          </a>
+        }
+      />
+      <SettingCell
+        label={t('aboutThirdParty')}
+        status={null}
+        action={
+          <a
+            className={styles.statValue}
+            href="THIRD_PARTY_NOTICES.txt"
+            onClick={(event) => {
+              event.preventDefault()
+              setLegalDoc('notices')
+            }}
+          >
+            {t('aboutView')}
+          </a>
+        }
+      />
+      {legalDoc ? (
         <Modal
-          title={t('aboutLicense')}
+          title={legalDoc === 'license' ? t('aboutLicense') : t('aboutThirdParty')}
           closable
           className={styles.licenseDialog}
-          onClose={() => setLicenseOpen(false)}
+          onClose={() => setLegalDoc(null)}
           footer={
-            <Button variant="outlined" onClick={() => setLicenseOpen(false)}>
+            <Button variant="outlined" onClick={() => setLegalDoc(null)}>
               {t('close')}
             </Button>
           }
         >
-          <pre className={styles.licenseText}>{licenseText || '…'}</pre>
+          <pre className={styles.licenseText}>{legalTexts[legalDoc] || '…'}</pre>
         </Modal>
       ) : null}
     </>

@@ -75,6 +75,10 @@ for (const target of targets) {
     env: { ...process.env, GOOS: target.goos, GOARCH: target.goarch, CGO_ENABLED: '0' },
   })
   fs.copyFileSync(path.join(root, 'LICENSE'), path.join(outDir, 'LICENSE'))
+  const notices = path.join(root, 'THIRD_PARTY_NOTICES.txt')
+  if (fs.existsSync(notices)) {
+    fs.copyFileSync(notices, path.join(outDir, 'THIRD_PARTY_NOTICES.txt'))
+  }
   if (target.goos === 'linux') {
     fs.copyFileSync(
       path.join(root, 'assets', 'icons', 'icon-256.png'),
@@ -87,11 +91,11 @@ for (const target of targets) {
   }
   fs.writeFileSync(
     path.join(outDir, 'README-zh.txt'),
-    '双击 chatbrowser 启动（首次启动会在本地 127.0.0.1:17890 提供服务并自动打开窗口）。\n数据保存在浏览器存储中，与源 ZIP 文件无关。\n关闭窗口后程序仍在后台运行；如需彻底退出并释放文件，请在「设置 → 关于 → 退出应用」中退出。\n'
+    '双击 chatbrowser 启动（首次启动会在本地 127.0.0.1:17890 提供服务并自动打开窗口）。\n数据保存在浏览器存储中，与源 ZIP 文件无关。\n关闭窗口后程序仍在后台运行；彻底退出请用「设置 → 退出应用」。\n\n隐私：所有对话仅保存在本机浏览器，不上传；检查更新会请求 GitHub API（GitHub 可见 IP/UA），不发本地数据。\n免责：按 GPL-3.0-or-later 按现状提供，不担保数据安全；请仅导入你有权处理的数据。\n商标：DeepSeek/ChatGPT/Claude/z.ai 归各自权利人，本项目为非官方项目。\n'
   )
   fs.writeFileSync(
     path.join(outDir, 'Instructions.txt'),
-    'chatbrowser\n\nDouble-click "chatbrowser" to start. It serves the app at 127.0.0.1:17890 and opens a chromeless window (Edge/Chrome; Firefox falls back to a normal tab).\nData is stored in the browser storage and is independent of your source ZIP files.\nClosing the window keeps the launcher running. To quit and release the file, use Settings → About → Quit.\n'
+    'chatbrowser\n\nDouble-click "chatbrowser" to start. It serves the app at 127.0.0.1:17890 and opens a chromeless window (Edge/Chrome; Firefox falls back to a normal tab).\nData is stored in the browser storage and is independent of your source ZIP files.\nClosing the window keeps the launcher running. To quit and release the file, use Settings → Quit app.\n\nPrivacy: conversations stay in this browser; the update check requests the GitHub API (GitHub sees your IP/UA) and sends no local data.\nDisclaimer: provided as-is under GPL-3.0-or-later, with no data-safety warranty; import only data you may use.\nTrademarks: DeepSeek/ChatGPT/Claude/z.ai belong to their owners; this is an unofficial project.\n'
   )
   built.push({ target, outDir })
 }
@@ -126,11 +130,17 @@ for (const { target, outDir } of built) {
     path.join(portableDir, 'start-chatbrowser.cmd')
   )
   fs.copyFileSync(path.join(root, 'LICENSE'), path.join(portableDir, 'LICENSE'))
+  const portableNotices = path.join(root, 'THIRD_PARTY_NOTICES.txt')
+  if (fs.existsSync(portableNotices)) {
+    fs.copyFileSync(portableNotices, path.join(portableDir, 'THIRD_PARTY_NOTICES.txt'))
+  }
   fs.writeFileSync(
     path.join(portableDir, 'README-zh.txt'),
     '双击 start-chatbrowser.cmd 启动（使用 Windows 自带 PowerShell，无需安装，也没有 exe）。\r\n' +
       '首次可能提示“是否允许 PowerShell 运行”，选择允许即可。\r\n' +
-      '本地服务地址固定为 127.0.0.1:17890，与桌面版共享同一份浏览器数据。\r\n'
+      '本地服务地址固定为 127.0.0.1:17890，与桌面版共享同一份浏览器数据。\r\n' +
+      '隐私：对话仅保存在本机浏览器；检查更新请求 GitHub API。\r\n' +
+      '免责：按 GPL-3.0-or-later 按现状提供。非官方项目。\r\n'
   )
   fs.writeFileSync(
     path.join(portableDir, 'Instructions.txt'),

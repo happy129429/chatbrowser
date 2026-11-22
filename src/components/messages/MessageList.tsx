@@ -419,6 +419,8 @@ export const MessageList = ({
     return map
   }, [messages])
 
+  const [includeSummary, setIncludeSummary] = useState(true)
+
   const doExport = async (format: 'html' | 'markdown') => {
     const chosen = rounds.filter((round) => shareSelected.has(round.id))
     if (chosen.length === 0) {
@@ -433,7 +435,9 @@ export const MessageList = ({
             ? (assistantByParent.get(user.id) as Extract<Message, { role: 'assistant' }>)
             : null,
       }))
-      const { name, blob } = await exportRounds(session, chosenRounds, format)
+      const { name, blob } = await exportRounds(session, chosenRounds, format, {
+        includeSummary: includeSummary && Boolean(session.summary),
+      })
       const result = await saveBlob(name, blob)
       if (result === 'saved') {
         showToast({ key: 'exportSaved' })
@@ -534,6 +538,16 @@ export const MessageList = ({
               ? t('roundsSelectedOne')
               : t('roundsSelected', { count: shareSelected.size })}
           </span>
+          {session.summary ? (
+            <label className={styles.shareSummary}>
+              <input
+                type="checkbox"
+                checked={includeSummary}
+                onChange={(event) => setIncludeSummary(event.target.checked)}
+              />
+              {t('includeSummary')}
+            </label>
+          ) : null}
           <div className={styles.shareActions}>
             <Button variant="outlined" size="s" onClick={exitShareSelect}>
               {t('cancel')}

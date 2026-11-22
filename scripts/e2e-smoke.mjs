@@ -273,6 +273,11 @@ const claudeThinkingTitle = await evaluate(
   `[...document.querySelectorAll('div[class*="title"]')].some((node) => node.textContent.includes('已思考'))`
 )
 const claudeThinkingBody = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+const claudeUnsupported = await evaluate(
+  `document.querySelector('main')?.textContent?.includes('未导出的内容块') ?? false`
+)
+check('Claude 未支持内容块有提示', claudeUnsupported === true)
+
 check(
   'Claude 思考块与正文分离',
   claudeThinkingTitle === true && /rewrite this sentence/.test(claudeThinkingBody),
@@ -534,8 +539,8 @@ const exportDialog = await evaluate(
 check(
   '单会话导出为…弹窗包含格式与匿名化',
   typeof exportDialog === 'string' &&
-    exportDialog.includes('DeepSeek 兼容 ZIP') &&
-    exportDialog.includes('DeepSeek 扩展 ZIP') &&
+    exportDialog.includes('AI 助手兼容 ZIP') &&
+    exportDialog.includes('AI 助手扩展 ZIP') &&
     exportDialog.includes('Claude JSON') &&
     exportDialog.includes('匿名化 ID'),
   exportDialog.slice(0, 80)
@@ -577,7 +582,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.0') &&
+  aboutText.includes('0.7.1') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
@@ -597,6 +602,30 @@ check(
     typeof licenseText === 'string' &&
     licenseText.includes('GNU GENERAL PUBLIC LICENSE'),
   licenseText ? `长度=${licenseText.length}` : 'empty'
+)
+await evaluate(`(() => {
+  const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '关闭')
+  btn?.click()
+  return 'ok'
+})()`)
+await sleep(300)
+
+const noticesClicked = await evaluate(`(() => {
+  const link = [...document.querySelectorAll('div[role="dialog"] a')].find((a) =>
+    (a.getAttribute('href') ?? '').includes('THIRD_PARTY_NOTICES')
+  )
+  link?.click()
+  return link ? 'ok' : 'no-link'
+})()`)
+await sleep(800)
+const noticesText = await evaluate(`document.querySelector('pre')?.textContent ?? ''`)
+check(
+  '第三方许可可在应用内查看',
+  noticesClicked === 'ok' &&
+    typeof noticesText === 'string' &&
+    noticesText.includes('third-party software notices') &&
+    noticesText.length > 100000,
+  `${noticesClicked} len=${typeof noticesText === 'string' ? noticesText.length : -1} has=${typeof noticesText === 'string' && noticesText.includes('third-party software notices')} head=${typeof noticesText === 'string' ? noticesText.slice(0, 30) : ''}`
 )
 await evaluate(`(() => {
   const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === '关闭')

@@ -77,7 +77,15 @@ export const createConfig = ({ devServer }: ConfigOptions = {}): Configuration =
     }),
     new rspack.DefinePlugin({ __APP_VERSION__: JSON.stringify(version) }),
     new rspack.CopyRspackPlugin({
-      patterns: [{ from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' }],
+      patterns: [
+        { from: path.resolve(root, 'LICENSE'), to: 'LICENSE', toType: 'file' },
+        {
+          from: path.resolve(root, 'THIRD_PARTY_NOTICES.txt'),
+          to: 'THIRD_PARTY_NOTICES.txt',
+          toType: 'file',
+          noErrorOnMissing: true,
+        },
+      ],
     }),
   ],
   performance: { hints: false },

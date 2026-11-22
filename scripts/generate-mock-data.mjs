@@ -759,6 +759,11 @@ const claude = [
             signature: 'mock-signature-abc123',
           },
           {
+            type: 'artifact',
+            title: '示例 artifact',
+            content: 'artifact 内容不会出现在导出中',
+          },
+          {
             type: 'text',
             text: 'We conducted extensive experiments, and the results demonstrate strong performance.',
             citations: [

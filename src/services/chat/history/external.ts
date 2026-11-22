@@ -3,6 +3,7 @@ import { ArchiveError, isZipFile, readArchive, readEntry } from './zipReader.js'
 import type { AssistantMessage, FileAttachment, Message, Session, UserMessage } from '../types.js'
 import { getFileViewType, isImage } from '../../../utils/file.js'
 import type { TextCitation } from '../../api/types.js'
+import { translate } from '../../../i18n/index.js'
 import { BackupError } from './errors.js'
 
 /**
@@ -602,12 +603,19 @@ const fromChatGpt = (parsed: unknown[], groupId: string): Session[] => {
 }
 
 /** Claude content 块：正文与思考分离；text 是拼接全文，仅在缺少 content 时回退。 */
-const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage['blocks'] } => {
+const claudeContent = (
+  message: Loose
+): {
+  text: string
+  blocks: AssistantMessage['blocks']
+  unsupported: { type: string; count: number }[]
+} => {
   const raw = Array.isArray(message.content)
     ? message.content.map(record).filter((block): block is Loose => block !== null)
     : []
   const texts: string[] = []
   const thinkings: string[] = []
+  const unsupported = new Map<string, number>()
   const textCitations = new Map<number, TextCitation[]>()
   const thinkingFlags: { truncated?: boolean; hidden?: boolean; signature?: string } = {}
   let startedAt: number | undefined
@@ -666,6 +674,8 @@ const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage
       if (typeof block.signature === 'string' && block.signature.trim()) {
         thinkingFlags.signature = block.signature
       }
+    } else if (typeof block.type === 'string') {
+      unsupported.set(block.type, (unsupported.get(block.type) ?? 0) + 1)
     }
   }
   const text = texts.join('\n\n') || (raw.length === 0 ? contentText(message.text) : '')
@@ -691,7 +701,11 @@ const claudeContent = (message: Loose): { text: string; blocks: AssistantMessage
       ...(citations ? { citations } : {}),
     })
   })
-  return { text, blocks }
+  return {
+    text,
+    blocks,
+    unsupported: [...unsupported.entries()].map(([type, count]) => ({ type, count })),
+  }
 }
 
 /** files / attachments 只保留元数据：Claude 导出不含原件。 */
@@ -823,23 +837,39 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       const sender = roleOf(node.message.sender) ?? roleOf(node.message.role)
       const content = claudeContent(node.message)
       if (sender === 'user') {
+        const unsupportedText =
+          content.unsupported.length > 0
+            ? translate('unsupportedBlocks', {
+                types: content.unsupported.map((item) => `${item.type} ×${item.count}`).join(', '),
+              })
+            : ''
         messages.push({
           id: node.id,
           role: 'user',
-          content: content.text,
+          content: [content.text, unsupportedText].filter(Boolean).join('\n\n'),
           files: claudeFiles(node.message),
           createdAt: at,
           parentId,
           ...(selectedChildId ? { selectedChildId } : {}),
         })
       } else if (sender === 'assistant') {
+        const blocks = [...content.blocks]
+        if (content.unsupported.length > 0) {
+          blocks.push({
+            type: 'text',
+            isTemplate: true,
+            text: translate('unsupportedBlocks', {
+              types: content.unsupported.map((item) => `${item.type} ×${item.count}`).join(', '),
+            }),
+          })
+        }
         messages.push({
           id: node.id,
           role: 'assistant',
           createdAt: at,
           model: null,
           status: 'done',
-          blocks: content.blocks,
+          blocks,
           parentId,
           ...(selectedChildId ? { selectedChildId } : {}),
         })

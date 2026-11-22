@@ -6,6 +6,7 @@ import { HIGHLIGHT_THEME_CSS } from '../markdown/highlightTheme.js'
 import Prism from 'prismjs'
 import type { AssistantMessage, Session, UserMessage } from './types.js'
 import { buildReplyView } from './view.js'
+import { translate } from '../../i18n/index.js'
 import * as db from './db.js'
 
 /** 会话内一轮「提问 + 回答」。回答可能缺失（中断、模板答复轮）。 */
@@ -145,9 +146,13 @@ const roundCount = (rounds: ExportRound[]) => rounds.length
 
 const exportRoundsMarkdown = (
   session: Session,
-  rounds: ExportRound[]
+  rounds: ExportRound[],
+  includeSummary: boolean
 ): { name: string; blob: Blob } => {
   const parts: string[] = [`# ${session.title || '对话'}`, '']
+  if (includeSummary && session.summary) {
+    parts.push(`## ${translate('sessionSummaryTitle')}`, '', session.summary, '')
+  }
   rounds.forEach((round, index) => {
     parts.push(`## 第 ${index + 1} 轮`, '', `**提问：** ${round.user.content}`, '')
     for (const file of round.user.files) {
@@ -210,6 +215,8 @@ details.think div { white-space: pre-wrap; background: #fafafa; border-left: 3px
 .answer blockquote { margin: 10px 0; padding: 2px 14px; border-left: 3px solid #d8d8d8; color: #555; }
 .answer table { border-collapse: collapse; margin: 10px 0; }
 .answer :is(th, td) { border: 1px solid #ddd; padding: 5px 10px; }
+.summary { margin: 0 0 32px; padding: 16px 18px; background: #fafafa; border-radius: 12px; }
+.summary h2 { margin: 0 0 8px; font-size: 18px; }
 .sources { margin: 10px 0 0; padding-left: 22px; font-size: 13.5px; color: #4d6bfe; }
 .sources a { color: inherit; }
 .template { background: #fff8e6; border-radius: 8px; padding: 8px 12px; color: #8a6d1a; }
@@ -218,7 +225,8 @@ a { color: #4d6bfe; }
 
 const exportRoundsHtml = async (
   session: Session,
-  rounds: ExportRound[]
+  rounds: ExportRound[],
+  includeSummary: boolean
 ): Promise<{ name: string; blob: Blob }> => {
   const sections: string[] = []
   for (const [index, round] of rounds.entries()) {
@@ -234,13 +242,17 @@ ${question ? `<div class="bubble">${escapeHtml(question)}</div>` : ''}
 ${images.length ? `<div class="images">${images.join('')}</div>` : ''}
 ${files.length ? `<div class="files">${files.join('<br />')}</div>` : ''}
 </div>
-<div class="a"><div class="who">DeepSeek</div>
+<div class="a"><div class="who">${translate('aiAssistant')}</div>
 ${thinkHtml}
 ${answerHtml ? `<div class="answer">${answerHtml}</div>` : ''}
 ${sources.length ? `<ol class="sources">${sources.map((s) => `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noreferrer">${escapeHtml(s.title)}</a></li>`).join('')}</ol>` : ''}
 </div>
 </section>`)
   }
+  const summary =
+    includeSummary && session.summary
+      ? `<section class="summary"><h2>${translate('sessionSummaryTitle')}</h2><div class="answer">${mdToHtml(session.summary)}</div></section>`
+      : ''
   const title = session.title || '对话'
   const html = `<!doctype html>
 <html lang="zh-CN">
@@ -256,6 +268,7 @@ ${sources.length ? `<ol class="sources">${sources.map((s) => `<li><a href="${esc
 <p class="meta">${new Date().toLocaleDateString('zh-CN')} · ${roundCount(rounds)} 轮 · 由 Chat Browser 导出</p>
 </header>
 <main>
+${summary}
 ${sections.join('\n')}
 </main>
 </body>
@@ -266,8 +279,9 @@ ${sections.join('\n')}
 export const exportRounds = async (
   session: Session,
   rounds: ExportRound[],
-  format: ExportFormat
+  format: ExportFormat,
+  options: { includeSummary?: boolean } = {}
 ): Promise<{ name: string; blob: Blob }> =>
   format === 'html'
-    ? exportRoundsHtml(session, rounds)
-    : Promise.resolve(exportRoundsMarkdown(session, rounds))
+    ? exportRoundsHtml(session, rounds, options.includeSummary ?? false)
+    : Promise.resolve(exportRoundsMarkdown(session, rounds, options.includeSummary ?? false))
