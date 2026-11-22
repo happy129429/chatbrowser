@@ -123,3 +123,29 @@
 - **统计面板**：会话数 / token 用量 / 思考耗时汇总（数据字段已保留）。
 - **搜索已换 MiniSearch**：打开浮层时异步建索引，查询即时；摘录高亮仍由自研位置映射生成。
 - **更多导出格式**：`history/` 目录即格式边界，后续为其他来源（如自建客户端）加平行 loader。
+
+---
+
+## 七、2026-11 现状（v0.6.x）
+
+### 功能全景
+
+- 数据：DeepSeek 导出 ZIP（完整管线，含分支/工具步骤/图片）；ChatGPT / Claude / z.ai 导出（ZIP 或 JSON，兼容多种字段形态）；外部对话保留系统提示词（会话内折叠查看），账号级记忆/自定义指令/项目提示词存组级「附加信息」
+- 浏览：分支切换、思考时间线、搜索来源面板、朗读（speechSynthesis）、打印样式、轮次导航（悬停展开全部轮次）、阅读位置记忆（跨刷新/切换）、刷新回到上次会话
+- 整理：组（折叠/命名/六色/合并/解散/导出 ZIP/删除）、置顶、多选（移动/置顶/删除/全选）、搜索浮层（MiniSearch，索引按数据版本缓存+空闲预建）、全局 Ctrl/⌘K
+- 导出：按轮次勾选导出 HTML（自包含，MathML/Prism/来源/图片 data URI）或 Markdown；组导出；全量导出
+- 统计：设置页统计（组/会话/轮/token/思考时长）；会话头小字（轮数·tokens）；轮次小字（第 N 轮·tokens）；token 来自归档 accumulated_token_usage（差值推算每轮）
+- 工程：e2e 冒烟（`pnpm e2e`，16 会话 mock + 外部格式 + 导航 + 恢复 + 导出 + 统计）、mock 生成（`pnpm mock`）、图标流水线（`pnpm icons`）、桌面单文件启动器（Go，Windows/Linux，内嵌 dist、固定 127.0.0.1:17890、Edge/Chrome --app）、Windows 免 exe 便携版（PowerShell）、Android APK（Capacitor，导出写文档目录）、发布 CI（tag 触发，Android 可配签名）
+
+### 已知问题
+
+- exe 未签名：Defender/SmartScreen 会提示；提供免 exe 便携版与解除锁定说明
+- 数据按 origin 隔离：启动器端口 17890 / dev 8090 / file:// / APK 各自独立
+- 外部格式字段来自公开导出的常见形态；若官方改版需按真实样本补充映射
+- content-visibility 让 scrollTop 数值随估算高度浮动，但可见锚点准确（e2e 以锚点断言）
+
+### 仍待验证
+
+- v0.6.2 CI：desktop 的 syso/GOOS 修复与 Android 预装 SDK 方案
+- 用真实脱敏样本回归 Claude/z.ai 字段
+- Android release 签名（keystore secrets 配置）

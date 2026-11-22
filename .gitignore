@@ -29,3 +29,6 @@ packaging/launcher/web/
 
 # GitHub Action 构建报错日志
 github_log
+
+# 本地交接文档（不提交）
+HANDOVER.md

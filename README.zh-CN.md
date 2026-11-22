@@ -76,6 +76,12 @@ pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug（需 Andr
 
 组导出与「导出所有对话」沿用原始归档格式，可再次导入本应用或官方客户端。
 
+## 已知问题
+
+- 桌面启动器未签名：Windows SmartScreen/Defender 首次运行可能提示。可用 `windows-portable.zip`（PowerShell，无 exe）或解压前右键 ZIP → 属性 → 勾选「解除锁定」。
+- 数据按 origin 隔离：启动器（`127.0.0.1:17890`）、开发服务器、`file://` 页面与 Android App 各自独立存储。
+- 外部格式导入覆盖 ChatGPT / Claude / z.ai 的常见导出形态；官方改版可能需要补充字段映射，反馈时请附脱敏样本。
+
 ## 开发
 
 | 命令          | 说明            |

@@ -76,6 +76,12 @@ Imported conversations, group metadata and original images are stored in the bro
 
 Exports produced by the group export and "export all" follow the original archive format, so they can be re-imported here or into the official client.
 
+## Known issues
+
+- The desktop launchers are unsigned: Windows SmartScreen/Defender may warn on first run. Use the `windows-portable.zip` (PowerShell, no exe) or unblock the ZIP (Properties → Unblock) before extracting.
+- Data is stored per origin: the launcher (`127.0.0.1:17890`), the dev server, `file://` pages and the Android app each keep separate storage.
+- External-format import covers the common export shapes of ChatGPT / Claude / z.ai; vendor changes may require mapping updates — please attach a sanitized sample when reporting.
+
 ## Development
 
 | Command       | Description                                      |

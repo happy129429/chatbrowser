@@ -40,7 +40,16 @@ const syso = path.join(launcherDir, 'rsrc_windows_amd64.syso')
 const sysoStale = !fs.existsSync(syso) || fs.statSync(icoPath).mtimeMs > fs.statSync(syso).mtimeMs
 if (sysoStale) {
   // 注意：生成工具必须用宿主机平台编译执行，不要设置 GOOS
-  const args = ['run', 'github.com/akavel/rsrc', '-ico', 'winres/icon.ico', '-o', 'rsrc_windows_amd64.syso', '-arch', 'amd64']
+  const args = [
+    'run',
+    'github.com/akavel/rsrc',
+    '-ico',
+    'winres/icon.ico',
+    '-o',
+    'rsrc_windows_amd64.syso',
+    '-arch',
+    'amd64',
+  ]
   try {
     run(go, args, { cwd: launcherDir, env: { ...process.env, GOPROXY: 'off' } })
   } catch {
