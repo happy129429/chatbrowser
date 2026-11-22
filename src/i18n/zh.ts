@@ -90,6 +90,7 @@ export const zh = {
   aboutUpToDate: '已是最新版本',
   aboutNewVersion: '发现新版本 v{version}',
   aboutCheckFailed: '检查失败，请稍后重试',
+  aboutCheckRateLimited: 'GitHub API 请求次数已达上限，请于 {time} 后重试（或更换网络）',
   aboutDownload: '前往下载',
   aboutProject: '项目主页',
   aboutUpstream: '上游项目',

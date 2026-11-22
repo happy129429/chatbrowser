@@ -29,7 +29,12 @@ import {
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
 import { collectChatStats, type ChatStats } from '../../services/chat/stats.js'
 import { quitLauncher, isLauncherOrigin } from '../../services/launcher.js'
-import { checkForUpdates, RELEASES_URL, type UpdateResult } from '../../services/update.js'
+import {
+  checkForUpdates,
+  RELEASES_URL,
+  type UpdateCheck,
+  type UpdateResult,
+} from '../../services/update.js'
 import { saveBlob } from '../../utils/saveFile.js'
 import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
@@ -248,6 +253,7 @@ const AboutPanel = () => {
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<'latest' | 'newer' | 'failed' | null>(null)
   const [latest, setLatest] = useState<UpdateResult | null>(null)
+  const [failure, setFailure] = useState<Extract<UpdateCheck, { status: 'error' }> | null>(null)
   const [legalDoc, setLegalDoc] = useState<'license' | 'notices' | null>(null)
   const [legalTexts, setLegalTexts] = useState<Record<string, string>>({})
 
@@ -277,9 +283,11 @@ const AboutPanel = () => {
   const checkUpdate = async () => {
     setChecking(true)
     setUpdate(null)
+    setFailure(null)
     const result = await checkForUpdates(true)
     setChecking(false)
-    if (!result) {
+    if (result.status === 'error') {
+      setFailure(result)
       setUpdate('failed')
       return
     }
@@ -287,13 +295,25 @@ const AboutPanel = () => {
     setUpdate(result.newer ? 'newer' : 'latest')
   }
 
+  const failureDescription =
+    failure?.reason === 'rate-limit'
+      ? t('aboutCheckRateLimited', {
+          time: failure.resetAt
+            ? new Date(failure.resetAt).toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '',
+        })
+      : t('aboutCheckFailed')
+
   const updateDescription =
     update === 'newer'
       ? t('aboutNewVersion', { version: latest?.latest ?? '' })
       : update === 'latest'
         ? t('aboutUpToDate')
         : update === 'failed'
-          ? t('aboutCheckFailed')
+          ? failureDescription
           : undefined
 
   return (

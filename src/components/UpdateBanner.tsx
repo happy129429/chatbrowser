@@ -18,7 +18,7 @@ export const UpdateBanner = () => {
     let alive = true
     const timer = window.setTimeout(() => {
       void checkForUpdates().then((result) => {
-        if (!alive || !result?.newer || isUpdateDismissed(result.latest)) {
+        if (!alive || result.status !== 'ok' || !result.newer || isUpdateDismissed(result.latest)) {
           return
         }
         setInfo(result)

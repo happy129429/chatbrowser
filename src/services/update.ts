@@ -8,6 +8,10 @@ const TIMEOUT = 8000
 
 export type UpdateResult = { latest: string; url: string; newer: boolean }
 
+export type UpdateCheck =
+  | ({ status: 'ok' } & UpdateResult)
+  | { status: 'error'; reason: 'rate-limit' | 'network'; resetAt?: number }
+
 type Cached = { at: number; latest: string; url: string }
 
 const parseVersion = (value: string) =>
@@ -56,11 +60,12 @@ const writeCache = (latest: string, url: string) => {
   }
 }
 
-/** 查询 GitHub 最新 Release；force=false 时 24 小时内复用缓存。失败返回 null。 */
-export const checkForUpdates = async (force = false): Promise<UpdateResult | null> => {
+/** 查询 GitHub 最新 Release；force=false 时 24 小时内复用缓存。 */
+export const checkForUpdates = async (force = false): Promise<UpdateCheck> => {
   const cached = readCache()
   if (!force && cached && Date.now() - cached.at < DAY) {
     return {
+      status: 'ok',
       latest: cached.latest,
       url: cached.url,
       newer: compareVersions(cached.latest, __APP_VERSION__) > 0,
@@ -72,18 +77,27 @@ export const checkForUpdates = async (force = false): Promise<UpdateResult | nul
       signal: AbortSignal.timeout(TIMEOUT),
     })
     if (!response.ok) {
-      return null
+      const remaining = response.headers.get('x-ratelimit-remaining')
+      const reset = Number(response.headers.get('x-ratelimit-reset'))
+      if ((response.status === 403 || response.status === 429) && remaining === '0') {
+        return {
+          status: 'error',
+          reason: 'rate-limit',
+          resetAt: Number.isFinite(reset) ? reset * 1000 : undefined,
+        }
+      }
+      return { status: 'error', reason: 'network' }
     }
     const data = (await response.json()) as { tag_name?: string; html_url?: string }
     const latest = (data.tag_name ?? '').replace(/^v/, '')
     if (!latest) {
-      return null
+      return { status: 'error', reason: 'network' }
     }
     const url = data.html_url ?? RELEASES_URL
     writeCache(latest, url)
-    return { latest, url, newer: compareVersions(latest, __APP_VERSION__) > 0 }
+    return { status: 'ok', latest, url, newer: compareVersions(latest, __APP_VERSION__) > 0 }
   } catch {
-    return null
+    return { status: 'error', reason: 'network' }
   }
 }
 

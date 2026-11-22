@@ -93,6 +93,8 @@ export const en = {
   aboutUpToDate: 'You are up to date',
   aboutNewVersion: 'New version v{version} available',
   aboutCheckFailed: 'Check failed. Please retry later.',
+  aboutCheckRateLimited:
+    'GitHub API rate limit reached. Retry after {time} or use another network.',
   aboutDownload: 'Download',
   aboutProject: 'Project',
   aboutUpstream: 'Upstream project',
