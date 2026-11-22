@@ -40,7 +40,9 @@
 }
 
 .action {
-  display: none;
+  /* 非悬停行仅视觉隐藏，保留布局：菜单锚点需要真实矩形，display:none 会让浮层飞到左上角 */
+  display: flex;
+  visibility: hidden;
   flex-shrink: 0;
   margin-left: 4px;
 }

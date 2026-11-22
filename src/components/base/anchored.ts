@@ -129,6 +129,11 @@ export const useAnchoredPosition = <T extends HTMLElement, F extends HTMLElement
       return
     }
     const rect = anchor.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) {
+      // 触发元素当前不产生盒子（如 hover 收起的操作栏），保持上次位置，
+      // 否则空矩形会把浮层定位到视口左上角。
+      return
+    }
     const spaceAbove = rect.top - offset - VIEWPORT_PADDING
     const spaceBelow = window.innerHeight - rect.bottom - offset - VIEWPORT_PADDING
 
