@@ -93,7 +93,7 @@ export const zh = {
   aboutUpstream: '上游项目',
   aboutLicense: '许可证',
   aboutQuit: '退出应用',
-  aboutQuitHint: '停止本地服务并释放程序文件（下次双击可重新启动）',
+  aboutQuitHint: '关闭本地服务并退出',
   aboutQuitAction: '退出',
   updateAvailable: '发现新版本 v{version}',
   updateDownload: '前往下载',

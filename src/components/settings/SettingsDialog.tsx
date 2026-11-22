@@ -225,6 +225,7 @@ const QuitPanel = () => {
     <SettingCell
       label={t('aboutQuit')}
       description={t('aboutQuitHint')}
+      descriptionClassName={styles.quitDescription}
       status={null}
       action={
         <Button
@@ -547,12 +548,14 @@ const errorStatus = (key: TranslationKey, error: unknown): Status => ({
 const SettingCell = ({
   label,
   description,
+  descriptionClassName,
   status,
   action,
   className,
 }: {
   label: string
   description?: string
+  descriptionClassName?: string
   status: Status
   action?: ReactNode
   className?: string
@@ -563,7 +566,13 @@ const SettingCell = ({
       <div className={styles.text}>
         <div className={styles.label}>{label}</div>
         {status || description ? (
-          <div className={clsx(styles.description, status?.error && styles.error)}>
+          <div
+            className={clsx(
+              styles.description,
+              descriptionClassName,
+              status?.error && styles.error
+            )}
+          >
             {status
               ? t(status.key, status.reason ? { message: t(status.reason) } : status.params)
               : description}

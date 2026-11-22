@@ -441,6 +441,10 @@
   }
 }
 
+.quitDescription {
+  color: var(--dsw-alias-label-primary);
+}
+
 .cellActions {
   display: flex;
   align-items: center;

@@ -1,7 +1,9 @@
 name: Deploy GitHub Pages
 
 on:
-  # 仅手动触发，避免每次推送 main 都运行 Pages 部署
+  # 每次发布 tag 自动部署；也可手动触发
+  push:
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:

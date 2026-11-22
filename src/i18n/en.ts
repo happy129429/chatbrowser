@@ -95,7 +95,7 @@ export const en = {
   aboutUpstream: 'Upstream project',
   aboutLicense: 'License',
   aboutQuit: 'Quit app',
-  aboutQuitHint: 'Stops the local server and releases the program file; launch it again anytime.',
+  aboutQuitHint: 'Stop the local server and quit',
   aboutQuitAction: 'Quit',
   updateAvailable: 'New version v{version} available',
   updateDownload: 'Download',

@@ -2,9 +2,18 @@
 
 [English](README.md) | 简体中文
 
-基于 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) fork 的**本地对话历史浏览器**：不再连接 DeepSeek API，而是加载官方客户端导出的**历史对话 ZIP**（`deepseek_data-*.zip`），沿用原界面完整渲染，完全本地运行，无需 API Key。
+基于 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) fork 的**本地 AI 对话历史浏览器**：不连接任何 API，只加载导出文件（DeepSeek ZIP；ChatGPT / Claude / z.ai 的 ZIP 或 JSON），完全本地运行。
 
 > **致谢**：本项目由 **GLM-5.3-Flash（Z.ai）** 与 **DeepSeek-V4.1-Flash-1017** 开发，人类参与者仅提出原始想法与反馈。界面与消息渲染管线大量来自上游 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo)，特此致谢。
+
+## 在线使用（GitHub Pages）
+
+打开 **https://happy129429.github.io/chatbrowser/** 即可使用，无需安装。
+
+- 数据保存在当前浏览器的 IndexedDB 中，按网站域名隔离
+- 与桌面版、Android 版**不是同一份数据**（各自独立）
+- 每次发布新版本 tag，Pages 站点会自动重新部署
+- 浏览器地址栏页面没有「退出应用」子项，关闭标签页即可
 
 ## 截图
 
@@ -16,97 +25,98 @@
 | ------------------------------------------- | ----------------------------------- |
 | ![轮次导航](docs/screenshots/round-nav.png) | ![统计](docs/screenshots/stats.png) |
 
-## 快速开始
+## 三种使用方式
 
-安装 Node.js 22.12+ 与 pnpm：
+| 方式    | 适合场景           | 获取与启动                                                                 |
+| ------- | ------------------ | -------------------------------------------------------------------------- |
+| 网页版  | 不想安装，临时使用 | 打开 https://happy129429.github.io/chatbrowser/                            |
+| 桌面版  | 长期使用、数据稳定 | 下载 Release 里的 `windows-x64.zip` / `linux-x64.tar.gz`，解压后双击启动器 |
+| Android | 手机查看           | 下载 Release 里的 `chatbrowser-android.apk` 安装                           |
 
-```sh
-git clone https://github.com/happy129429/chatbrowser.git
-cd chatbrowser
-pnpm install
-pnpm dev
-```
+### 桌面版（Windows / Linux）
 
-打开 http://localhost:8090，把一个或多个导出 ZIP 拖到欢迎页（或使用「打开归档」按钮 / 设置 → 数据管理）。构建静态站点：
+- Windows：解压 `windows-x64.zip`，双击 `chatbrowser.exe`；自动用 Edge/Chrome 打开无地址栏窗口
+- 免 exe：`windows-portable.zip` 解压后双击 `start-chatbrowser.cmd`（PowerShell 伺服，规避未签名拦截）
+- Linux：解压 `linux-x64.tar.gz`，运行 `./chatbrowser`；`chatbrowser.desktop` 可放进应用菜单
+- 本地服务固定为 `http://127.0.0.1:17890`，因此数据可跨启动保留
+- 关闭窗口后启动器仍在后台运行；需要彻底退出并释放 exe 文件时，用「设置 → 退出应用」
 
-```sh
-pnpm build
-```
+### Android
 
-产物在 `dist/`，可部署到任意静态服务器。
+- 直接安装 debug 签名 APK（Android 6+），打开后导入 ZIP/JSON
+- 导出文件保存到系统的**「文档」目录**（WebView 不支持 blob 下载链接）
 
-## 下载
+## 导入格式
 
-预构建产物见 [Releases](https://github.com/happy129429/chatbrowser/releases)：
-
-| 包                        | 平台          | 使用方式                                                                                                           |
-| ------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `windows-x64.zip`         | Windows 10/11 | 解压后双击 `chatbrowser.exe`，自动用 Edge/Chrome 打开无地址栏应用窗口（本地服务固定为 `http://127.0.0.1:17890`）。 |
-| `linux-x64.tar.gz`        | Linux x86_64  | 解压运行 `./chatbrowser`（或把 `chatbrowser.desktop` 装进应用菜单）。                                              |
-| `chatbrowser-android.apk` | Android 6+    | 直接安装 APK，打开后导入 ZIP 即可。                                                                                |
-
-注意：
-
-- **数据按 origin 隔离**：启动器固定使用 `127.0.0.1:17890`，重启后数据仍在；而开发服务器（`localhost:8090`）、`file://` 页面、Android App 各自是独立仓库。每台设备固定用一种打开方式即可。
-- 桌面启动器优先 Chromium 系（Edge/Chrome/Chromium）以获得 `--app` 独立窗口，Firefox 只能退回普通标签页；IndexedDB 按浏览器隔离，固定用同一个浏览器才能看到同一份数据。
-- Android 上导出文件保存到**「文档」目录**（系统 WebView 不支持 blob 下载链接）；桌面/网页端照常下载。
-- 附件中的 APK 为 debug 签名（可直接安装）；自行构建见 `pnpm android:apk`。
-
-### 构建产物
-
-```sh
-pnpm icons        # 从 assets/icon.svg 重新生成各平台图标（需 Chrome）
-pnpm desktop      # Windows/Linux 单文件启动器 → release/desktop（需 Go）
-pnpm android:apk  # debug APK → android/app/build/outputs/apk/debug（需 Android SDK + JDK 17）
-```
+- DeepSeek 官方导出 `deepseek_data-*.zip`（完整管线：分支、工具步骤、图片、思考内容）
+- ChatGPT 导出（`conversations.json` ZIP，含 `mapping` 树）
+- Claude 导出（`conversations.json` ZIP，含 `chat_messages` / `content` 数组）
+- z.ai 等通用格式（`messages` / `chat_history` 等字段）
+- 支持一次导入多个文件；每次导入生成一个归档组，**增量导入**，不覆盖已有数据
+- 外部对话保留系统提示词（会话内可查看），账号级记忆/自定义指令/项目提示词从组菜单「附加信息」查看
 
 ## 功能
 
-- 导入 DeepSeek 历史 ZIP，或 ChatGPT / Claude / z.ai 的导出（ZIP 或 JSON）；每次导入生成一个归档组，**增量导入**，不覆盖已有数据。外部对话保留系统提示词（会话内可查看），账号级记忆/自定义指令从组菜单「附加信息」查看。
-- 完整还原对话渲染：Markdown、代码高亮、KaTeX 公式、Mermaid 图表、深度思考时间线、联网搜索步骤与来源引用、消息分支与版本切换、图片附件（非图片附件仅展示元信息）。
-- 归档组如同浏览器标签页组：重命名、配色、折叠、在组间移动会话、合并、解散、导出组为 ZIP、删除。所有整理只改本地库，**不动源文件**。
-- 全局文本搜索：覆盖标题、提问与回答正文，摘录高亮，点击跳转定位；归一化匹配（大小写、全半角、空白）并带子序列模糊降级。
-- 按轮次勾选导出会话：自包含 HTML（渲染后的 Markdown、MathML 公式、代码高亮、来源列表）或 Markdown 文件。
-- 使用浏览器内置语音合成朗读回答，无需 TTS 服务。
-- 界面语言默认跟随浏览器（可手动选简体中文 / English）、明暗主题、移动端布局。
+- 完整渲染归档：Markdown、代码高亮、KaTeX、Mermaid、深度思考时间线、联网搜索与来源、消息分支切换、图片附件
+- 归档组管理：重命名、配色、折叠、组间移动、合并、解散、导出组 ZIP、删除
+- 全局搜索：标题/提问/回答正文，摘录高亮、点击定位；按数据版本缓存索引
+- 按轮次导出：自包含 HTML（渲染结果、MathML、代码高亮、来源）或 Markdown
+- 轮次导航、阅读位置记忆、刷新恢复会话、朗读、统计面板（轮数/token/思考时长）
+- 中英文界面（默认跟随浏览器）、明暗主题、移动端布局
 
 ## 数据与存储
 
-导入的会话、分组元数据与图片原件存放在浏览器 IndexedDB；语言、主题等偏好存放在 localStorage。应用完全本地运行，除你主动点击的搜索结果链接外不发起任何网络请求。设置 → 数据管理可清空全部本地数据。
+- 会话、分组、附件存于浏览器 IndexedDB；语言、主题、阅读位置存于 localStorage
+- 除你主动点击的来源链接与更新检查（GitHub API）外，不发起网络请求
+- 各入口的数据互相独立：
 
-组导出与「导出所有对话」沿用原始归档格式，可再次导入本应用或官方客户端。
+| 入口                 | origin                          |
+| -------------------- | ------------------------------- |
+| 网页版               | `https://happy129429.github.io` |
+| Windows/Linux 启动器 | `http://127.0.0.1:17890`        |
+| 开发服务器           | `http://localhost:8090`         |
+| Android              | `https://localhost`             |
 
 ## 已知问题
 
-- 桌面启动器未签名：Windows SmartScreen/Defender 首次运行可能提示。可用 `windows-portable.zip`（PowerShell，无 exe）或解压前右键 ZIP → 属性 → 勾选「解除锁定」。
-- 启动器使用固定端口（`127.0.0.1:17890`）。新版会自动结束仍占用端口的旧实例；免 exe 便携版会提示先关闭旧窗口。
-- 关闭窗口后启动器仍在后台运行。需要彻底退出并释放程序文件时，用「设置 → 退出应用」（仅启动器版），或在任务管理器结束 `chatbrowser.exe`。
-- 数据按 origin 隔离：启动器（`127.0.0.1:17890`）、开发服务器、`file://` 页面与 Android App 各自独立存储。
-- 外部格式导入覆盖 ChatGPT / Claude / z.ai 的常见导出形态；官方改版可能需要补充字段映射，反馈时请附脱敏样本。
+- 桌面启动器未签名：Windows SmartScreen/Defender 可能提示；可用免 exe 便携版，或解压前右键 ZIP → 属性 → 解除锁定
+- 启动器固定端口：新版会自动结束占用端口的旧实例；便携版会提示先关闭旧窗口
+- 数据不跨入口/浏览器同步，也没有内置备份；换浏览器或换入口前请先导出组 ZIP
+- 外部格式官方改版后可能需要补充字段映射，反馈时请附脱敏样本
 
 ## 开发
 
-| 命令          | 说明            |
-| ------------- | --------------- |
-| `pnpm dev`    | 启动开发服务器  |
-| `pnpm build`  | 构建到 `dist/`  |
-| `pnpm type`   | TypeScript 检查 |
-| `pnpm lint`   | oxlint 检查     |
-| `pnpm format` | oxfmt 格式化    |
+```sh
+pnpm install
+pnpm dev          # http://localhost:8090
+pnpm build        # 静态站点 → dist/
+pnpm type && pnpm lint && pnpm e2e
+```
+
+| 命令               | 说明                                          |
+| ------------------ | --------------------------------------------- |
+| `pnpm mock`        | 生成 mock 归档与外部格式样例                  |
+| `pnpm e2e`         | 无头冒烟测试（需 Chrome）                     |
+| `pnpm shots`       | 重新生成 README 截图（需 dev server 在 8090） |
+| `pnpm icons`       | 从 `assets/icon.svg` 生成各平台图标           |
+| `pnpm desktop`     | 构建 Windows/Linux 启动器 → `release/desktop` |
+| `pnpm android:apk` | 构建 debug APK                                |
+
+目录结构：
 
 ```text
 src/
-  app/                 应用布局、主题与全局样式
+  app/                 应用布局与主题
   components/          侧栏、会话视图、消息渲染、搜索、设置
   i18n/                中英文案
-  services/
-    api/               保留的协议类型（渲染归档内容块所需）
-    chat/              会话、归档组、存储、搜索、历史导入导出
-    markdown/          Markdown 解析、代码高亮与图表
-    speech/            基于 Web Speech API 的朗读
-  utils/               通用工具
+  services/chat/       会话、归档组、存储、搜索、导入导出
+  services/markdown/   Markdown、代码高亮、图表
+packaging/launcher/    Go 桌面启动器（内嵌 dist）
+scripts/               构建、mock、e2e、截图
 ```
+
+发布流程见 [docs/release-checklist.md](docs/release-checklist.md)；曾讨论的原生外壳方案存档在 [docs/technical-outlook.md](docs/technical-outlook.md)。
 
 ## 许可证
 
-本项目以 [GPL-3.0-or-later](LICENSE) 再发布。它 fork 自 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo)（DeepSeek 以 MIT 许可发布），按 MIT 条款要求，原 MIT 声明已保留在 [LICENSE](LICENSE) 中。第三方依赖遵循其各自许可证。
+以 [GPL-3.0-or-later](LICENSE) 再发布。上游 [deepseek-ai/chat-demo](https://github.com/deepseek-ai/chat-demo) 以 MIT 许可发布，其声明保留在 [LICENSE](LICENSE) 中。第三方依赖遵循各自许可证。
