@@ -1,6 +1,6 @@
 {
   "name": "chatbrowser",
-  "version": "0.7.9",
+  "version": "0.7.10",
   "description": "本地浏览 DeepSeek 历史对话导出的静态应用。",
   "license": "GPL-3.0-or-later",
   "private": true,

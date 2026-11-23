@@ -718,6 +718,8 @@ writeFileSync(
 writeFileSync(
   path.join(outDir, 'chatgpt-sample.zip'),
   zipSync({
+    // 真实 ChatGPT 导出可能带 manifest；不能因此被误判为 DeepSeek
+    'manifest.json': strToU8(JSON.stringify({ source: 'chatgpt', version: 1 })),
     'conversations.json': strToU8(JSON.stringify(chatgpt)),
     'conversation_summaries.json': strToU8(
       JSON.stringify({

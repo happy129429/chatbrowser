@@ -32,6 +32,7 @@ export const externalSessionsFromZip = async (
     for await (const entry of readArchive(file)) {
       const lower = entry.path.toLowerCase()
       if (!lower.endsWith('.json')) {
+        await skipEntry(entry)
         continue
       }
       if (isPersonalExternalFile(entry.path)) {
@@ -39,17 +40,20 @@ export const externalSessionsFromZip = async (
         await skipEntry(entry)
         continue
       }
-      // DeepSeek 归档的会话文件与索引不参与外部格式识别
-      if (
-        lower.startsWith('chat_sessions/') ||
-        lower === 'manifest.json' ||
-        lower === 'chat_session_index.json'
-      ) {
+      // DeepSeek 归档的会话文件与索引不参与外部格式识别。
+      // 仅凭 manifest.json 不能判定为 DeepSeek：ChatGPT 导出也可能包含 manifest。
+      if (lower.startsWith('chat_sessions/') || lower === 'chat_session_index.json') {
         sawDeepSeek = true
+        await skipEntry(entry)
+        continue
+      }
+      if (lower === 'manifest.json') {
+        await skipEntry(entry)
         continue
       }
       // 单条 JSON 过大时跳过，避免内存风险
       if (entry.size > 256 * 1024 * 1024) {
+        await skipEntry(entry)
         continue
       }
       let parsed: unknown
