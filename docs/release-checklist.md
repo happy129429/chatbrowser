@@ -12,6 +12,8 @@
 ## 2. 验证
 
 - [ ] `pnpm type && pnpm lint`
+- [ ] `pnpm notices` 生成 `THIRD_PARTY_NOTICES.txt`，确认新增依赖许可证已覆盖
+- [ ] 确认发布包保留 `LICENSE` 与第三方通知，关于页可打开
 - [ ] `pnpm mock && pnpm e2e`（需 Chrome；用当前 dev server）
 - [ ] 手动冒烟：导入 ZIP / Claude ZIP / 搜索 / 导出 / 关于页
 - [ ] 启动器：旧实例接管、退出应用、无黑框（Windows）

@@ -137,7 +137,7 @@ DeepSeek is the upstream project's native format and the base for this app's arc
 
 - Conversations, groups, attachments and settings stay in your browser (IndexedDB / localStorage). Nothing is uploaded; data is **not encrypted at rest**, and clearing browser data or uninstalling the app deletes it permanently
 - No accounts, analytics, telemetry or ads; the app does not read data from other websites
-- There are only two kinds of network requests: source links you click, and the update check against `api.github.com`. For the latter GitHub can see your IP address, User-Agent and request time (standard HTTP logs); **no local conversation data is sent**. Results are cached for 24 hours
+- There are only two kinds of network requests: source links you click, and the update check against `api.github.com`. For the latter GitHub can see your IP address, User-Agent and request time (standard HTTP logs); **no local conversation data is sent**. Successful results are cached for 30 minutes; manual checks bypass the cache
 - To delete local data use Settings → Data → Delete all conversations
 
 ## Disclaimer
@@ -146,6 +146,7 @@ DeepSeek is the upstream project's native format and the base for this app's arc
 - Only import data you have the right to use. Importing other people's conversations may involve their privacy; make sure you have permission
 - Desktop builds are unsigned and may be blocked by SmartScreen/Defender; obtain them only from this repository's Releases or build from source
 - This is an unofficial project with **no affiliation with or endorsement by** DeepSeek, Anthropic, OpenAI or Zhipu
+- See [`docs/compatibility.md`](docs/compatibility.md) for the compatibility and third-party code boundary
 
 ## Trademarks
 
