@@ -33,6 +33,8 @@ export type UserMessage = MessageBranch & {
   id: string
   role: 'user'
   content: string
+  /** 仅本应用展示的灰色提示，不进入正文、复制和导出 */
+  notice?: string
   files: FileAttachment[]
   createdAt: number
 }
@@ -91,6 +93,8 @@ export type AssistantMessage = MessageBranch & {
   usage?: MessageUsage
   /** 归档携带的分支累计上下文 token；0 视为未知 */
   accumulatedTokens?: number
+  /** 仅本应用展示的灰色提示，不进入正文、复制和导出 */
+  notice?: string
   /** 旧客户端留下的请求错误；归档导入的数据不含此字段 */
   error?: {
     kind: string

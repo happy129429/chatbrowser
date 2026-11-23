@@ -1,6 +1,5 @@
-import clsx from 'clsx'
 import { useState } from 'react'
-import { useTranslate, type TranslationKey } from '../../i18n/index.js'
+import { useTranslate } from '../../i18n/index.js'
 import {
   exportClaudeJson,
   exportGroupArchive,
@@ -12,34 +11,9 @@ import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import { closeExport, useExportDialog, type ExportTarget } from './exportDialogState.js'
+import { ExportFormatPicker } from './ExportFormatPicker.js'
+import type { ExportFormat } from '../../services/chat/exportTypes.js'
 import styles from './Export.module.css'
-
-type ExportFormat = 'deepseek' | 'extended' | 'claude'
-
-const formats: {
-  value: ExportFormat
-  label: TranslationKey
-  description: TranslationKey
-  lossy?: boolean
-}[] = [
-  {
-    value: 'deepseek',
-    label: 'exportFormatDeepseek',
-    description: 'exportFormatDeepseekDesc',
-    lossy: true,
-  },
-  {
-    value: 'extended',
-    label: 'exportFormatExtended',
-    description: 'exportFormatExtendedDesc',
-  },
-  {
-    value: 'claude',
-    label: 'exportFormatClaude',
-    description: 'exportFormatClaudeDesc',
-    lossy: true,
-  },
-]
 
 export const ExportDialog = () => {
   const target = useExportDialog((state) => state.target)
@@ -110,38 +84,12 @@ const ExportContent = ({ target }: { target: ExportTarget }) => {
         </span>
         <span className={styles.targetName}>{title ?? '—'}</span>
       </div>
-      <div role="radiogroup" className={styles.options}>
-        {formats.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            role="radio"
-            aria-checked={format === item.value}
-            className={clsx(styles.option, format === item.value && styles.optionActive)}
-            onClick={() => setFormat(item.value)}
-          >
-            <span className={styles.optionText}>
-              <span className={styles.optionLabel}>
-                {t(item.label)}
-                {item.lossy ? <span className={styles.lossy}>{t('exportLossy')}</span> : null}
-              </span>
-              <span className={styles.optionDescription}>{t(item.description)}</span>
-            </span>
-            <span className={styles.radio} aria-hidden />
-          </button>
-        ))}
-      </div>
-      <label className={styles.anonymize}>
-        <input
-          type="checkbox"
-          checked={anonymize}
-          onChange={(event) => setAnonymize(event.target.checked)}
-        />
-        <span className={styles.optionText}>
-          <span className={styles.optionLabel}>{t('exportAnonymize')}</span>
-          <span className={styles.optionDescription}>{t('exportAnonymizeDesc')}</span>
-        </span>
-      </label>
+      <ExportFormatPicker
+        format={format}
+        onChange={setFormat}
+        anonymize={anonymize}
+        onAnonymizeChange={setAnonymize}
+      />
     </Modal>
   )
 }

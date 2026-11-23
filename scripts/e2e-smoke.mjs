@@ -635,7 +635,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.6') &&
+  aboutText.includes('0.7.7') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
@@ -820,6 +820,43 @@ const emptyGroupCreated = await evaluate(
   `[...document.querySelectorAll('div[role="dialog"] label')].some((node) => node.textContent.includes('e2e-empty'))`
 )
 check('组批量管理可新建空白组', emptyGroupCreated === true)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const label = [...dialog.querySelectorAll('label')].find((node) => node.textContent.includes('e2e-empty'))
+  label?.querySelector('input')?.click()
+  return !!label
+})()`)
+await sleep(200)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '导出')
+  button?.click()
+  return !!button
+})()`)
+await sleep(500)
+const batchExport = await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  return {
+    text: dialog?.textContent ?? '',
+    name: [...(dialog?.querySelectorAll('input') ?? [])].find((input) => input.type === 'text')?.value ?? '',
+  }
+})()`)
+check(
+  '组批量导出复用统一格式选项',
+  typeof batchExport?.text === 'string' &&
+    batchExport.name.startsWith('合并导出 ') &&
+    batchExport.text.includes('DeepSeek 兼容 ZIP') &&
+    batchExport.text.includes('对话浏览器扩展 ZIP') &&
+    batchExport.text.includes('Claude JSON'),
+  `${batchExport?.name} ${batchExport?.text?.slice(0, 80)}`
+)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '取消')
+  button?.click()
+  return !!button
+})()`)
+await sleep(300)
 await evaluate(`(() => {
   const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
   const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '关闭')

@@ -1,11 +1,7 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslate, type TranslationKey } from '../../i18n/index.js'
-import {
-  exportClaudeJson,
-  exportGroupArchive,
-  exportMergedGroupsArchive,
-} from '../../services/chat/backup.js'
+import { exportGroupSelection } from '../../services/chat/backup.js'
 import { isDefaultGroup } from '../../services/chat/defaultGroup.js'
 import {
   createGroup,
@@ -15,6 +11,8 @@ import {
   setGroupsColor,
   useChatStore,
 } from '../../services/chat/store.js'
+import type { ExportFormat, ExportMode } from '../../services/chat/exportTypes.js'
+import { ExportFormatPicker } from '../export/ExportFormatPicker.js'
 import { GROUP_COLORS, type GroupColor } from '../sider/groupColors.js'
 import { colorDotClass } from '../sider/GroupHeader.js'
 import { saveBlob } from '../../utils/saveFile.js'
@@ -22,9 +20,6 @@ import { Button } from '../base/Button.js'
 import { Modal } from '../base/Modal.js'
 import { showToast } from '../base/toastState.js'
 import styles from './GroupBatch.module.css'
-
-type ExportFormat = 'deepseek' | 'extended' | 'claude'
-type ExportMode = 'separate' | 'merged'
 
 const COLOR_LABELS: Record<GroupColor, TranslationKey> = {
   blue: 'colorBlue',
@@ -34,27 +29,6 @@ const COLOR_LABELS: Record<GroupColor, TranslationKey> = {
   purple: 'colorPurple',
   cyan: 'colorCyan',
 }
-
-const formats: {
-  value: ExportFormat
-  label: TranslationKey
-  description: TranslationKey
-  lossy?: boolean
-}[] = [
-  {
-    value: 'deepseek',
-    label: 'exportFormatDeepseek',
-    description: 'exportFormatDeepseekDesc',
-    lossy: true,
-  },
-  { value: 'extended', label: 'exportFormatExtended', description: 'exportFormatExtendedDesc' },
-  {
-    value: 'claude',
-    label: 'exportFormatClaude',
-    description: 'exportFormatClaudeDesc',
-    lossy: true,
-  },
-]
 
 const timestampName = () => {
   const date = new Date()
@@ -287,39 +261,14 @@ export const GroupBatchDialog = ({ open, onClose }: { open: boolean; onClose: ()
     }
     setBusy(true)
     try {
-      if (exportMode === 'merged') {
-        const name = exportName.trim()
-        if (!name) {
-          throw new Error('export name is empty')
-        }
-        const result =
-          exportFormat === 'claude'
-            ? await exportClaudeJson({
-                groupIds: selectedIds,
-                name,
-                anonymize,
-              })
-            : await exportMergedGroupsArchive(selectedIds, {
-                name,
-                extended: exportFormat === 'extended',
-                anonymize,
-              })
+      const results = await exportGroupSelection(selectedIds, {
+        mode: exportMode,
+        format: exportFormat,
+        name: exportName,
+        anonymize,
+      })
+      for (const result of results) {
         await saveBlob(result.name, result.blob)
-      } else {
-        const exportable = selectedGroups.filter((group) => (counts.get(group.id) ?? 0) > 0)
-        if (exportable.length === 0) {
-          throw new Error('no chats to export')
-        }
-        for (const group of exportable) {
-          const result =
-            exportFormat === 'claude'
-              ? await exportClaudeJson({ groupId: group.id, anonymize })
-              : await exportGroupArchive(group.id, {
-                  extended: exportFormat === 'extended',
-                  anonymize,
-                })
-          await saveBlob(result.name, result.blob)
-        }
       }
       showToast({ key: 'exportSaved' })
       setExportOpen(false)
@@ -679,41 +628,12 @@ export const GroupBatchDialog = ({ open, onClose }: { open: boolean; onClose: ()
             </label>
           ) : null}
           <div className={styles.sectionLabel}>{t('exportAs')}</div>
-          <div role="radiogroup" className={styles.exportFormats}>
-            {formats.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                role="radio"
-                aria-checked={exportFormat === item.value}
-                className={clsx(
-                  styles.exportFormat,
-                  exportFormat === item.value && styles.exportFormatActive
-                )}
-                onClick={() => setExportFormat(item.value)}
-              >
-                <span className={styles.optionText}>
-                  <span className={styles.optionLabel}>
-                    {t(item.label)}
-                    {item.lossy ? <span className={styles.lossy}>{t('exportLossy')}</span> : null}
-                  </span>
-                  <span className={styles.optionDescription}>{t(item.description)}</span>
-                </span>
-                <span className={styles.radio} aria-hidden />
-              </button>
-            ))}
-          </div>
-          <label className={styles.anonymize}>
-            <input
-              type="checkbox"
-              checked={anonymize}
-              onChange={(event) => setAnonymize(event.target.checked)}
-            />
-            <span className={styles.optionText}>
-              <span className={styles.optionLabel}>{t('exportAnonymize')}</span>
-              <span className={styles.optionDescription}>{t('exportAnonymizeDesc')}</span>
-            </span>
-          </label>
+          <ExportFormatPicker
+            format={exportFormat}
+            onChange={setExportFormat}
+            anonymize={anonymize}
+            onAnonymizeChange={setAnonymize}
+          />
         </Modal>
       ) : null}
     </>

@@ -121,7 +121,6 @@ export const zh = {
   archiveImporting: '正在导入…',
   archiveBatchMerged: '检测到分卷，已合并 {files} 个文件为一个归档组（{count} 个对话）',
   archiveImportPartial: '导入完成，{failed}/{total} 个文件失败',
-  ungroupSession: '取消分组',
   defaultGroupName: '默认组',
   defaultGroupLockedHint: '默认组不可作为合并来源，也不可删除。',
   groupMenuMerge: '合并到',

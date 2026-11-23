@@ -45,48 +45,89 @@ export const AssistantMessage = memo(function AssistantMessage({
   const refused = message.stopReason === 'refusal'
   const hiddenRefused = refused && !showRefused
   const answer = hiddenRefused ? null : view.answer
-  const responseText = [answer?.text, notice?.presentation === 'response' ? notice.text : null]
-    .filter(Boolean)
-    .join('\n\n')
+  const template = notice?.presentation === 'response' ? notice.text : null
+  const errorNotice = notice && notice.presentation !== 'response' ? notice : null
+  const hasRawRefusal = view.answer !== null || view.steps.length > 0
+  const responseText = [answer?.text, template].filter(Boolean).join('\n\n')
   const copyText = responseText || notice?.text
   const summaryEntry = `${message.id}-summary`
   return (
     <div className={styles.message} data-message-id={message.id}>
-      {hiddenRefused ? null : (
-        <ReplyArea message={message} view={view} hasResponse={!!responseText} />
+      {refused ? (
+        <>
+          {template ? (
+            <Markdown
+              className="ds-assistant-message-main-content"
+              content={template}
+              loading={false}
+              cacheKey={`${message.id}-template`}
+              disableLink={false}
+            />
+          ) : errorNotice ? (
+            <div className={styles.notice}>
+              <IconWarningOutline16 />
+              <span>{errorNotice.text}</span>
+            </div>
+          ) : null}
+          {!showRefused && hasRawRefusal ? (
+            <button
+              type="button"
+              className={styles.refusedToggle}
+              onClick={() => setShowRefused(true)}
+            >
+              {t('showRefusedContent')}
+            </button>
+          ) : null}
+          {showRefused && hasRawRefusal ? (
+            <>
+              <div className={styles.refusedHint}>{t('refusedContentHint')}</div>
+              <ReplyArea message={message} view={view} hasResponse={!!responseText} />
+              {answer ? (
+                <Markdown
+                  className="ds-assistant-message-main-content"
+                  content={answer.markdown}
+                  loading={false}
+                  cacheKey={message.id}
+                  disableLink={false}
+                  sources={view.sources}
+                />
+              ) : null}
+              {message.notice ? (
+                <div className={styles.unsupportedNotice}>{message.notice}</div>
+              ) : null}
+            </>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <ReplyArea message={message} view={view} hasResponse={!!responseText} />
+          {answer ? (
+            <Markdown
+              className="ds-assistant-message-main-content"
+              content={answer.markdown}
+              loading={false}
+              cacheKey={message.id}
+              disableLink={false}
+              sources={view.sources}
+            />
+          ) : null}
+          {template ? (
+            <Markdown
+              className="ds-assistant-message-main-content"
+              content={template}
+              loading={false}
+              cacheKey={`${message.id}-template`}
+              disableLink={false}
+            />
+          ) : errorNotice ? (
+            <div className={styles.notice}>
+              <IconWarningOutline16 />
+              <span>{errorNotice.text}</span>
+            </div>
+          ) : null}
+          {message.notice ? <div className={styles.unsupportedNotice}>{message.notice}</div> : null}
+        </>
       )}
-      {answer ? (
-        <Markdown
-          className="ds-assistant-message-main-content"
-          content={answer.markdown}
-          loading={false}
-          cacheKey={message.id}
-          disableLink={false}
-          sources={view.sources}
-        />
-      ) : null}
-      {notice?.presentation === 'response' ? (
-        <Markdown
-          className="ds-assistant-message-main-content"
-          content={notice.text}
-          loading={false}
-          cacheKey={`${message.id}-template`}
-          disableLink={false}
-        />
-      ) : notice ? (
-        <div className={styles.notice}>
-          <IconWarningOutline16 />
-          <span>{notice.text}</span>
-        </div>
-      ) : null}
-      {refused && !showRefused ? (
-        <button type="button" className={styles.refusedToggle} onClick={() => setShowRefused(true)}>
-          {t('showRefusedContent')}
-        </button>
-      ) : null}
-      {refused && showRefused ? (
-        <div className={styles.refusedHint}>{t('refusedContentHint')}</div>
-      ) : null}
       {!refused && view.searchResults.length > 0 ? (
         <div
           className={clsx(styles.summary, panelEntry === summaryEntry && styles.summaryActive)}

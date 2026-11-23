@@ -1,4 +1,5 @@
 import * as db from '../db.js'
+import { createId } from '../../../utils/id.js'
 import { BackupError, fail } from './errors.js'
 import type { SessionIndexEntry } from './format.js'
 import {
@@ -154,6 +155,8 @@ export const importArchive = async (
         if (local.session.id !== sessionId || imported.has(sessionId)) {
           fail('backupIncomplete')
         }
+        // 归档内的会话 ID 只在一次导入内唯一；分配新的本地 ID，允许同一归档再次导入为新组。
+        local.session.id = createId()
         imported.add(sessionId)
         currentSessionId = sessionId
         for (const [imagePath, id] of local.images) {

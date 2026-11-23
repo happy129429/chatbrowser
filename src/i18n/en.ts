@@ -128,7 +128,6 @@ export const en = {
   archiveBatchMerged:
     'Detected split parts: merged {files} files into one archive group ({count} conversations)',
   archiveImportPartial: 'Import finished, {failed}/{total} file(s) failed',
-  ungroupSession: 'Remove from group',
   defaultGroupName: 'Default group',
   defaultGroupLockedHint: 'The default group cannot be used as a merge source or deleted.',
   groupMenuMerge: 'Merge into',

@@ -3,6 +3,7 @@ import { createId } from '../../utils/id.js'
 import * as db from './db.js'
 import { addHistoryGroup, clearAllHistory, useChatStore } from './store.js'
 import { mergeGroupExtras } from './groupExtras.js'
+import type { ExportFormat, ExportMode } from './exportTypes.js'
 import type { Session, SessionGroup, SessionSummary } from './types.js'
 import { BackupError } from './history/errors.js'
 
@@ -186,6 +187,60 @@ export const exportClaudeJson = (target: {
     const blob = await toClaude([{ ...session, ...summary }], { anonymize: target.anonymize })
     return { name: `${downloadName(session.title || 'session')}-claude.json`, blob }
   })
+
+/** 按“分别/合并 + 格式”执行组批量导出，返回待保存的文件。 */
+export const exportGroupSelection = async (
+  groupIds: string[],
+  options: { mode: ExportMode; format: ExportFormat; name?: string; anonymize?: boolean }
+): Promise<{ name: string; blob: Blob }[]> => {
+  const ids = [...new Set(groupIds)]
+  if (ids.length === 0) {
+    return []
+  }
+  const { sessions, groups } = useChatStore.getState()
+  const byId = new Map(groups.map((group) => [group.id, group]))
+  const selected = ids.map((id) => byId.get(id)).filter((group) => group !== undefined)
+  if (options.mode === 'merged') {
+    const name = options.name?.trim() || 'merged-export'
+    return [
+      options.format === 'claude'
+        ? await exportClaudeJson({
+            groupIds: ids,
+            name,
+            anonymize: options.anonymize,
+          })
+        : await exportMergedGroupsArchive(ids, {
+            name,
+            extended: options.format === 'extended',
+            anonymize: options.anonymize,
+          }),
+    ]
+  }
+  const counts = new Map<string, number>()
+  for (const session of sessions) {
+    if (session.groupId !== null) {
+      counts.set(session.groupId, (counts.get(session.groupId) ?? 0) + 1)
+    }
+  }
+  const result: { name: string; blob: Blob }[] = []
+  for (const group of selected) {
+    if ((counts.get(group.id) ?? 0) === 0) {
+      continue
+    }
+    result.push(
+      options.format === 'claude'
+        ? await exportClaudeJson({ groupId: group.id, anonymize: options.anonymize })
+        : await exportGroupArchive(group.id, {
+            extended: options.format === 'extended',
+            anonymize: options.anonymize,
+          })
+    )
+  }
+  if (result.length === 0) {
+    throw new Error('No chats to export')
+  }
+  return result
+}
 
 /** 组名取自 ZIP 文件名（去掉扩展名）。 */
 const groupName = (fileName: string) => fileName.replace(/\.zip$/i, '') || fileName

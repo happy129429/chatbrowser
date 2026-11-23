@@ -50,6 +50,20 @@
   }
 }
 
+.notice {
+  max-width: calc(100% - 88px);
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background-color: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .bottom {
   display: flex;
   align-items: center;

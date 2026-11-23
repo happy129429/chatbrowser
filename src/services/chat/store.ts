@@ -643,17 +643,7 @@ export const syncDefaultGroupName = (name: string) => {
   void db.saveGroup(next).catch(db.reportStorageError('sync default group name'))
 }
 
-export const setGroupColor = (id: string, color: string | null) => {
-  const group = get().groups.find((item) => item.id === id)
-  if (!group) {
-    return
-  }
-  const next = { ...group, color }
-  set((state) => ({
-    groups: state.groups.map((item) => (item.id === id ? next : item)),
-  }))
-  void db.saveGroup(next).catch(db.reportStorageError('set group color'))
-}
+export const setGroupColor = (id: string, color: string | null) => setGroupsColor([id], color)
 
 /** 移动会话到组；groupId 为 null 表示取消分组。 */
 export const moveSessionsToGroup = async (ids: string[], groupId: string | null) => {
@@ -882,35 +872,4 @@ export const removeSessions = async (ids: string[]): Promise<boolean> => {
 }
 
 /** 删除组及其全部会话；本地原件仅在没有其他会话引用时清理。 */
-export const removeGroup = async (id: string): Promise<boolean> => {
-  if (get().importingHistory || deletingSessions.size > 0 || isDefaultGroup(id)) {
-    return false
-  }
-  const ids = get()
-    .sessions.filter((session) => session.groupId === id)
-    .map((session) => session.id)
-  try {
-    await db.deleteSessions(ids)
-    await db.deleteGroupRecord(id)
-    const idSet = new Set(ids)
-    set((state) => ({
-      groups: state.groups.filter((group) => group.id !== id),
-      sessions: state.sessions.filter((session) => !idSet.has(session.id)),
-      sessionCache: Object.fromEntries(
-        Object.entries(state.sessionCache).filter(([key]) => !idSet.has(key))
-      ),
-      sessionLoadErrors: Object.fromEntries(
-        Object.entries(state.sessionLoadErrors).filter(([key]) => !idSet.has(key))
-      ),
-      sessionSaveErrors: Object.fromEntries(
-        Object.entries(state.sessionSaveErrors).filter(([key]) => !idSet.has(key))
-      ),
-      activeId: state.activeId !== null && idSet.has(state.activeId) ? null : state.activeId,
-      dataVersion: state.dataVersion + 1,
-    }))
-    return true
-  } catch (error) {
-    db.reportStorageError('delete group')(error)
-    return false
-  }
-}
+export const removeGroup = (id: string): Promise<boolean> => removeGroups([id])

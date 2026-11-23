@@ -44,7 +44,7 @@ import { openSearchOverlay } from './searchOverlayState.js'
 import { SessionItem } from './SessionItem.js'
 import styles from './Sider.module.css'
 
-/** 展开的侧边栏：名称与收起按钮、打开归档、未分组会话（按时间）+ 归档组（标签页组风格）；移动端放在抽屉里 */
+/** 展开的侧边栏：名称与收起按钮、导入归档、未分组会话（按时间）+ 归档组（标签页组风格）；移动端放在抽屉里 */
 export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
   const t = useTranslate()
   const sessions = useChatStore((state) => state.sessions)
@@ -353,7 +353,11 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                       }}
                       onToggle={() => toggleCollapsed(group.id)}
                       onRename={(name) => renameGroup(group.id, name)}
-                      onSetColor={(color) => setGroupColor(group.id, color)}
+                      onSetColor={(color) => {
+                        void setGroupColor(group.id, color).catch(() =>
+                          showToast({ key: 'groupOperationFailed', type: 'error' })
+                        )
+                      }}
                       onMerge={(targetId) => {
                         void mergeGroups(group.id, targetId).catch(() =>
                           showToast({ key: 'groupOperationFailed', type: 'error' })
