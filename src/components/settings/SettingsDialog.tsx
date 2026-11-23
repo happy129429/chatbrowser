@@ -42,6 +42,7 @@ import { Modal } from '../base/Modal.js'
 import { Select } from '../base/Select.js'
 import { showToast } from '../base/toastState.js'
 import { closeSettings, useSettingsDialog, type SettingsSection } from './settingsDialogState.js'
+import { GroupBatchDialog } from './GroupBatchDialog.js'
 import styles from './Settings.module.css'
 
 /**
@@ -68,6 +69,7 @@ const SettingsContent = () => {
   const t = useTranslate()
   // 打开时按调用方指定的分组选中，之后在弹窗内切换
   const [section, setSection] = useState(() => useSettingsDialog.getState().section)
+  const [groupBatchOpen, setGroupBatchOpen] = useState(false)
   // 切换分组不丢失导入状态
   const historyImport = useHistoryImport()
   const historyDelete = useHistoryDelete()
@@ -128,6 +130,22 @@ const SettingsContent = () => {
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
               <SettingCell
+                label={t('groupBatchLabel')}
+                description={t('groupBatchDescription')}
+                status={null}
+                action={
+                  <Button
+                    variant="outlined"
+                    size="m"
+                    className={styles.cellButton}
+                    disabled={historyBusy}
+                    onClick={() => setGroupBatchOpen(true)}
+                  >
+                    {t('groupBatchOpen')}
+                  </Button>
+                }
+              />
+              <SettingCell
                 label={t('deleteAllSessions')}
                 status={null}
                 action={
@@ -147,6 +165,7 @@ const SettingsContent = () => {
         </div>
       </Modal>
       {historyDelete.opened ? <DeleteAllConfirm historyDelete={historyDelete} /> : null}
+      <GroupBatchDialog open={groupBatchOpen} onClose={() => setGroupBatchOpen(false)} />
     </>
   )
 }
@@ -719,7 +738,7 @@ const ImportHistory = ({
             onClick={() => inputRef.current?.click()}
           >
             <IconUploadOutline14 />
-            {t('upload')}
+            {t('importAction')}
           </Button>
           <input
             ref={inputRef}
@@ -777,7 +796,7 @@ const ExportHistory = ({ disabled }: { disabled: boolean }) => {
           onClick={() => void onExport()}
         >
           <IconDownloadOutline16 />
-          {t('exportAllDownload')}
+          {t('exportAllAction')}
         </Button>
       }
     />

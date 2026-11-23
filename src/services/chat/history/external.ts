@@ -816,7 +816,14 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       continue
     }
 
-    const nodes = new Map<string, { message: Loose; id: string; parentUuid: string | null }>()
+    type ClaudeNode = {
+      message: Loose
+      id: string
+      parentUuid: string | null
+      order: number
+      at: number
+    }
+    const nodes = new Map<string, ClaudeNode>()
     raw.forEach((message, index) => {
       const baseId = message.uuid as string
       const id = nodes.has(baseId) ? `${baseId}-${index}` : baseId
@@ -825,23 +832,86 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
         message.parent_message_uuid !== CLAUDE_ROOT_UUID
           ? message.parent_message_uuid
           : null
-      nodes.set(id, { message, id, parentUuid })
+      nodes.set(id, {
+        message,
+        id,
+        parentUuid,
+        order: index,
+        at: toMs(message.created_at, createdAt),
+      })
     })
-    // Claude 导出可能把 parent_message_uuid 截断成 uuid 前缀，按唯一前缀匹配
-    const resolveId = (reference: string | null): string | null => {
+    // 同一个 Claude 导出的 uuid 可能只在“前 16 个字符”内可比较：
+    // 部分导出会把 parent_message_uuid 截断，或者尾部与消息 uuid 不一致。
+    const UUID_MATCH_LENGTH = 16
+    const normalizeId = (value: string) => value.trim().toLowerCase()
+    const matchKey = (value: string) => normalizeId(value).slice(0, UUID_MATCH_LENGTH)
+    const compactId = (value: string) => normalizeId(value).replace(/[^a-z0-9]/g, '')
+    const byNormalized = new Map<string, string>()
+    const byMatchKey = new Map<string, string[]>()
+    for (const node of nodes.values()) {
+      byNormalized.set(normalizeId(node.id), node.id)
+      const key = matchKey(node.id)
+      const list = byMatchKey.get(key)
+      if (list) {
+        list.push(node.id)
+      } else {
+        byMatchKey.set(key, [node.id])
+      }
+    }
+    const resolveId = (reference: string | null, child?: ClaudeNode): string | null => {
       if (!reference) {
         return null
       }
-      if (nodes.has(reference)) {
-        return reference
+      const normalized = normalizeId(reference)
+      const exact = byNormalized.get(normalized)
+      if (exact) {
+        return exact
       }
-      if (reference.length < 8) {
-        return null
+      const keyMatches = byMatchKey.get(matchKey(reference))
+      if (keyMatches && keyMatches.length === 1) {
+        return keyMatches[0]
       }
-      const matches = [...nodes.keys()].filter((id) => id.startsWith(reference))
-      return matches.length === 1 ? matches[0] : null
+      if (normalized.length >= 8) {
+        const matches = [...nodes.values()]
+          .filter((node) => {
+            const id = normalizeId(node.id)
+            const compact = compactId(node.id)
+            return (
+              id.startsWith(normalized) ||
+              normalized.startsWith(id) ||
+              compact.startsWith(compactId(reference)) ||
+              compactId(reference).startsWith(compact)
+            )
+          })
+          .map((node) => node.id)
+        if (matches.length === 1) {
+          return matches[0]
+        }
+      }
+      if (keyMatches && keyMatches.length > 1) {
+        // 前 16 位碰撞：优先取时间上最近、且在子消息之前的候选
+        const candidates = keyMatches
+          .map((id) => nodes.get(id))
+          .filter((node): node is ClaudeNode => node !== undefined)
+          .filter((node) => !child || node.at <= child.at)
+          .sort((a, b) => b.at - a.at || b.order - a.order)
+        return candidates[0]?.id ?? null
+      }
+      return null
     }
-    const parentOf = (node: { parentUuid: string | null }) => resolveId(node.parentUuid)
+    const parentOf = (node: ClaudeNode) => resolveId(node.parentUuid, node)
+    const parentById = new Map<string, string | null>()
+    for (const node of nodes.values()) {
+      parentById.set(node.id, parentOf(node))
+    }
+    // 个别父节点缺失时按数组顺序接到前一条消息，避免出现多个并列根节点；
+    // 完全正常的父链不会进入这里。
+    const ordered = [...nodes.values()].sort((a, b) => a.order - b.order)
+    ordered.forEach((node, index) => {
+      if (node.parentUuid !== null && parentById.get(node.id) === null) {
+        parentById.set(node.id, index > 0 ? ordered[index - 1].id : null)
+      }
+    })
 
     // 从导出数组最后一条回溯当前分支，并为路径上的节点设置 selectedChildId。
     const path: string[] = []
@@ -851,7 +921,7 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
       seen.add(cursor)
       path.push(cursor)
       const node = nodes.get(cursor)
-      cursor = node ? parentOf(node) : null
+      cursor = node ? (parentById.get(node.id) ?? null) : null
     }
     path.reverse()
     const nextOnPath = new Map<string, string>()
@@ -862,8 +932,8 @@ const fromClaude = (parsed: unknown[], groupId: string): Session[] => {
     const messages: Message[] = []
     const injectedPrompts = new Set<string>()
     for (const node of nodes.values()) {
-      const at = toMs(node.message.created_at, createdAt)
-      const parentId = parentOf(node)
+      const at = node.at
+      const parentId = parentById.get(node.id) ?? null
       const selectedChildId = nextOnPath.get(node.id)
       const sender = roleOf(node.message.sender) ?? roleOf(node.message.role)
       const content = claudeContent(node.message)

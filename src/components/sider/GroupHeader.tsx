@@ -39,7 +39,7 @@ const ColorDot = ({ color }: { color: string | null }) => (
 
 /**
  * 归档组标题：折叠开关、点色、组名（可就地重命名）、会话数与菜单
- * （重命名、配色、合并到其他组、解散、导出 ZIP、删除）。
+ * （重命名、配色、合并到其他组、导出 ZIP、删除）。
  */
 export const GroupHeader = ({
   group,
@@ -53,7 +53,6 @@ export const GroupHeader = ({
   onRename,
   onSetColor,
   onMerge,
-  onDissolve,
   onExport,
   onMultiSelect,
   onShowExtras,
@@ -71,7 +70,6 @@ export const GroupHeader = ({
   onRename: (name: string) => void
   onSetColor: (color: string | null) => void
   onMerge: (targetId: string) => void
-  onDissolve: () => void
   onExport: () => void
   /** 进入该组的多选管理模式 */
   onMultiSelect: () => void
@@ -198,16 +196,6 @@ export const GroupHeader = ({
                   icon: <ColorDot color={target.color} />,
                   onSelect: () => onMerge(target.id),
                 }))),
-            ...(locked
-              ? []
-              : [
-                  {
-                    key: 'dissolve',
-                    label: t('groupMenuDissolve'),
-                    icon: <IconCloseOutline16 />,
-                    onSelect: onDissolve,
-                  },
-                ]),
             ...(onShowExtras
               ? [
                   {

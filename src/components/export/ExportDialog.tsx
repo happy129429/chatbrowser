@@ -22,7 +22,12 @@ const formats: {
   description: TranslationKey
   lossy?: boolean
 }[] = [
-  { value: 'deepseek', label: 'exportFormatDeepseek', description: 'exportFormatDeepseekDesc' },
+  {
+    value: 'deepseek',
+    label: 'exportFormatDeepseek',
+    description: 'exportFormatDeepseekDesc',
+    lossy: true,
+  },
   {
     value: 'extended',
     label: 'exportFormatExtended',

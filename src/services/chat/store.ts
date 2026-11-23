@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createId } from '../../utils/id.js'
 import { translate } from '../../i18n/index.js'
 import { DEFAULT_GROUP_ID, DEFAULT_GROUP_NAMES, isDefaultGroup } from './defaultGroup.js'
+import { mergeGroupExtras } from './groupExtras.js'
 import { prefetchSearchIndex } from './search.js'
 import { normalizeSession, selectVersion } from './branches.js'
 import * as db from './db.js'
@@ -708,34 +709,142 @@ export const createGroup = async (name: string): Promise<SessionGroup> => {
   return group
 }
 
-/** 合并组：源组的会话并入目标组后删除源组。 */
-export const mergeGroups = async (sourceId: string, targetId: string) => {
-  if (get().importingHistory || sourceId === targetId || isDefaultGroup(sourceId)) {
+/** 合并组：源组的会话与附加信息并入目标组后删除源组。 */
+export const mergeGroupsInto = async (sourceIds: string[], targetId: string) => {
+  if (get().importingHistory) {
     return
   }
-  const ids = get()
-    .sessions.filter((session) => session.groupId === sourceId)
+  const state = get()
+  const target = state.groups.find((group) => group.id === targetId)
+  const sourceSet = new Set(sourceIds.filter((id) => id !== targetId && !isDefaultGroup(id)))
+  if (!target || sourceSet.size === 0) {
+    return
+  }
+  const sources = state.groups.filter((group) => sourceSet.has(group.id))
+  if (sources.length === 0) {
+    return
+  }
+  const ids = state.sessions
+    .filter((session) => session.groupId !== null && sourceSet.has(session.groupId))
     .map((session) => session.id)
-  await moveSessionsToGroup(ids, targetId)
-  await db.deleteGroupRecord(sourceId).catch(db.reportStorageError('delete merged group'))
-  set((state) => ({
-    groups: state.groups.filter((group) => group.id !== sourceId),
+  const extras = mergeGroupExtras(target, sources)
+  const nextTarget: SessionGroup = extras.length > 0 ? { ...target, extras } : { ...target }
+  try {
+    if (ids.length > 0) {
+      await db.moveSessionsToGroup(ids, targetId)
+    }
+    await db.saveGroup(nextTarget)
+    await Promise.all(sources.map((group) => db.deleteGroupRecord(group.id)))
+  } catch (error) {
+    db.reportStorageError('merge groups')(error)
+    throw error
+  }
+  patchSessionGroups(ids, targetId)
+  set((current) => ({
+    groups: current.groups
+      .map((group) => (group.id === targetId ? nextTarget : group))
+      .filter((group) => !sourceSet.has(group.id)),
   }))
 }
 
-/** 解散组：会话保留并移入默认组。 */
-export const dissolveGroup = async (id: string) => {
-  if (get().importingHistory || isDefaultGroup(id)) {
+/** 单个组合并到目标组；保留现有单组合并调用的语义。 */
+export const mergeGroups = (sourceId: string, targetId: string) =>
+  mergeGroupsInto([sourceId], targetId)
+
+/** 合并多个组为新组；先建组，再复用 mergeGroupsInto 合并会话与附加信息。 */
+export const mergeGroupsIntoNew = async (
+  sourceIds: string[],
+  name: string
+): Promise<SessionGroup | null> => {
+  const trimmed = name.trim()
+  if (!trimmed || get().importingHistory || sourceIds.some(isDefaultGroup)) {
+    return null
+  }
+  const sources = get().groups.filter((group) => sourceIds.includes(group.id))
+  if (sources.length === 0) {
+    return null
+  }
+  const group = await createGroup(trimmed)
+  try {
+    await mergeGroupsInto(sourceIds, group.id)
+    return group
+  } catch (error) {
+    // 合并失败时清理刚创建的空组，避免留下半成品；源组仍完整保留。
+    if (!get().sessions.some((session) => session.groupId === group.id)) {
+      await db.deleteGroupRecord(group.id).catch(() => {})
+      set((state) => ({ groups: state.groups.filter((item) => item.id !== group.id) }))
+    }
+    throw error
+  }
+}
+
+/** 批量设置组颜色。 */
+export const setGroupsColor = async (ids: string[], color: string | null) => {
+  if (get().importingHistory || ids.length === 0) {
     return
   }
-  const ids = get()
-    .sessions.filter((session) => session.groupId === id)
-    .map((session) => session.id)
-  await moveSessionsToGroup(ids, DEFAULT_GROUP_ID)
-  await db.deleteGroupRecord(id).catch(db.reportStorageError('delete dissolved group'))
+  const idSet = new Set(ids)
+  const current = get().groups.filter((group) => idSet.has(group.id))
+  if (current.length === 0) {
+    return
+  }
+  const updates = current.map((group) => ({ ...group, color }))
+  try {
+    await Promise.all(updates.map((group) => db.saveGroup(group)))
+  } catch (error) {
+    db.reportStorageError('set group colors')(error)
+    throw error
+  }
+  const byId = new Map(updates.map((group) => [group.id, group]))
   set((state) => ({
-    groups: state.groups.filter((group) => group.id !== id),
+    groups: state.groups.map((group) => byId.get(group.id) ?? group),
   }))
+}
+
+/** 批量删除组及其会话；默认组不可删除。 */
+export const removeGroups = async (ids: string[]): Promise<boolean> => {
+  if (get().importingHistory || deletingSessions.size > 0) {
+    return false
+  }
+  const groupIds = [...new Set(ids)]
+  if (groupIds.length === 0 || groupIds.some(isDefaultGroup)) {
+    return false
+  }
+  const groupIdSet = new Set(groupIds)
+  const state = get()
+  if (!state.groups.some((group) => groupIdSet.has(group.id))) {
+    return false
+  }
+  const sessionIds = state.sessions
+    .filter((session) => session.groupId !== null && groupIdSet.has(session.groupId))
+    .map((session) => session.id)
+  try {
+    if (sessionIds.length > 0) {
+      await db.deleteSessions(sessionIds)
+    }
+    await Promise.all(groupIds.map((id) => db.deleteGroupRecord(id)))
+  } catch (error) {
+    db.reportStorageError('delete groups')(error)
+    return false
+  }
+  const sessionIdSet = new Set(sessionIds)
+  set((current) => ({
+    groups: current.groups.filter((group) => !groupIdSet.has(group.id)),
+    sessions: current.sessions.filter((session) => !sessionIdSet.has(session.id)),
+    sessionCache: Object.fromEntries(
+      Object.entries(current.sessionCache).filter(([key]) => !sessionIdSet.has(key))
+    ),
+    sessionLoadErrors: Object.fromEntries(
+      Object.entries(current.sessionLoadErrors).filter(([key]) => !sessionIdSet.has(key))
+    ),
+    sessionSaveErrors: Object.fromEntries(
+      Object.entries(current.sessionSaveErrors).filter(([key]) => !sessionIdSet.has(key))
+    ),
+    activeId:
+      current.activeId !== null && sessionIdSet.has(current.activeId) ? null : current.activeId,
+    dataVersion: current.dataVersion + 1,
+  }))
+  return true
 }
 
 /** 批量删除会话；本地原件仅在没有其他会话引用时清理。 */

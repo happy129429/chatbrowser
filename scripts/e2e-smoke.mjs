@@ -592,8 +592,8 @@ const exportDialog = await evaluate(
 check(
   '单会话导出为…弹窗包含格式与匿名化',
   typeof exportDialog === 'string' &&
-    exportDialog.includes('AI 助手兼容 ZIP') &&
-    exportDialog.includes('AI 助手扩展 ZIP') &&
+    exportDialog.includes('DeepSeek 兼容 ZIP') &&
+    exportDialog.includes('对话浏览器扩展 ZIP') &&
     exportDialog.includes('Claude JSON') &&
     exportDialog.includes('匿名化 ID'),
   exportDialog.slice(0, 80)
@@ -635,7 +635,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.5') &&
+  aboutText.includes('0.7.6') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
@@ -706,6 +706,127 @@ await evaluate(`document.querySelector('button[role="switch"]')?.click()`)
 await sleep(200)
 const autoCheckOn = await evaluate(`localStorage.getItem('chat-demo:auto-check-updates')`)
 check('自动检查更新开关可重新开启', autoCheckOn === 'true', String(autoCheckOn))
+
+// ---------- 8. 组批量管理 ----------
+await evaluate(`(() => {
+  const tab = [...document.querySelectorAll('button[role="tab"]')].find((node) => node.textContent.trim() === '数据管理')
+  tab?.click()
+  return !!tab
+})()`)
+await sleep(400)
+await evaluate(`(() => {
+  const button = [...document.querySelectorAll('div[class*="cell"] button')].find((node) => node.textContent.trim() === '管理')
+  button?.click()
+  return !!button
+})()`)
+await sleep(600)
+const batchDialogInfo = await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  return {
+    title: dialog?.querySelector('div[class*="title"]')?.textContent ?? '',
+    rows: [...(dialog?.querySelectorAll('label') ?? [])].map((node) => node.textContent ?? ''),
+  }
+})()`)
+check(
+  '组批量管理弹窗列出归档组',
+  batchDialogInfo?.title === '组批量管理' &&
+    batchDialogInfo.rows.some((row) => row.includes('chatgpt-sample')) &&
+    batchDialogInfo.rows.some((row) => row.includes('默认组')),
+  batchDialogInfo?.title
+)
+
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '全选')
+  button?.click()
+  return !!button
+})()`)
+await sleep(300)
+const defaultProtection = await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const find = (text) => [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === text)
+  return {
+    merge: find('合并到…')?.getAttribute('aria-disabled'),
+    remove: find('删除')?.getAttribute('aria-disabled'),
+  }
+})()`)
+check(
+  '默认组参与批量合并/删除时置灰',
+  defaultProtection?.merge === 'true' && defaultProtection?.remove === 'true',
+  JSON.stringify(defaultProtection)
+)
+
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const clear = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '取消全选')
+  clear?.click()
+  for (const label of dialog.querySelectorAll('label')) {
+    if (label.textContent.includes('chatgpt-sample') || label.textContent.includes('claude-export')) {
+      label.querySelector('input')?.click()
+    }
+  }
+  return !!clear
+})()`)
+await sleep(300)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '合并到…')
+  button?.click()
+  return !!button
+})()`)
+await sleep(500)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const target = [...dialog.querySelectorAll('button')].find((node) => node.textContent.includes('默认组'))
+  target?.click()
+  return !!target
+})()`)
+await sleep(1200)
+const mergeResult = await evaluate(`(() => ({
+  toast: document.querySelector('div[role="status"]')?.textContent ?? '',
+  headers: [...document.querySelectorAll('div[class*="groupHeader"]')].map((node) => node.textContent ?? ''),
+}))()`)
+check(
+  '批量合并到默认组',
+  mergeResult?.toast.includes('已合并 2 个组') &&
+    !mergeResult.headers.some((header) => header.includes('chatgpt-sample')) &&
+    !mergeResult.headers.some((header) => header.includes('claude-export')),
+  mergeResult?.toast
+)
+
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '新建空白组')
+  button?.click()
+  return !!button
+})()`)
+await sleep(300)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const input = [...dialog.querySelectorAll('input')].find((node) => node.placeholder === '组名')
+  input?.focus()
+  return !!input
+})()`)
+await send('Input.insertText', { text: 'e2e-empty' })
+await sleep(200)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '创建')
+  button?.click()
+  return !!button
+})()`)
+await sleep(700)
+const emptyGroupCreated = await evaluate(
+  `[...document.querySelectorAll('div[role="dialog"] label')].some((node) => node.textContent.includes('e2e-empty'))`
+)
+check('组批量管理可新建空白组', emptyGroupCreated === true)
+await evaluate(`(() => {
+  const dialog = [...document.querySelectorAll('div[role="dialog"]')].at(-1)
+  const button = [...dialog.querySelectorAll('button')].find((node) => node.textContent.trim() === '关闭')
+  button?.click()
+  return !!button
+})()`)
+await sleep(300)
 
 if (APP_URL.includes('127.0.0.1:17890')) {
   const quitTab = await evaluate(

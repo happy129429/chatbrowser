@@ -19,7 +19,6 @@ import { openArchivePicker } from './ArchiveInputHost.js'
 import { Markdown } from '../markdown/Markdown.js'
 import {
   createGroup,
-  dissolveGroup,
   mergeGroups,
   moveSessionsToGroup,
   removeGroup,
@@ -357,11 +356,6 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
                       onSetColor={(color) => setGroupColor(group.id, color)}
                       onMerge={(targetId) => {
                         void mergeGroups(group.id, targetId).catch(() =>
-                          showToast({ key: 'groupOperationFailed', type: 'error' })
-                        )
-                      }}
-                      onDissolve={() => {
-                        void dissolveGroup(group.id).catch(() =>
                           showToast({ key: 'groupOperationFailed', type: 'error' })
                         )
                       }}

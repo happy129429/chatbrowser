@@ -17,7 +17,7 @@ Open **https://happy129429.github.io/chatbrowser/** — nothing to install.
 
 ## Quick start
 
-1. **Import**: drop an export file onto the welcome screen, or use "Open archive" / Settings → Data
+1. **Import**: drop an export file onto the welcome screen, or use "Import archive" / Settings → Data
 2. **Browse**: pick a conversation on the left; use the round navigator to jump, the reading position is remembered
 3. **Organize**: the conversation `…` menu renames/pins/shares/exports; the group header menu colors, merges and shows "Archive notes"
 4. **Search**: top-right search or `Ctrl/⌘ K`, then click a result to jump
@@ -103,9 +103,9 @@ DeepSeek is the upstream project's native format and the base for this app's arc
 - Full rendering: Markdown, code highlighting, KaTeX, Mermaid, reasoning timeline, web search sources, message branches and attachments
 - External conversation summaries (Claude `summary`) appear as a collapsible panel; attachments without originals show name/type
 - Safety-refused replies show only the notice by default; in the archive you can use "Show original content" to reveal the reasoning and text that were sent
-- Archive groups: rename, color, collapse, move sessions, merge, dissolve, export as ZIP, delete; ungrouped sessions live in a protected Default group (rename/color/export allowed, merge/dissolve/delete disabled)
+- Archive groups: rename, color, collapse, move sessions, merge (including into the Default group), export as ZIP, delete; Settings → Data can batch-merge, export, color or delete selected groups and create empty groups; ungrouped sessions live in a protected Default group (rename/color/export allowed, merge-source/delete disabled)
 - Global search with highlighted excerpts and jump-to-message; cached index per data version
-- Export as…: groups or single conversations to AI Assistant-compatible ZIP, AI Assistant extended ZIP (sidecar keeps system prompts, summaries, group info, citations and thinking state), or Claude JSON (thinking/citations/attachment metadata); includes an option to anonymize IDs
+- Export as…: groups or single conversations to DeepSeek-compatible ZIP, Chat Browser extended ZIP (sidecar keeps system prompts, summaries, group info, citations and thinking state), or Claude JSON (thinking/citations/attachment metadata); includes an option to anonymize IDs
 - Round-level export: self-contained HTML (MathML, Prism, sources) or Markdown
 - Round navigation, scroll restoration, session restore, read-aloud, token/round statistics
 - Chinese/English UI (follows the browser by default), light/dark themes, mobile layout

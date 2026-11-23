@@ -2,6 +2,7 @@ import { formatDate } from '../../utils/format.js'
 import { createId } from '../../utils/id.js'
 import * as db from './db.js'
 import { addHistoryGroup, clearAllHistory, useChatStore } from './store.js'
+import { mergeGroupExtras } from './groupExtras.js'
 import type { Session, SessionGroup, SessionSummary } from './types.js'
 import { BackupError } from './history/errors.js'
 
@@ -74,6 +75,45 @@ export const exportGroupArchive = (
     }
   })
 
+/** 合并多个组为虚拟组后导出；不修改原组。 */
+export const exportMergedGroupsArchive = (
+  groupIds: string[],
+  options: { name: string; extended?: boolean; anonymize?: boolean }
+): Promise<{ name: string; blob: Blob }> =>
+  enqueueBackup(async () => {
+    const { sessions, groups } = useChatStore.getState()
+    const idSet = new Set(groupIds)
+    const selected = groups.filter((group) => idSet.has(group.id))
+    const list = sessions.filter(
+      (session) => session.groupId !== null && idSet.has(session.groupId)
+    )
+    if (selected.length === 0) {
+      throw new Error('Archive groups are missing')
+    }
+    if (list.length === 0) {
+      throw new Error('Archive groups are empty')
+    }
+    const extras = mergeGroupExtras(null, selected)
+    const virtualGroup: SessionGroup = {
+      id: 'merged-export',
+      name: options.name.trim() || 'merged-export',
+      color: null,
+      sourceName: '',
+      createdAt: Date.now(),
+      ...(extras.length > 0 ? { extras } : {}),
+    }
+    const { exportArchive } = await import('./history/exportArchive.js')
+    const blob = await exportArchive(sessionReader(list)(), {
+      extended: options.extended,
+      anonymize: options.anonymize,
+      group: virtualGroup,
+    })
+    return {
+      name: `${downloadName(virtualGroup.name)}${options.extended ? '-ext' : ''}.zip`,
+      blob,
+    }
+  })
+
 /** 导出单个会话为归档 ZIP；扩展模式附带系统提示词。 */
 export const exportSessionArchive = (
   sessionId: string,
@@ -104,12 +144,26 @@ export const exportSessionArchive = (
 /** 导出为 Claude conversations.json（有损：仅当前分支的文本内容）。 */
 export const exportClaudeJson = (target: {
   groupId?: string
+  groupIds?: string[]
+  name?: string
   sessionId?: string
   anonymize?: boolean
 }): Promise<{ name: string; blob: Blob }> =>
   enqueueBackup(async () => {
     const { sessions, groups, sessionCache } = useChatStore.getState()
     const { exportClaudeJson: toClaude } = await import('./converters/claude.js')
+    if (target.groupIds && target.groupIds.length > 0) {
+      const idSet = new Set(target.groupIds)
+      const list = sessions.filter(
+        (session) => session.groupId !== null && idSet.has(session.groupId)
+      )
+      if (list.length === 0) {
+        throw new Error('Archive groups are empty')
+      }
+      const blob = await toClaude(sessionReader(list)(), { anonymize: target.anonymize })
+      const name = target.name?.trim() || 'merged-export'
+      return { name: `${downloadName(name)}-claude.json`, blob }
+    }
     if (target.groupId) {
       const group = groups.find((item) => item.id === target.groupId)
       const list = sessions.filter((session) => session.groupId === target.groupId)
