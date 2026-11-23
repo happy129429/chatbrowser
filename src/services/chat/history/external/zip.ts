@@ -1,9 +1,9 @@
 import type { Session } from '../../types.js'
 import { BackupError } from '../errors.js'
-import { ArchiveError, isZipFile, readArchive, readEntry } from '../zipReader.js'
+import { ArchiveError, isZipFile, readArchive, readEntry, skipEntry } from '../zipReader.js'
 import { detectExternalSource, type GroupExtra } from './common.js'
 import { externalToSessions } from './dispatch.js'
-import { extrasFromJsonFile } from './extras.js'
+import { extrasFromJsonFile, isIgnoredExternalFile } from './extras.js'
 
 export type ExternalZipResult = { sessions: Session[]; extras: GroupExtra[] }
 
@@ -21,6 +21,10 @@ export const externalSessionsFromZip = async (
     for await (const entry of readArchive(file)) {
       const lower = entry.path.toLowerCase()
       if (!lower.endsWith('.json')) {
+        continue
+      }
+      if (isIgnoredExternalFile(entry.path)) {
+        await skipEntry(entry)
         continue
       }
       // DeepSeek 归档的会话文件与索引不参与外部格式识别

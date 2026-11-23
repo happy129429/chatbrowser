@@ -1,7 +1,51 @@
 import { record, type GroupExtra, type Loose } from './common.js'
 
+/** Claude 账号导出中的个人数据文件：不解析、不导入。 */
+export const isIgnoredExternalFile = (name: string) =>
+  /^(?:login_history|users)(?:-\d+)?\.json$/i.test(name.replace(/\\/g, '/').split('/').pop() ?? '')
+
+/** Claude memories/<account_uuid>.json：只取顶层记忆文本，不保存 UUID 或文件路径。 */
+const isClaudeMemoryFile = (name: string) => {
+  const lower = name.replace(/\\/g, '/').toLowerCase()
+  return /(^|\/)memories\/[^/]+\.json$/.test(lower) || /(^|\/)memories(?:-\d+)?\.json$/.test(lower)
+}
+
+const memoryText = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+  return value === null || value === undefined ? '' : JSON.stringify(value, null, 2)
+}
+
+const claudeMemoryExtras = (parsed: unknown): GroupExtra[] => {
+  const memory = record(parsed)
+  if (!memory) {
+    return []
+  }
+  const extras: GroupExtra[] = []
+  const conversations = memoryText(memory.conversations_memory)
+  if (conversations) {
+    extras.push({ title: 'Claude 记忆', content: conversations })
+  }
+  const files = Array.isArray(memory.memory_files) ? memory.memory_files : []
+  files.forEach((item, index) => {
+    const file = record(item)
+    const content = memoryText(file?.content)
+    if (content) {
+      extras.push({ title: `Claude 记忆文件 ${index + 1}`, content })
+    }
+  })
+  return extras
+}
+
 /** 从 ChatGPT 的 user.json / Claude 的 projects.json 中提取账号级附加信息。 */
 export const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] => {
+  if (isIgnoredExternalFile(name)) {
+    return []
+  }
+  if (isClaudeMemoryFile(name)) {
+    return claudeMemoryExtras(parsed)
+  }
   const lower = name.toLowerCase()
   const extras: GroupExtra[] = []
   if (lower.endsWith('user.json')) {
@@ -76,37 +120,6 @@ export const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] 
           content: docNames.map((doc) => `- ${doc}`).join('\n'),
         })
       }
-    }
-  }
-  if (lower.endsWith('users.json')) {
-    const wrapper = record(parsed)
-    const list = Array.isArray(parsed)
-      ? parsed
-      : Array.isArray(wrapper?.users)
-        ? wrapper.users
-        : wrapper
-          ? [wrapper]
-          : []
-    const memories = new Set<string>()
-    for (const item of list) {
-      const user = record(item)
-      if (!user) {
-        continue
-      }
-      for (const value of [
-        ...(Array.isArray(user.memories) ? user.memories : []),
-        ...(Array.isArray(user.memory) ? user.memory : []),
-      ]) {
-        if (typeof value === 'string' && value.trim()) {
-          memories.add(value.trim())
-        }
-      }
-    }
-    if (memories.size > 0) {
-      extras.push({
-        title: '记忆',
-        content: [...memories].map((item) => `- ${item}`).join('\n'),
-      })
     }
   }
   // 暂未结构化解析的元数据（memories / light_metadata 等）先原样保留

@@ -411,7 +411,14 @@ check(
     claudeExtrasItem === 'ok' &&
     claudeExtrasText.includes('项目：论文项目') &&
     claudeExtrasText.includes('学术写作助手') &&
-    claudeExtrasText.includes('写作规范.md'),
+    claudeExtrasText.includes('写作规范.md') &&
+    claudeExtrasText.includes('Claude 记忆') &&
+    claudeExtrasText.includes('MEMORY_CONVERSATIONS_CONTENT') &&
+    claudeExtrasText.includes('MEMORY_FILE_CONTENT') &&
+    !claudeExtrasText.includes('PRIVATE_USERS_MEMORY') &&
+    !claudeExtrasText.includes('PRIVATE_LOGIN_IP') &&
+    !claudeExtrasText.includes('PRIVATE_MEMORY_PATH') &&
+    !claudeExtrasText.includes('00000000-0000-4000-8000-000000000099'),
   `${claudeMenuOpened} | ${claudeExtrasItem} | ${claudeExtrasText.slice(0, 40)}`
 )
 await send('Input.dispatchKeyEvent', {
@@ -635,7 +642,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.7') &&
+  aboutText.includes('0.7.8') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

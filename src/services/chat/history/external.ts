@@ -2,6 +2,7 @@ export type { ExternalSource, GroupExtra, ExternalZipResult } from './external/i
 export {
   detectExternalSource,
   extrasFromJsonFile,
+  isIgnoredExternalFile,
   externalSessionsFromZip,
   externalToSessions,
 } from './external/index.js'

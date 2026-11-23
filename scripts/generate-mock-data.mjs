@@ -828,6 +828,21 @@ writeFileSync(
         ],
       })
     ),
+    'users.json': strToU8(
+      JSON.stringify({
+        users: [{ uuid: 'user-1', memories: ['PRIVATE_USERS_MEMORY'] }],
+      })
+    ),
+    'login_history.json': strToU8(JSON.stringify([{ uuid: 'login-1', ip: 'PRIVATE_LOGIN_IP' }])),
+    'memories/00000000-0000-4000-8000-000000000099.json': strToU8(
+      JSON.stringify({
+        conversations_memory: 'MEMORY_CONVERSATIONS_CONTENT',
+        memory_files: [
+          { path: 'PRIVATE_MEMORY_PATH', content: 'MEMORY_FILE_CONTENT', updated_at: null },
+        ],
+        account_uuid: '00000000-0000-4000-8000-000000000099',
+      })
+    ),
   })
 )
 const zai = {

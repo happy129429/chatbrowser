@@ -84,13 +84,13 @@ location /chatbrowser/ {
 
 ## 导入格式与支持程度
 
-| 格式                                           | 支持程度                     | 能保留的内容                                                                                  |
-| ---------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------- |
-| **DeepSeek 导出 ZIP**（`deepseek_data-*.zip`） | **最完整**（与上游项目同源） | 分支树、思考、工具步骤、联网搜索与来源、图片原件、token 用量                                  |
-| ChatGPT 导出（ZIP/JSON）                       | 兼容导入                     | 当前分支、系统提示词、记忆/自定义指令；无工具步骤与图片原件                                   |
-| Claude 导出（ZIP/JSON）                        | 兼容导入                     | 会话摘要、原始消息 UUID/parent 链、思考块（含截断/隐藏/签名）、引用来源、附件文件名（无原件） |
-| z.ai / OpenWebUI 原生导出                      | 兼容导入                     | `chat.history.messages` 对象树 + `currentId`，按当前分支导入；受导出端限制可能缺正文          |
-| `turn_history` 单会话封装                      | 兼容导入                     | `session_metadata` / `global_context` 系统指令                                                |
+| 格式                                           | 支持程度                     | 能保留的内容                                                                                                                                                                                                 |
+| ---------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **DeepSeek 导出 ZIP**（`deepseek_data-*.zip`） | **最完整**（与上游项目同源） | 分支树、思考、工具步骤、联网搜索与来源、图片原件、token 用量                                                                                                                                                 |
+| ChatGPT 导出（ZIP/JSON）                       | 兼容导入                     | 当前分支、系统提示词、记忆/自定义指令；无工具步骤与图片原件                                                                                                                                                  |
+| Claude 导出（ZIP/JSON）                        | 兼容导入                     | 会话摘要、原始消息 UUID/parent 链、思考块（含截断/隐藏/签名）、引用来源、附件文件名（无原件）；`memories/<uuid>.json` 的顶层记忆进入组附加信息（不保存 UUID/路径）；忽略 `users.json` / `login_history.json` |
+| z.ai / OpenWebUI 原生导出                      | 兼容导入                     | `chat.history.messages` 对象树 + `currentId`，按当前分支导入；受导出端限制可能缺正文                                                                                                                         |
+| `turn_history` 单会话封装（样本身份未验证）    | 尽力兼容                     | `session_metadata` / `global_context` 系统指令；样本可能含合成字段，不作为 Claude 官方格式                                                                                                                   |
 
 DeepSeek 是上游项目的原生格式，也是本应用归档与转换的基础，因此支持最完整；其它格式的目标是「尽量不丢信息地迁入」，受各自导出内容限制，部分字段只能丢弃或保留元数据。
 
@@ -158,15 +158,15 @@ pnpm build        # 静态站点 → dist/
 pnpm type && pnpm lint && pnpm e2e
 ```
 
-| 命令                                 | 说明                                                             |
-| ------------------------------------ | ---------------------------------------------------------------- |
-| `pnpm mock`                          | 生成 mock 归档与外部格式样例                                     |
-| `pnpm e2e`                           | 无头冒烟测试（需 Chrome）                                        |
-| `pnpm shots`                         | 重新生成 README 截图（需 dev server 在 8090）                    |
-| `python3 scripts/sanitize-export.py` | 确定性脱敏导出 JSON（保持结构/类型，`--drop-keys` 去掉可疑字段） |
-| `pnpm icons`                         | 从 `assets/icon.svg` 生成各平台图标                              |
-| `pnpm desktop`                       | 构建 Windows/Linux 启动器 → `release/desktop`                    |
-| `pnpm android:apk`                   | 构建 debug APK                                                   |
+| 命令                                 | 说明                                                                             |
+| ------------------------------------ | -------------------------------------------------------------------------------- |
+| `pnpm mock`                          | 生成 mock 归档与外部格式样例                                                     |
+| `pnpm e2e`                           | 无头冒烟测试（需 Chrome）                                                        |
+| `pnpm shots`                         | 重新生成 README 截图（需 dev server 在 8090）                                    |
+| `python3 scripts/sanitize-export.py` | 确定性脱敏导出 JSON（保持结构/类型与 UUID 前缀关系，`--drop-keys` 去掉可疑字段） |
+| `pnpm icons`                         | 从 `assets/icon.svg` 生成各平台图标                                              |
+| `pnpm desktop`                       | 构建 Windows/Linux 启动器 → `release/desktop`                                    |
+| `pnpm android:apk`                   | 构建 debug APK                                                                   |
 
 目录结构：
 

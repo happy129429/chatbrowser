@@ -349,10 +349,14 @@ const importArchiveBatch = (files: File[]): Promise<number> =>
       externalToSessions,
       detectExternalSource,
       extrasFromJsonFile,
+      isIgnoredExternalFile,
     } = await import('./history/external.js')
     const sessions = new Map<string, Session>()
     const extras: { title: string; content: string }[] = []
     for (const file of files) {
+      if (isIgnoredExternalFile(file.name)) {
+        continue
+      }
       try {
         if (/\.json$/i.test(file.name)) {
           const parsed = JSON.parse(await file.text()) as unknown

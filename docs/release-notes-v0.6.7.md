@@ -21,3 +21,7 @@
 e05bcc8a59e73294186b98da1ced1fddaee7ad5bda7e936b9d69255db2f049b6  linux-x64.tar.gz
 c65dcf91c33ba405a622c0dfcc3c16c8b8bb6fd37574f40c14146f2f5b6fb61b  chatbrowser-android-debug.apk
 ```
+
+## 后续复核
+
+`turn_history` 样本的身份与字段未独立验证，可能包含小模型生成的合成字段（例如 `user_profile_mock`、`system_prompt_applied`）。本条仅保留为 best-effort 兼容导入，不作为 Claude 官方导出格式的依据。

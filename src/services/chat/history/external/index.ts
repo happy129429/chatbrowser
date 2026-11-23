@@ -1,5 +1,5 @@
 export type { ExternalSource, GroupExtra } from './common.js'
 export { detectExternalSource } from './common.js'
-export { extrasFromJsonFile } from './extras.js'
+export { extrasFromJsonFile, isIgnoredExternalFile } from './extras.js'
 export { externalSessionsFromZip, type ExternalZipResult } from './zip.js'
 export { externalToSessions } from './dispatch.js'

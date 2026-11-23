@@ -4,7 +4,8 @@
 - keeps keys, types, array lengths and enum-like structural values
 - replaces text/content/names/summaries/URLs/emails with placeholders
 - remaps timestamps while preserving ordering and deltas
-- remaps UUID-like ids consistently across all input files
+- remaps UUID-like ids consistently across all input files and preserves prefix
+  relations (Claude parent_message_uuid may be a truncated prefix)
 - never adds or removes fields; validates the shape afterwards
 
 Usage:
@@ -61,6 +62,23 @@ ID_KEYS = {
     "folder_id",
     "tool_use_id",
     "message_id",
+    "entity_id",
+    "occurrence_id",
+}
+# These keys normally hold a complete id. Parent/current pointers may be prefixes.
+FULL_ID_KEYS = {
+    "id",
+    "uuid",
+    "conversation_id",
+    "file_uuid",
+    "user_id",
+    "account_id",
+    "project_id",
+    "workspace_id",
+    "share_id",
+    "folder_id",
+    "message_id",
+    "entity_id",
 }
 TIME_KEYS = {
     "timestamp",
@@ -91,6 +109,9 @@ class Sanitizer:
         self.next_text = 1
         self.next_id = 1
         self.next_file = 1
+        self.full_ids: set[str] = set()
+        self.full_id_map: dict[str, str] = {}
+        self.used_id_prefixes: set[str] = set()
 
     def text(self, value: str) -> str:
         if value not in self.text_map:
@@ -98,12 +119,49 @@ class Sanitizer:
             self.next_text += 1
         return self.text_map[value]
 
+    def register_ids(self, value, key=None) -> None:
+        """Collect full ids before sanitizing so parent prefixes can be mapped."""
+        if isinstance(value, dict):
+            for child_key, child in value.items():
+                self.register_ids(child, child_key)
+        elif isinstance(value, list):
+            for child in value:
+                self.register_ids(child, key)
+        elif isinstance(value, str) and key in FULL_ID_KEYS and value != ROOT_UUID:
+            self.full_ids.add(value)
+
+    def _synthetic_uuid(self, value: str) -> str:
+        attempt = 0
+        while True:
+            digest = hashlib.sha256(f"chatbrowser:{value}:{attempt}".encode("utf-8")).hexdigest()
+            candidate = f"{digest[:8]}-{digest[8:12]}-{digest[12:16]}-{digest[16:20]}-{digest[20:32]}"
+            prefix = candidate[:16]
+            if prefix not in self.used_id_prefixes:
+                self.used_id_prefixes.add(prefix)
+                return candidate
+            attempt += 1
+
+    def prepare_ids(self) -> None:
+        for value in sorted(self.full_ids):
+            self.full_id_map[value] = self._synthetic_uuid(value)
+
     def ident(self, value: str) -> str:
         if value == ROOT_UUID:
             return value
-        if value not in self.id_map:
-            self.id_map[value] = f"00000000-0000-4000-8000-{self.next_id:012d}"
-            self.next_id += 1
+        if value in self.id_map:
+            return self.id_map[value]
+        if value in self.full_id_map:
+            self.id_map[value] = self.full_id_map[value]
+            return self.id_map[value]
+        # A parent/current pointer may be a truncated prefix. Map it to the
+        # matching prefix of the synthetic full UUID, not to a separate id.
+        if len(value) >= 8:
+            matches = sorted(full for full in self.full_id_map if full.startswith(value))
+            if len(matches) == 1:
+                mapped = self.full_id_map[matches[0]][: len(value)]
+                self.id_map[value] = mapped
+                return mapped
+        self.id_map[value] = self._synthetic_uuid(value)
         return self.id_map[value]
 
     def file_name(self, value: str) -> str:
@@ -214,8 +272,14 @@ def main():
             return [drop(v) for v in value]
         return value
 
-    for source in args.inputs:
-        original = drop(json.loads(source.read_text(encoding="utf-8")))
+    originals = {
+        source: drop(json.loads(source.read_text(encoding="utf-8"))) for source in args.inputs
+    }
+    for original in originals.values():
+        sanitizer.register_ids(original)
+    sanitizer.prepare_ids()
+
+    for source, original in originals.items():
         cleaned = sanitizer.value(original)
         if shape(original) != shape(cleaned):
             print(f"shape mismatch after sanitizing {source}", file=sys.stderr)

@@ -84,13 +84,13 @@ location /chatbrowser/ {
 
 ## Import formats and support level
 
-| Format                                          | Support                                                 | What is preserved                                                                                                                                      |
-| ----------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **DeepSeek export ZIP** (`deepseek_data-*.zip`) | **Most complete** (same origin as the upstream project) | Branch tree, reasoning, tool steps, web search sources, original images, token usage                                                                   |
-| ChatGPT export (ZIP/JSON)                       | Compatibility import                                    | Active branch, system prompts, memories/custom instructions; no tool steps or original images                                                          |
-| Claude export (ZIP/JSON)                        | Compatibility import                                    | Conversation summary, original message UUID/parent chain, thinking blocks (truncated/hidden/signature), citations, attachment filenames (no originals) |
-| z.ai / OpenWebUI native exports                 | Compatibility import                                    | `chat.history.messages` object tree + `currentId`, imports the active branch; content may be missing in the vendor export                              |
-| `turn_history` envelopes                        | Compatibility import                                    | `session_metadata` / `global_context` system instructions                                                                                              |
+| Format                                          | Support                                                 | What is preserved                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DeepSeek export ZIP** (`deepseek_data-*.zip`) | **Most complete** (same origin as the upstream project) | Branch tree, reasoning, tool steps, web search sources, original images, token usage                                                                                                                                                                                                            |
+| ChatGPT export (ZIP/JSON)                       | Compatibility import                                    | Active branch, system prompts, memories/custom instructions; no tool steps or original images                                                                                                                                                                                                   |
+| Claude export (ZIP/JSON)                        | Compatibility import                                    | Conversation summary, original message UUID/parent chain, thinking blocks (truncated/hidden/signature), citations, attachment filenames (no originals); top-level memory from `memories/<uuid>.json` becomes group notes without the UUID/path; `users.json` / `login_history.json` are ignored |
+| z.ai / OpenWebUI native exports                 | Compatibility import                                    | `chat.history.messages` object tree + `currentId`, imports the active branch; content may be missing in the vendor export                                                                                                                                                                       |
+| `turn_history` envelopes (unverified sample)    | Best-effort import                                      | `session_metadata` / `global_context`; the sample may contain synthetic fields and is not treated as an official Claude format                                                                                                                                                                  |
 
 DeepSeek is the upstream project's native format and the base for this app's archive and conversion pipeline, so it has the most complete support. Other formats aim to migrate without losing information where possible; depending on what each vendor exports, some fields can only be dropped or kept as metadata.
 
@@ -158,15 +158,15 @@ pnpm build        # static site → dist/
 pnpm type && pnpm lint && pnpm e2e
 ```
 
-| Command                              | Purpose                                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `pnpm mock`                          | Generate mock archives and external samples                                                |
-| `pnpm e2e`                           | Headless smoke tests (Chrome required)                                                     |
-| `pnpm shots`                         | Regenerate README screenshots (dev server on 8090)                                         |
-| `python3 scripts/sanitize-export.py` | Deterministic export sanitizer (same shape/types; `--drop-keys` removes suspicious fields) |
-| `pnpm icons`                         | Generate platform icons from `assets/icon.svg`                                             |
-| `pnpm desktop`                       | Build Windows/Linux launchers → `release/desktop`                                          |
-| `pnpm android:apk`                   | Build the debug APK                                                                        |
+| Command                              | Purpose                                                                                                              |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `pnpm mock`                          | Generate mock archives and external samples                                                                          |
+| `pnpm e2e`                           | Headless smoke tests (Chrome required)                                                                               |
+| `pnpm shots`                         | Regenerate README screenshots (dev server on 8090)                                                                   |
+| `python3 scripts/sanitize-export.py` | Deterministic export sanitizer (same shape/types and UUID prefix relations; `--drop-keys` removes suspicious fields) |
+| `pnpm icons`                         | Generate platform icons from `assets/icon.svg`                                                                       |
+| `pnpm desktop`                       | Build Windows/Linux launchers → `release/desktop`                                                                    |
+| `pnpm android:apk`                   | Build the debug APK                                                                                                  |
 
 See [docs/release-checklist.md](docs/release-checklist.md) for the release process; the archived native-shell proposal lives in [docs/technical-outlook.md](docs/technical-outlook.md).
 
