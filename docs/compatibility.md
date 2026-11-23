@@ -1,3 +1,5 @@
+[中文](compatibility.zh-CN.md)
+
 # Compatibility policy
 
 This project is an unofficial local archive browser. It reads chat exports that

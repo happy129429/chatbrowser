@@ -146,7 +146,7 @@ DeepSeek 是上游项目的原生格式，也是本应用归档与转换的基�
 - 请仅导入你本人有权处理的数据。导入他人的对话可能涉及他人隐私，需自行确认授权
 - 桌面构建未签名，可能被 SmartScreen/Defender 拦截；请只从本仓库的 Release 或源码构建获取
 - 本项目为非官方项目，与 DeepSeek、Anthropic、OpenAI、智谱等公司**无关联、未获背书**
-- 兼容实现与第三方代码边界见 [`docs/compatibility.md`](docs/compatibility.md)
+- 兼容实现与第三方代码边界见 [`docs/compatibility.zh-CN.md`](docs/compatibility.zh-CN.md)
 
 ## 商标
 
