@@ -28,6 +28,7 @@ import {
   type ThemePreference,
 } from '../../services/settings.js'
 import { useTranslate, type TranslationKey, type TranslationMessage } from '../../i18n/index.js'
+import { importFormatKey } from '../../services/chat/importFormat.js'
 import { collectChatStats, type ChatStats } from '../../services/chat/stats.js'
 import { quitLauncher, isLauncherOrigin } from '../../services/launcher.js'
 import {
@@ -679,6 +680,7 @@ const SettingCell = ({
 
 /** 选文件后直接增量导入为归档组；任何错误都提示导入失败及原因。 */
 const useHistoryImport = () => {
+  const t = useTranslate()
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<Status>(null)
   const importing = useRef(false)
@@ -695,8 +697,23 @@ const useHistoryImport = () => {
       if (outcome?.error) {
         throw outcome.error
       }
+      if (outcome?.empty) {
+        setStatus({ key: 'historyImportEmpty' })
+        return
+      }
       const count = outcome?.sessions ?? 0
-      setStatus({ key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } })
+      const format = outcome?.format ? t(importFormatKey(outcome.format)) : ''
+      const lossy = outcome?.warnings.some((warning) => warning.code === 'lossyImport')
+        ? t('historyImportLossySuffix')
+        : ''
+      setStatus(
+        format
+          ? {
+              key: count === 1 ? 'historyImportedFormatOne' : 'historyImportedFormat',
+              params: { count, format, lossy },
+            }
+          : { key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } }
+      )
     } catch (error) {
       setStatus(
         error instanceof BackupError

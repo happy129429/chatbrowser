@@ -6,6 +6,14 @@ import { mergeGroupExtras } from './groupExtras.js'
 import type { ExportFormat, ExportMode } from './exportTypes.js'
 import type { Session, SessionGroup, SessionSummary } from './types.js'
 import { BackupError } from './history/errors.js'
+import { resolveArchiveBatches, type ArchiveBatch } from './history/external/batch.js'
+import type {
+  ExternalSource,
+  ExternalZipResult,
+  GroupExtra,
+  ImportFormatId,
+  ImportWarning,
+} from './history/external.js'
 
 export { BackupError } from './history/errors.js'
 
@@ -245,8 +253,44 @@ export const exportGroupSelection = async (
 /** 组名取自 ZIP 文件名（去掉扩展名）。 */
 const groupName = (fileName: string) => fileName.replace(/\.zip$/i, '') || fileName
 
-/** 导入单个 ZIP 为一个新归档组；支持 DeepSeek 归档与「ZIP 包里装 JSON」的 ChatGPT / Claude 导出。 */
-export const importArchiveFile = (file: File): Promise<number> =>
+type ImportOperationResult = {
+  sessions: number
+  format: ImportFormatId | null
+  warnings: ImportWarning[]
+  extras: number
+  empty?: boolean
+}
+
+const emptyImport = (warnings: ImportWarning[]): ImportOperationResult => ({
+  sessions: 0,
+  format: null,
+  warnings,
+  extras: 0,
+  empty: true,
+})
+
+const commitExternalGroup = async (
+  group: SessionGroup,
+  external: ExternalZipResult
+): Promise<ImportOperationResult> => {
+  if (external.extras.length > 0) {
+    group.extras = external.extras
+  }
+  const sessions = await addHistoryGroup(group, async () => {
+    for (const session of external.sessions) {
+      await db.addStagingSession(session)
+    }
+  })
+  return {
+    sessions,
+    format: external.format,
+    warnings: external.warnings,
+    extras: external.extras.length,
+  }
+}
+
+/** 导入单个 ZIP 为一个新归档组；支持 DeepSeek 归档与「ZIP 包里装 JSON」的外部导出。 */
+export const importArchiveFile = (file: File): Promise<ImportOperationResult> =>
   enqueueBackup(async () => {
     const group: SessionGroup = {
       id: createId(),
@@ -255,18 +299,13 @@ export const importArchiveFile = (file: File): Promise<number> =>
       sourceName: file.name,
       createdAt: Date.now(),
     }
-    // 先探测 ZIP 内是否含 ChatGPT / Claude 的 conversations JSON
     const { externalSessionsFromZip } = await import('./history/external.js')
     const external = await externalSessionsFromZip(file, group.id)
+    if (external?.ignoredOnly) {
+      return emptyImport(external.warnings)
+    }
     if (external && (external.sessions.length > 0 || external.extras.length > 0)) {
-      if (external.extras.length > 0) {
-        group.extras = external.extras
-      }
-      return addHistoryGroup(group, async () => {
-        for (const session of external.sessions) {
-          await db.addStagingSession(session)
-        }
-      })
+      return commitExternalGroup(group, external)
     }
     const { readArchiveExtension } = await import('./history/extension.js')
     const extension = await readArchiveExtension(file)
@@ -283,23 +322,32 @@ export const importArchiveFile = (file: File): Promise<number> =>
     }
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
     await checkArchiveFormat(file)
-    return addHistoryGroup(group, () => importArchive(file, group.id, extension))
+    const sessions = await addHistoryGroup(group, () => importArchive(file, group.id, extension))
+    return {
+      sessions,
+      format: 'deepseek',
+      warnings: [],
+      extras: group.extras?.length ?? 0,
+    }
   })
 
-/** 是否外部格式（ChatGPT / Claude 的 JSON 导出） */
+/** 是否外部格式（ChatGPT / Claude / z.ai 的 JSON 导出） */
 const isExternalJson = (file: File) =>
   /\.json$/i.test(file.name) || file.type === 'application/json'
 
-/** 导入 ChatGPT / Claude 导出的 JSON 为一个归档组。返回导入的会话数。 */
-export const importExternalFile = (file: File): Promise<number> =>
+/** 导入外部 JSON 为一个归档组；个人数据文件返回 empty。 */
+export const importExternalFile = (file: File): Promise<ImportOperationResult> =>
   enqueueBackup(async () => {
+    const { importExternalPayload, isPersonalExternalFile } = await import('./history/external.js')
+    if (isPersonalExternalFile(file.name)) {
+      return emptyImport([{ code: 'noContent', severity: 'info' }])
+    }
     let parsed: unknown
     try {
       parsed = JSON.parse(await file.text())
     } catch {
       throw new BackupError('backupInvalidJson')
     }
-    const { externalToSessions } = await import('./history/external.js')
     const group: SessionGroup = {
       id: createId(),
       name: groupName(file.name.replace(/\.json$/i, '') || file.name),
@@ -307,72 +355,74 @@ export const importExternalFile = (file: File): Promise<number> =>
       sourceName: file.name,
       createdAt: Date.now(),
     }
-    return addHistoryGroup(group, async () => {
-      const sessions = externalToSessions(parsed, group.id)
-      for (const session of sessions) {
-        await db.addStagingSession(session)
-      }
+    const bundle = importExternalPayload(file.name, parsed, group.id)
+    return commitExternalGroup(group, {
+      sessions: bundle.sessions,
+      extras: bundle.extras,
+      warnings: bundle.warnings,
+      format:
+        bundle.format && bundle.format !== 'deepseek' && bundle.format !== 'privacy'
+          ? bundle.format
+          : null,
     })
   })
 
-/** 同一次导出的分卷文件模式（Anthropic 等） */
-const PART_FILE = /^(conversations|projects|users|memories|light_metadata)(-\d+)?\.(zip|json)$/i
-
 /** 当用户一次选中同一导出的多个分卷时，合并为一个组；其它情况一个文件一个组。 */
-export const groupArchiveFiles = (files: File[]): File[][] => {
-  if (files.length > 1 && files.every((file) => PART_FILE.test(file.name))) {
-    return [files]
-  }
-  return files.map((file) => [file])
-}
-
-const batchName = (files: File[]) => {
-  const first = files.find(
-    (file) => PART_FILE.exec(file.name)?.[1]?.toLowerCase() === 'conversations'
-  )
-  const kind = PART_FILE.exec((first ?? files[0]).name)?.[1]?.toLowerCase()
-  return kind ? `${kind}-export` : 'imported-export'
-}
+export const groupArchiveFiles = (files: File[]): File[][] =>
+  resolveArchiveBatches(files).map((batch) => batch.files)
 
 /** 多个分卷导入为同一个归档组；会话按 ID 去重，附加信息合并。 */
-const importArchiveBatch = (files: File[]): Promise<number> =>
+const importArchiveBatch = (batch: ArchiveBatch): Promise<ImportOperationResult> =>
   enqueueBackup(async () => {
     const group: SessionGroup = {
       id: createId(),
-      name: batchName(files),
+      name: batch.name ?? groupName(batch.files[0].name),
       color: null,
-      sourceName: files.map((file) => file.name).join(', '),
+      sourceName: batch.context.sourceName,
       createdAt: Date.now(),
     }
-    const {
-      externalSessionsFromZip,
-      externalToSessions,
-      detectExternalSource,
-      extrasFromJsonFile,
-      isIgnoredExternalFile,
-    } = await import('./history/external.js')
+    const { externalSessionsFromZip, importExternalPayload, isPersonalExternalFile } =
+      await import('./history/external.js')
     const sessions = new Map<string, Session>()
-    const extras: { title: string; content: string }[] = []
-    for (const file of files) {
-      if (isIgnoredExternalFile(file.name)) {
+    const extras: GroupExtra[] = []
+    const warnings = new Map<string, ImportWarning>()
+    const formats: ExternalSource[] = []
+    let sawPersonal = false
+
+    const addBundle = (bundle: ExternalZipResult) => {
+      for (const session of bundle.sessions) {
+        sessions.set(session.id, session)
+      }
+      extras.push(...bundle.extras)
+      for (const warning of bundle.warnings) {
+        warnings.set(`${warning.code}:${JSON.stringify(warning.params ?? {})}`, warning)
+      }
+      if (bundle.format && !formats.includes(bundle.format)) {
+        formats.push(bundle.format)
+      }
+    }
+
+    for (const file of batch.files) {
+      if (isPersonalExternalFile(file.name)) {
+        sawPersonal = true
         continue
       }
       try {
         if (/\.json$/i.test(file.name)) {
           const parsed = JSON.parse(await file.text()) as unknown
-          if (detectExternalSource(parsed)) {
-            for (const session of externalToSessions(parsed, group.id)) {
-              sessions.set(session.id, session)
-            }
-          }
-          extras.push(...extrasFromJsonFile(file.name, parsed))
+          const bundle = importExternalPayload(file.name, parsed, group.id)
+          addBundle({
+            sessions: bundle.sessions,
+            extras: bundle.extras,
+            warnings: bundle.warnings,
+            format: null,
+          })
         } else {
           const external = await externalSessionsFromZip(file, group.id)
-          if (external) {
-            for (const session of external.sessions) {
-              sessions.set(session.id, session)
-            }
-            extras.push(...external.extras)
+          if (external?.ignoredOnly) {
+            sawPersonal = true
+          } else if (external) {
+            addBundle(external)
           }
         }
       } catch {
@@ -383,23 +433,30 @@ const importArchiveBatch = (files: File[]): Promise<number> =>
       ...new Map(extras.map((extra) => [extra.title + '\u0000' + extra.content, extra])).values(),
     ]
     if (sessions.size === 0 && uniqueExtras.length === 0) {
+      if (sawPersonal) {
+        return emptyImport([{ code: 'noContent', severity: 'info' }])
+      }
       throw new BackupError('backupIncomplete')
     }
     if (uniqueExtras.length > 0) {
       group.extras = uniqueExtras
     }
-    return addHistoryGroup(group, async () => {
+    const count = await addHistoryGroup(group, async () => {
       for (const session of sessions.values()) {
         await db.addStagingSession(session)
       }
     })
+    return {
+      sessions: count,
+      format: formats[0] ?? null,
+      warnings: [...warnings.values()],
+      extras: uniqueExtras.length,
+    }
   })
 
 /** 依次导入多个文件（ZIP 或外部 JSON）；单个失败不影响后续文件。返回逐个文件的结果。 */
-export type ArchiveImportOutcome = {
+export type ArchiveImportOutcome = ImportOperationResult & {
   file: File
-  /** 成功导入的会话数；失败为 0 */
-  sessions: number
   error?: unknown
   /** 合并导入的分卷文件（单个文件导入时缺省） */
   batch?: File[]
@@ -407,23 +464,35 @@ export type ArchiveImportOutcome = {
 
 export const importArchiveFiles = async (files: File[]): Promise<ArchiveImportOutcome[]> => {
   const outcomes: ArchiveImportOutcome[] = []
-  for (const batch of groupArchiveFiles(files)) {
-    if (batch.length > 1) {
+  for (const batch of resolveArchiveBatches(files)) {
+    if (batch.files.length > 1) {
       try {
-        outcomes.push({ file: batch[0], sessions: await importArchiveBatch(batch), batch })
+        outcomes.push({
+          file: batch.files[0],
+          ...(await importArchiveBatch(batch)),
+          batch: batch.files,
+        })
       } catch (error) {
-        outcomes.push({ file: batch[0], sessions: 0, error, batch })
+        outcomes.push({
+          file: batch.files[0],
+          sessions: 0,
+          format: null,
+          warnings: [],
+          extras: 0,
+          error,
+          batch: batch.files,
+        })
       }
       continue
     }
-    const file = batch[0]
+    const file = batch.files[0]
     try {
-      const sessions = isExternalJson(file)
+      const result = isExternalJson(file)
         ? await importExternalFile(file)
         : await importArchiveFile(file)
-      outcomes.push({ file, sessions })
+      outcomes.push({ file, ...result })
     } catch (error) {
-      outcomes.push({ file, sessions: 0, error })
+      outcomes.push({ file, sessions: 0, format: null, warnings: [], extras: 0, error })
     }
   }
   return outcomes

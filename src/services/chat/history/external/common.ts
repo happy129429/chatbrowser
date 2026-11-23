@@ -1,7 +1,8 @@
 import { createId } from '../../../../utils/id.js'
 import type { AssistantMessage, Message, Session, UserMessage } from '../../types.js'
+import type { ExternalSource } from './models.js'
 
-export type ExternalSource = 'chatgpt' | 'claude' | 'generic' | 'openwebui' | 'turns'
+export type { ExternalSource, GroupExtra } from './models.js'
 
 export type Loose = Record<string, unknown>
 
@@ -71,49 +72,6 @@ export const toConversationList = (parsed: unknown): unknown[] | null => {
   return null
 }
 
-/**
- * 识别外部导出格式：
- * - ChatGPT：会话带 mapping 消息树
- * - Claude：chat_messages 数组
- * - 通用（含 z.ai 等）：messages 数组，元素含 role + content/text
- */
-export const detectExternalSource = (parsed: unknown): ExternalSource | null => {
-  const list = toConversationList(parsed)
-  if (!list || list.length === 0) {
-    return null
-  }
-  const first = record(list[0])
-  if (!first) {
-    return null
-  }
-  const chat = record(first.chat)
-  if (chat && record(record(chat.history)?.messages)) {
-    return 'openwebui'
-  }
-  if (record(first.mapping)) {
-    return 'chatgpt'
-  }
-  if (Array.isArray(first.chat_messages)) {
-    return 'claude'
-  }
-  if (Array.isArray(first.turn_history)) {
-    return 'turns'
-  }
-  for (const key of ['messages', 'chat_history', 'history', 'turns', 'records']) {
-    const messages = first[key]
-    if (Array.isArray(messages) && messages.length > 0) {
-      const sample = record(messages[0])
-      if (
-        sample &&
-        ('role' in sample || 'sender' in sample || 'from' in sample || 'is_user' in sample)
-      ) {
-        return 'generic'
-      }
-    }
-  }
-  return null
-}
-
 /** 通用消息内容：字符串、{parts:[...]}、[{text}] 都归并为纯文本。 */
 export const contentText = (value: unknown): string => {
   if (typeof value === 'string') {
@@ -166,8 +124,6 @@ export type Round = {
   thinking?: string
   thinkingSeconds?: number
 }
-
-export type GroupExtra = { title: string; content: string }
 
 /** 把轮次数组转为线性消息链（提问 + 回答），供查看/导出/搜索复用。 */
 export const toSession = (

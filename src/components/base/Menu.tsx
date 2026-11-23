@@ -26,7 +26,7 @@ export const Menu = ({
   // 左侧对齐并再左移 5px，让菜单文字与触发元素图标对齐
   const { anchorRef, floatingRef, position } = useAnchoredPosition<HTMLSpanElement, HTMLDivElement>(
     open,
-    { align: 'start', alignOffset: -5, offset: 4 }
+    { align: 'start', alignOffset: -5, offset: 4, maxHeight: 520 }
   )
   useDismiss(open, [anchorRef, floatingRef], close)
 

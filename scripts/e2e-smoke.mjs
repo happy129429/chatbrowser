@@ -185,6 +185,8 @@ const zaiHistoryBase64 = fs
 const claudeTurnsBase64 = fs
   .readFileSync(path.join(root, 'mock', 'claude-turns-sample.json'))
   .toString('base64')
+const chatgptUserBase64 = fs.readFileSync(path.join(root, 'mock', 'user.json')).toString('base64')
+const claudeUsersBase64 = fs.readFileSync(path.join(root, 'mock', 'users.json')).toString('base64')
 await evaluate(`(() => {
   const input = document.querySelector('input[type="file"][multiple]')
   const dt = new DataTransfer()
@@ -216,6 +218,46 @@ const hasChatGptTitle = await evaluate(
 )
 check('导入 ChatGPT(ZIP) / Claude / z.ai', withExternal === 18, `会话数=${withExternal}`)
 check('外部会话标题正确', hasChatGptTitle === true)
+
+const formatToast = await evaluate(`document.querySelector('[role="status"]')?.textContent ?? ''`)
+check(
+  '导入结果展示识别格式与有损提示',
+  formatToast.includes('ChatGPT') &&
+    formatToast.includes('Claude') &&
+    (formatToast.includes('部分字段有损') || formatToast.includes('lossy')),
+  formatToast
+)
+
+const importSingle = async (base64, name, type) => {
+  await evaluate(`(() => {
+    const input = document.querySelector('input[type="file"][multiple]')
+    const dt = new DataTransfer()
+    dt.items.add(
+      new File([Uint8Array.from(atob(${JSON.stringify(base64)}), (c) => c.charCodeAt(0))], ${JSON.stringify(name)}, { type: ${JSON.stringify(type)} })
+    )
+    input.files = dt.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    return 'ok'
+  })()`)
+  await sleep(700)
+  return evaluate(`document.querySelector('[role="status"]')?.textContent ?? ''`)
+}
+
+const chatgptUserToast = await importSingle(chatgptUserBase64, 'user.json', 'application/json')
+check(
+  'ChatGPT user.json 单独导入提示无内容',
+  chatgptUserToast.includes('没有可导入的内容') ||
+    chatgptUserToast.includes('No importable content'),
+  chatgptUserToast
+)
+await sleep(2200)
+const claudeUsersToast = await importSingle(claudeUsersBase64, 'users.json', 'application/json')
+check(
+  'Claude users.json 单独导入提示无内容',
+  claudeUsersToast.includes('没有可导入的内容') ||
+    claudeUsersToast.includes('No importable content'),
+  claudeUsersToast
+)
 
 const acceptAttr = await evaluate(
   `document.querySelector('input[type="file"][multiple]')?.accept ?? ''`
@@ -361,6 +403,17 @@ const groupMenuOpened = await evaluate(`(() => {
   return 'ok'
 })()`)
 await sleep(500)
+const groupMenuScroll = await evaluate(`(() => {
+  const menu = document.querySelector('[role="menu"]')
+  if (!menu) return 'no-menu'
+  const style = getComputedStyle(menu)
+  return style.overflowY + '|' + style.maxHeight
+})()`)
+check(
+  '组操作菜单超出视口时可滚动',
+  groupMenuScroll.startsWith('auto|') && !groupMenuScroll.endsWith('none'),
+  groupMenuScroll
+)
 const extrasItem = await evaluate(`(() => {
   const item = [...document.querySelectorAll('div[role="menuitem"]')].find((node) => node.textContent.includes('附加信息') || node.textContent.includes('Archive notes'))
   item?.click()
@@ -374,8 +427,11 @@ check(
   '组级附加信息入口与内容',
   groupMenuOpened === 'ok' &&
     extrasItem === 'ok' &&
-    extrasText.includes('记忆') &&
-    extrasText.includes('自定义指令'),
+    extrasText.includes('ChatGPT 记忆摘要') &&
+    extrasText.includes('用户偏好简洁直接的回答') &&
+    extrasText.includes('用户正在学习 Rust') &&
+    !extrasText.includes('PRIVATE_PROFILE_EMAIL') &&
+    !extrasText.includes('PRIVATE_SETTING_THEME'),
   extrasText.slice(0, 60)
 )
 
@@ -415,12 +471,19 @@ check(
     claudeExtrasText.includes('Claude 记忆') &&
     claudeExtrasText.includes('MEMORY_CONVERSATIONS_CONTENT') &&
     claudeExtrasText.includes('MEMORY_FILE_CONTENT') &&
+    claudeExtrasText.includes('记忆/项目笔记.md') &&
     !claudeExtrasText.includes('PRIVATE_USERS_MEMORY') &&
     !claudeExtrasText.includes('PRIVATE_LOGIN_IP') &&
-    !claudeExtrasText.includes('PRIVATE_MEMORY_PATH') &&
     !claudeExtrasText.includes('00000000-0000-4000-8000-000000000099'),
   `${claudeMenuOpened} | ${claudeExtrasItem} | ${claudeExtrasText.slice(0, 40)}`
 )
+
+const extrasScroll = await evaluate(`(() => {
+  const main = document.querySelector('div[class*="extrasMain"]')
+  if (!main) return 'no-main'
+  return getComputedStyle(main).overflowY
+})()`)
+check('组附加信息弹窗可滚动', extrasScroll === 'auto', extrasScroll)
 await send('Input.dispatchKeyEvent', {
   type: 'keyDown',
   key: 'Escape',
@@ -642,7 +705,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.8') &&
+  aboutText.includes('0.7.9') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&

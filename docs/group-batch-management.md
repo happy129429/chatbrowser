@@ -150,7 +150,7 @@
 
 ### 问题
 
-Claude 的 `projects.json` 项目提示词、`users.json` 记忆等，会存进 `group.extras`，在组菜单“附加信息”中展示。当前单组合并直接删除源组，会把这些内容一起丢掉。批量合并会放大这个问题。
+Claude 的 `projects.json` 项目提示词，以及 `memories/<uuid>.json` 的顶层记忆，会存进 `group.extras`，在组菜单“附加信息”中展示；Claude 复数 `users.json` / `login_history.json` 属于个人数据，已跳过。当前单组合并直接删除源组，会把这些内容一起丢掉。批量合并会放大这个问题。
 
 ### 原则
 

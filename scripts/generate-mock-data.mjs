@@ -616,6 +616,10 @@ function makeZip(fileName, sessions, colorNote) {
   const { entries, index } = sessionEntries(sessions)
   const zip = {
     'manifest.json': strToU8(JSON.stringify({ export_format_version: 3 })),
+    // 官方归档里可能出现的账号文件；外部扫描必须跳过且不能抢走 DeepSeek 导入
+    'user.json': strToU8(
+      JSON.stringify({ id: 'PRIVATE_DEEPSEEK_USER', email: 'PRIVATE_DEEPSEEK_EMAIL' })
+    ),
     ...entries,
     'chat_session_index.json': strToU8(JSON.stringify(index)),
   }
@@ -701,15 +705,37 @@ const chatgpt = [
   },
 ]
 writeFileSync(path.join(outDir, 'chatgpt-sample.json'), JSON.stringify(chatgpt, null, 2))
+// 单独导入时应提示“无内容”的账号个人数据文件
+writeFileSync(
+  path.join(outDir, 'user.json'),
+  JSON.stringify({ id: 'PRIVATE_PROFILE_ID', email: 'PRIVATE_PROFILE_EMAIL' })
+)
+writeFileSync(
+  path.join(outDir, 'users.json'),
+  JSON.stringify({ users: [{ uuid: 'private-user', memories: ['PRIVATE_USERS_MEMORY'] }] })
+)
 // 官方导出形态：ZIP 里包着 conversations.json
 writeFileSync(
   path.join(outDir, 'chatgpt-sample.zip'),
   zipSync({
     'conversations.json': strToU8(JSON.stringify(chatgpt)),
+    'conversation_summaries.json': strToU8(
+      JSON.stringify({
+        'summary-1': '用户偏好简洁直接的回答',
+        'summary-2': '用户正在学习 Rust',
+      })
+    ),
     'user.json': strToU8(
       JSON.stringify({
-        memories: ['用户偏好简洁直接的回答', '用户正在学习 Rust'],
-        custom_instructions: '请用简体中文回答。',
+        id: 'PRIVATE_PROFILE_ID',
+        email: 'PRIVATE_PROFILE_EMAIL',
+        phone: 'PRIVATE_PROFILE_PHONE',
+        birth_year: 1990,
+      })
+    ),
+    'user_settings.json': strToU8(
+      JSON.stringify({
+        settings: { theme: 'PRIVATE_SETTING_THEME', language: 'PRIVATE_SETTING_LANGUAGE' },
       })
     ),
   })
@@ -838,7 +864,7 @@ writeFileSync(
       JSON.stringify({
         conversations_memory: 'MEMORY_CONVERSATIONS_CONTENT',
         memory_files: [
-          { path: 'PRIVATE_MEMORY_PATH', content: 'MEMORY_FILE_CONTENT', updated_at: null },
+          { path: '记忆/项目笔记.md', content: 'MEMORY_FILE_CONTENT', updated_at: null },
         ],
         account_uuid: '00000000-0000-4000-8000-000000000099',
       })

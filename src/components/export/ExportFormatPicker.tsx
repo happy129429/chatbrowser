@@ -1,32 +1,8 @@
 import clsx from 'clsx'
-import { useTranslate, type TranslationKey } from '../../i18n/index.js'
+import { useTranslate } from '../../i18n/index.js'
+import { EXPORT_FORMATS } from '../../services/chat/exportFormats.js'
 import type { ExportFormat } from '../../services/chat/exportTypes.js'
 import styles from './Export.module.css'
-
-const formats: {
-  value: ExportFormat
-  label: TranslationKey
-  description: TranslationKey
-  lossy?: boolean
-}[] = [
-  {
-    value: 'deepseek',
-    label: 'exportFormatDeepseek',
-    description: 'exportFormatDeepseekDesc',
-    lossy: true,
-  },
-  {
-    value: 'extended',
-    label: 'exportFormatExtended',
-    description: 'exportFormatExtendedDesc',
-  },
-  {
-    value: 'claude',
-    label: 'exportFormatClaude',
-    description: 'exportFormatClaudeDesc',
-    lossy: true,
-  },
-]
 
 export const ExportFormatPicker = ({
   format,
@@ -43,21 +19,21 @@ export const ExportFormatPicker = ({
   return (
     <>
       <div role="radiogroup" className={styles.options}>
-        {formats.map((item) => (
+        {EXPORT_FORMATS.map((item) => (
           <button
-            key={item.value}
+            key={item.id}
             type="button"
             role="radio"
-            aria-checked={format === item.value}
-            className={clsx(styles.option, format === item.value && styles.optionActive)}
-            onClick={() => onChange(item.value)}
+            aria-checked={format === item.id}
+            className={clsx(styles.option, format === item.id && styles.optionActive)}
+            onClick={() => onChange(item.id)}
           >
             <span className={styles.optionText}>
               <span className={styles.optionLabel}>
-                {t(item.label)}
+                {t(item.labelKey)}
                 {item.lossy ? <span className={styles.lossy}>{t('exportLossy')}</span> : null}
               </span>
-              <span className={styles.optionDescription}>{t(item.description)}</span>
+              <span className={styles.optionDescription}>{t(item.descriptionKey)}</span>
             </span>
             <span className={styles.radio} aria-hidden />
           </button>

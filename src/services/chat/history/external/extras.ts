@@ -1,8 +1,17 @@
-import { record, type GroupExtra, type Loose } from './common.js'
+import { record, type GroupExtra } from './common.js'
 
-/** Claude 账号导出中的个人数据文件：不解析、不导入。 */
-export const isIgnoredExternalFile = (name: string) =>
-  /^(?:login_history|users)(?:-\d+)?\.json$/i.test(name.replace(/\\/g, '/').split('/').pop() ?? '')
+const baseName = (name: string) => name.replace(/\\/g, '/').split('/').pop() ?? ''
+
+/**
+ * 账号个人数据文件：不解析、不导入。
+ * Claude 用复数 users.json；ChatGPT 用单数 user.json 与 user_settings.json。
+ */
+export const isPersonalExternalFile = (name: string) =>
+  /^(?:login_history|users)(?:-\d+)?\.json$/i.test(baseName(name)) ||
+  /^user(?:_settings)?\.json$/i.test(baseName(name))
+
+/** 旧名称保留，避免外部调用点一次性迁移。 */
+export const isIgnoredExternalFile = isPersonalExternalFile
 
 /** Claude memories/<account_uuid>.json：只取顶层记忆文本，不保存 UUID 或文件路径。 */
 const isClaudeMemoryFile = (name: string) => {
@@ -32,45 +41,40 @@ const claudeMemoryExtras = (parsed: unknown): GroupExtra[] => {
     const file = record(item)
     const content = memoryText(file?.content)
     if (content) {
-      extras.push({ title: `Claude 记忆文件 ${index + 1}`, content })
+      const path = typeof file?.path === 'string' ? file.path.trim() : ''
+      extras.push({
+        title: path ? `Claude 记忆文件 ${index + 1}（${path}）` : `Claude 记忆文件 ${index + 1}`,
+        content,
+      })
     }
   })
   return extras
 }
 
-/** 从 ChatGPT 的 user.json / Claude 的 projects.json 中提取账号级附加信息。 */
+/** ChatGPT 的记忆摘要；不保存 summary key 等内部标识。 */
+const chatGptMemoryExtras = (parsed: unknown): GroupExtra[] => {
+  const values = Array.isArray(parsed) ? parsed : Object.values(record(parsed) ?? {})
+  const summaries = values
+    .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+    .map((item) => item.trim())
+  return summaries.length > 0
+    ? [{ title: 'ChatGPT 记忆摘要', content: summaries.map((item) => `- ${item}`).join('\n') }]
+    : []
+}
+
+/** 从 ChatGPT 记忆摘要 / Claude projects.json 中提取账号级附加信息。 */
 export const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] => {
-  if (isIgnoredExternalFile(name)) {
+  if (isPersonalExternalFile(name)) {
     return []
   }
   if (isClaudeMemoryFile(name)) {
     return claudeMemoryExtras(parsed)
   }
+  if (baseName(name).toLowerCase() === 'conversation_summaries.json') {
+    return chatGptMemoryExtras(parsed)
+  }
   const lower = name.toLowerCase()
   const extras: GroupExtra[] = []
-  if (lower.endsWith('user.json')) {
-    const user = record(parsed)
-    if (!user) {
-      return extras
-    }
-    const memories = Array.isArray(user.memories)
-      ? user.memories.filter(
-          (item): item is string => typeof item === 'string' && item.trim() !== ''
-        )
-      : []
-    if (memories.length > 0) {
-      extras.push({ title: '记忆', content: memories.map((item) => `- ${item}`).join('\n') })
-    }
-    for (const [key, label] of [
-      ['custom_instructions', '自定义指令'],
-      ['instructions', '自定义指令'],
-    ] as const) {
-      const value = user[key]
-      if (typeof value === 'string' && value.trim()) {
-        extras.push({ title: label, content: value.trim() })
-      }
-    }
-  }
   if (lower.endsWith('projects.json')) {
     // 兼容数组、{projects:[...]}、{data:[...]} 与单个项目对象
     const wrapper = record(parsed)
@@ -103,7 +107,7 @@ export const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] 
       const docs = Array.isArray(project.docs) ? project.docs : []
       const docNames = docs
         .map(record)
-        .filter((doc): doc is Loose => doc !== null)
+        .filter((doc): doc is NonNullable<typeof doc> => doc !== null)
         .map((doc) =>
           typeof doc.filename === 'string'
             ? doc.filename
@@ -122,7 +126,7 @@ export const extrasFromJsonFile = (name: string, parsed: unknown): GroupExtra[] 
       }
     }
   }
-  // 暂未结构化解析的元数据（memories / light_metadata 等）先原样保留
+  // 暂未结构化解析的元数据先原样保留；账号个人数据已在上面跳过。
   if (extras.length === 0 && /(memory|memories|metadata)/i.test(name)) {
     const raw = JSON.stringify(parsed, null, 2)
     extras.push(

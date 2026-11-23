@@ -583,6 +583,19 @@
   }
 }
 
+.extrasModal {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(80vh, 760px);
+}
+
+.extrasMain {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
 .extrasList {
   display: flex;
   flex-direction: column;
@@ -603,7 +616,11 @@
 }
 
 .extrasBody {
+  max-height: 320px;
   margin-top: 6px;
+  overflow: auto;
+  padding-right: 6px;
+  overscroll-behavior: contain;
   font-size: 13px;
   color: var(--dsw-alias-label-secondary);
 }

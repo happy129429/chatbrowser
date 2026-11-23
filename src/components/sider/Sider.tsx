@@ -529,6 +529,8 @@ export const Sider = ({ mobile = false }: { mobile?: boolean }) => {
           title={t('groupExtrasTitle')}
           onClose={() => setExtrasGroup(null)}
           className={styles.extrasModal}
+          mainClassName={styles.extrasMain}
+          closable
         >
           <div className={styles.extrasList}>
             {(extrasGroup.extras ?? []).map((extra, index) => (

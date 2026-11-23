@@ -12,6 +12,10 @@ tmp/
 mock/
 release/
 
+# 外部参考资料 / 官方导出查看器快照（不入库）
+gpt_version/
+gpt-version/
+
 # Capacitor Android 构建产物
 android/app/build/
 android/build/

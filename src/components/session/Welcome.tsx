@@ -3,7 +3,15 @@ import { useRef, useState } from 'react'
 import { useTranslate, type TranslationKey } from '../../i18n/index.js'
 import { importArchiveFiles } from '../../services/chat/backup.js'
 import { BackupError } from '../../services/chat/backup.js'
-import { IconCheckedOutline14, IconCloseFill14, IconUploadOutline14 } from '../base/icons.js'
+import { importFormatKey } from '../../services/chat/importFormat.js'
+import type { ImportFormatId, ImportWarning } from '../../services/chat/history/external/index.js'
+import {
+  IconCheckedOutline14,
+  IconCloseFill14,
+  IconInfoOutline16,
+  IconUploadOutline14,
+  IconWarningOutline16,
+} from '../base/icons.js'
 import { Button } from '../base/Button.js'
 import { useIsMobile } from '../../app/viewport.js'
 import { MobileHeader } from './MobileHeader.js'
@@ -12,8 +20,11 @@ import styles from './Welcome.module.css'
 /** 单个归档文件的导入状态 */
 type ItemState = {
   name: string
-  status: 'importing' | 'done' | 'error'
+  status: 'importing' | 'done' | 'warning' | 'empty' | 'error'
   sessions: number
+  format?: ImportFormatId | null
+  warnings: ImportWarning[]
+  empty?: boolean
   /** 失败原因；预期的导入错误为对应文案 key，其余为通用失败 */
   reason?: TranslationKey
 }
@@ -37,13 +48,23 @@ export const Welcome = () => {
     if (archives.length === 0) {
       return
     }
-    setItems(archives.map((file) => ({ name: file.name, status: 'importing', sessions: 0 })))
+    setItems(
+      archives.map((file) => ({
+        name: file.name,
+        status: 'importing',
+        sessions: 0,
+        warnings: [],
+      }))
+    )
     const outcomes = await importArchiveFiles(archives)
     setItems(
-      outcomes.map(({ file, sessions, error }) => ({
+      outcomes.map(({ file, sessions, error, format, warnings, empty }) => ({
         name: file.name,
-        status: error ? 'error' : 'done',
+        status: error ? 'error' : empty ? 'empty' : warnings.length > 0 ? 'warning' : 'done',
         sessions,
+        format,
+        warnings,
+        empty,
         reason:
           error instanceof BackupError ? error.key : error ? 'historyImportFailed' : undefined,
       }))
@@ -90,29 +111,43 @@ export const Welcome = () => {
                 <span
                   className={clsx(
                     styles.statusMark,
-                    item.status === 'done' && styles.statusDone,
+                    (item.status === 'done' || item.status === 'empty') && styles.statusDone,
                     item.status === 'error' && styles.statusError
                   )}
                 >
                   {item.status === 'importing' ? (
                     <span className={styles.spinner} />
-                  ) : item.status === 'done' ? (
-                    <IconCheckedOutline14 />
-                  ) : (
+                  ) : item.status === 'error' ? (
                     <IconCloseFill14 />
+                  ) : item.status === 'empty' ? (
+                    <IconInfoOutline16 />
+                  ) : item.status === 'warning' ? (
+                    <IconWarningOutline16 />
+                  ) : (
+                    <IconCheckedOutline14 />
                   )}
                 </span>
                 <span className={styles.statusName} title={item.name}>
                   {item.name}
                 </span>
                 <span className={styles.statusDetail}>
-                  {item.status === 'done'
-                    ? t(item.sessions === 1 ? 'historyImportedOne' : 'historyImported', {
-                        count: item.sessions,
-                      })
-                    : item.status === 'error'
-                      ? t(item.reason ?? 'historyImportFailed')
-                      : t('archiveImporting')}
+                  {item.status === 'error'
+                    ? t(item.reason ?? 'historyImportFailed')
+                    : item.status === 'importing'
+                      ? t('archiveImporting')
+                      : [
+                          item.format ? t(importFormatKey(item.format)) : '',
+                          item.empty
+                            ? t('historyImportEmpty')
+                            : t(item.sessions === 1 ? 'historyImportedOne' : 'historyImported', {
+                                count: item.sessions,
+                              }) +
+                              (item.warnings.some((warning) => warning.code === 'lossyImport')
+                                ? t('historyImportLossySuffix')
+                                : ''),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                 </span>
               </li>
             ))}
