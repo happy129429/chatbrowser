@@ -34,9 +34,9 @@ packaging/launcher/web/
 # GitHub Action 构建报错日志
 github_log
 
-# 本地交接文档与内部合规审计（不提交）
+# 本地交接文档、内部审计与官方参考资料（不提交）
 HANDOVER.md
-docs/internal/
+internal/
 
 # 构建时生成的第三方许可清单
 THIRD_PARTY_NOTICES.txt

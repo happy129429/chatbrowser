@@ -5,6 +5,7 @@ const keys: Record<ImportFormatId, TranslationKey> = {
   deepseek: 'importFormatDeepseek',
   chatgpt: 'importFormatChatgpt',
   claude: 'importFormatClaude',
+  gemini: 'importFormatGemini',
   openwebui: 'importFormatOpenwebui',
   turns: 'importFormatTurns',
   generic: 'importFormatGeneric',

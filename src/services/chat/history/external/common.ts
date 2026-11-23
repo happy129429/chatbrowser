@@ -1,5 +1,11 @@
 import { createId } from '../../../../utils/id.js'
-import type { AssistantMessage, Message, Session, UserMessage } from '../../types.js'
+import type {
+  AssistantMessage,
+  FileAttachment,
+  Message,
+  Session,
+  UserMessage,
+} from '../../types.js'
 import type { ExternalSource } from './models.js'
 
 export type { ExternalSource, GroupExtra } from './models.js'
@@ -123,6 +129,7 @@ export type Round = {
   at: number
   thinking?: string
   thinkingSeconds?: number
+  files?: FileAttachment[]
 }
 
 /** 把轮次数组转为线性消息链（提问 + 回答），供查看/导出/搜索复用。 */
@@ -150,7 +157,7 @@ export const toSession = (
         id: `${rawId}-u${index}`,
         role: 'user',
         content: round.question.trim(),
-        files: [],
+        files: round.files ?? [],
         createdAt: roundAt,
         parentId,
       }

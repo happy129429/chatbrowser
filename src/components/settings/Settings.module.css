@@ -518,3 +518,7 @@
     transform: translateX(16px);
   }
 }
+
+.storageWarning {
+  color: var(--dsw-alias-label-secondary);
+}

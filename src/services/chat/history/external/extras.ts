@@ -51,15 +51,68 @@ const claudeMemoryExtras = (parsed: unknown): GroupExtra[] => {
   return extras
 }
 
-/** ChatGPT 的记忆摘要；不保存 summary key 等内部标识。 */
+type ChatGptMemory = { memory: string; reason: string }
+
+/** 实际导出里 value 可能是 JSON 字符串，也可能是普通字符串。 */
+const parseChatGptMemoryValue = (value: unknown): ChatGptMemory | null => {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    if (!text) {
+      return null
+    }
+    try {
+      return parseChatGptMemoryValue(JSON.parse(text) as unknown)
+    } catch {
+      return { memory: text, reason: '' }
+    }
+  }
+  const item = record(value)
+  if (!item) {
+    return null
+  }
+  const memory = memoryText(item.memory ?? item.text ?? item.summary)
+  const reason = memoryText(item.reason)
+  return memory ? { memory, reason } : null
+}
+
+/** 兼容 map、单层数组、数组套 map；summary identifier 自身不进入结果。 */
+const chatGptMemoryValues = (parsed: unknown): unknown[] => {
+  const result: unknown[] = []
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+    if (typeof value === 'string') {
+      result.push(value)
+      return
+    }
+    const item = record(value)
+    if (!item) {
+      return
+    }
+    if ('memory' in item || 'text' in item || 'summary' in item || 'reason' in item) {
+      result.push(item)
+      return
+    }
+    Object.values(item).forEach(visit)
+  }
+  visit(parsed)
+  return result
+}
+
+/** ChatGPT 的记忆摘要；只保留 memory/reason，不保存 summary key 和 confidence。 */
 const chatGptMemoryExtras = (parsed: unknown): GroupExtra[] => {
-  const values = Array.isArray(parsed) ? parsed : Object.values(record(parsed) ?? {})
-  const summaries = values
-    .filter((item): item is string => typeof item === 'string' && item.trim() !== '')
-    .map((item) => item.trim())
-  return summaries.length > 0
-    ? [{ title: 'ChatGPT 记忆摘要', content: summaries.map((item) => `- ${item}`).join('\n') }]
-    : []
+  const memories = chatGptMemoryValues(parsed)
+    .map(parseChatGptMemoryValue)
+    .filter((item): item is ChatGptMemory => item !== null)
+  if (memories.length === 0) {
+    return []
+  }
+  const content = memories
+    .map(({ memory, reason }) => `- ${memory}${reason ? `\n  理由：${reason}` : ''}`)
+    .join('\n')
+  return [{ title: 'ChatGPT 记忆摘要', content }]
 }
 
 /** 从 ChatGPT 记忆摘要 / Claude projects.json 中提取账号级附加信息。 */

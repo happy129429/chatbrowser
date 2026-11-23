@@ -380,6 +380,15 @@ export const clearAllData = async (): Promise<void> => {
   ])
 }
 
+/** 尽量申请持久存储；浏览器仍可能因用户清理或极端磁盘压力删除数据。 */
+export const requestPersistentStorage = async (): Promise<void> => {
+  try {
+    await navigator.storage?.persist?.()
+  } catch {
+    // 申请失败不影响使用。
+  }
+}
+
 /** 本地存储失败不打断浏览，只在控制台留痕 */
 export const reportStorageError = (action: string) => (error: unknown) => {
   // eslint-disable-next-line no-console

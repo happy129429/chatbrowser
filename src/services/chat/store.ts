@@ -271,6 +271,7 @@ export const initChat = (): Promise<void> => {
   set({ initError: false })
   initTask = (async () => {
     try {
+      void db.requestPersistentStorage()
       let [summaries, groups] = await Promise.all([db.loadSessionSummaries(), db.loadGroups()])
       // 确保默认组存在，并把历史遗留的 null 组会话迁入
       let defaultGroup = groups.find((group) => isDefaultGroup(group.id))

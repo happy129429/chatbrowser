@@ -131,6 +131,12 @@ const SettingsContent = () => {
               <ImportHistory historyImport={historyImport} disabled={historyBusy} />
               <ExportHistory disabled={historyBusy} />
               <SettingCell
+                label={t('localStorageBackupTitle')}
+                description={t('localStorageBackupDescription')}
+                descriptionClassName={styles.storageWarning}
+                status={null}
+              />
+              <SettingCell
                 label={t('groupBatchLabel')}
                 description={t('groupBatchDescription')}
                 status={null}

@@ -664,6 +664,16 @@ const node = (id, parentId, role, text, index) => ({
 })
 const n1 = node('cg-n1', null, 'system', 'You are a helpful assistant.', 0)
 const n2 = node('cg-n2', 'cg-n1', 'user', 'Rust 的所有权解决了什么问题？', 1)
+n2.message.metadata = {
+  attachments: [
+    {
+      id: 'cg-file-1',
+      name: 'ownership.pdf',
+      mime_type: 'application/pdf',
+      size: 12345,
+    },
+  ],
+}
 const n3 = node(
   'cg-n3',
   'cg-n2',
@@ -722,10 +732,20 @@ writeFileSync(
     'manifest.json': strToU8(JSON.stringify({ source: 'chatgpt', version: 1 })),
     'conversations.json': strToU8(JSON.stringify(chatgpt)),
     'conversation_summaries.json': strToU8(
-      JSON.stringify({
-        'summary-1': '用户偏好简洁直接的回答',
-        'summary-2': '用户正在学习 Rust',
-      })
+      JSON.stringify([
+        {
+          'summary-1': JSON.stringify({
+            memory: '用户偏好简洁直接的回答',
+            reason: '用户多次要求简短回答',
+            confidence: 'high',
+          }),
+          'summary-2': JSON.stringify({
+            memory: '用户正在学习 Rust',
+            reason: '对话中多次出现 Rust 问题',
+            confidence: 'high',
+          }),
+        },
+      ])
     ),
     'user.json': strToU8(
       JSON.stringify({
@@ -873,6 +893,64 @@ writeFileSync(
     ),
   })
 )
+const geminiActivity = [
+  {
+    header: 'Gemini Apps',
+    title: 'Prompted Gemini 第二轮',
+    time: new Date(now - 3600000).toISOString(),
+    products: ['Gemini Apps'],
+    details: [
+      {
+        name: 'https://gemini.google.com/app/gemini-demo',
+        url: 'https://gemini.google.com/app/gemini-demo',
+      },
+    ],
+    activityControls: ['Gemini Apps Activity'],
+    safeHtmlItem: [{ html: '<p>第二轮回答。</p>' }],
+  },
+  {
+    header: 'Gemini Apps',
+    title: 'Prompted Gemini 第一轮',
+    time: new Date(now - 7200000).toISOString(),
+    products: ['Gemini Apps'],
+    details: [
+      {
+        name: 'https://gemini.google.com/app/gemini-demo',
+        url: 'https://gemini.google.com/app/gemini-demo',
+      },
+    ],
+    activityControls: ['Gemini Apps Activity'],
+    safeHtmlItem: [{ html: '<p>第一轮回答。</p>' }],
+    imageFile: 'gemini-image.png',
+    attachedFiles: ['gemini-image.png'],
+  },
+  {
+    header: 'Gemini Apps',
+    title: 'Prompted 另一个 Gemini 会话',
+    time: new Date(now - 5400000).toISOString(),
+    products: ['Gemini Apps'],
+    details: [
+      {
+        name: 'https://gemini.google.com/app/gemini-second',
+        url: 'https://gemini.google.com/app/gemini-second',
+      },
+    ],
+    activityControls: ['Gemini Apps Activity'],
+    safeHtmlItem: [{ html: '<p>另一个回答。</p>' }],
+  },
+]
+writeFileSync(
+  path.join(outDir, 'gemini-activity-sample.json'),
+  JSON.stringify(geminiActivity, null, 2)
+)
+writeFileSync(
+  path.join(outDir, 'gemini-takeout-sample.zip'),
+  zipSync({
+    'Takeout/My Activity/Gemini Apps/MyActivity.json': strToU8(JSON.stringify(geminiActivity)),
+    'Takeout/My Activity/Gemini Apps/ignored.png': new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+  })
+)
+
 const zai = {
   data: {
     chats: [

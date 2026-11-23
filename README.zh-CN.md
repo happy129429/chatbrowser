@@ -89,10 +89,13 @@ location /chatbrowser/ {
 | **DeepSeek 导出 ZIP**（`deepseek_data-*.zip`） | **最完整**（与上游项目同源） | 分支树、思考、工具步骤、联网搜索与来源、图片原件、token 用量                                                                                                                                                                                            |
 | ChatGPT 导出（ZIP/JSON）                       | 兼容导入                     | 当前分支、系统提示词、记忆摘要（`conversation_summaries.json`）；单数 `user.json` / `user_settings.json` 视为账号个人数据并跳过；无工具步骤与图片原件                                                                                                   |
 | Claude 导出（ZIP/JSON）                        | 兼容导入                     | 会话摘要、原始消息 UUID/parent 链、思考块（含截断/隐藏/签名）、引用来源、附件文件名（无原件）；`memories/<uuid>.json` 的顶层记忆进入组附加信息（不保存 UUID；记忆文件的 `path` 显示在标题括号中）；忽略 Claude 复数 `users.json` / `login_history.json` |
+| Gemini Takeout（`MyActivity.json`）            | 兼容导入                     | 按 `details[].url` 聚合会话，按时间正序还原轮次；用户提示来自活动标题（是否截断取决于导出）；助手回复从 HTML 转文本；图片只保留文件名                                                                                                                   |
 | z.ai / OpenWebUI 原生导出                      | 兼容导入                     | `chat.history.messages` 对象树 + `currentId`，按当前分支导入；受导出端限制可能缺正文                                                                                                                                                                    |
 | `turn_history` 单会话封装（样本身份未验证）    | 尽力兼容                     | `session_metadata` / `global_context` 系统指令；样本可能含合成字段，不作为 Claude 官方格式                                                                                                                                                              |
 
 DeepSeek 是上游项目的原生格式，也是本应用归档与转换的基础，因此支持最完整；其它格式的目标是「尽量不丢信息地迁入」，受各自导出内容限制，部分字段只能丢弃或保留元数据。
+
+完整的字段/附件/导出损失对照见 [`docs/format-completeness.md`](docs/format-completeness.md)。
 
 > **ChatGPT 用户提示**：如果只想快速浏览一份 OpenAI 导出，OpenAI 的隐私导出包自带一个只读查看器（解压后打开其中的 `index.html`），支持 ChatGPT/Codex、搜索、附件和统计，且同样在本地处理。只做单份 ChatGPT 导出浏览时，它通常更方便；需要跨平台统一归档、长期分组或格式转换时，再使用本项目。
 
@@ -129,13 +132,13 @@ DeepSeek 是上游项目的原生格式，也是本应用归档与转换的基�
 
 - 桌面启动器未签名：Windows SmartScreen/Defender 可能提示；可用免 exe 便携版，或解压前右键 ZIP → 属性 → 解除锁定
 - 启动器固定端口：新版会自动结束占用端口的旧实例；便携版会提示先关闭旧窗口
-- 数据不跨入口/浏览器同步，也没有内置备份；换浏览器或换入口前请先导出组 ZIP
+- 数据不跨入口/浏览器同步，也没有内置备份；换浏览器、换入口或清理站点数据前请先导出组 ZIP。已缓存附件占用浏览器配额，附件越多越容易出现存储压力
 - 外部格式官方改版后可能需要补充字段映射，反馈时请附脱敏样本
 - z.ai「导出已归档对话」可能只包含首条用户提问，其余消息正文缺失（z.ai 导出限制，非解析问题）
 
 ## 隐私说明
 
-- 会话、分组、附件与设置仅保存在本机浏览器（IndexedDB / localStorage），**不上传、未加密**；清理浏览器数据或卸载应用会丢失且不可恢复
+- 会话、分组、附件与设置仅保存在本机浏览器（IndexedDB / localStorage），**不上传、未加密**；清理浏览器数据、无痕窗口或浏览器磁盘压力可能永久删除数据。应用会尽力申请持久存储，但**浏览器存储不是备份**，请定期导出 ZIP
 - 无账号、无统计、无遥测、无广告；不会读取你的其它网站数据
 - 网络请求只有两类：你主动点击的来源链接；检查更新时请求 `api.github.com` 获取最新 Release。后者会让 GitHub 看到你的 IP、User-Agent 和请求时间（常规 HTTP 日志），**不会发送任何本地对话数据**；成功结果缓存 30 分钟，手动检查可绕过缓存
 - 需要删除本地数据时使用「设置 → 数据管理 → 删除全部对话」

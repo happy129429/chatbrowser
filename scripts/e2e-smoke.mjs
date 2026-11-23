@@ -187,6 +187,12 @@ const claudeTurnsBase64 = fs
   .toString('base64')
 const chatgptUserBase64 = fs.readFileSync(path.join(root, 'mock', 'user.json')).toString('base64')
 const claudeUsersBase64 = fs.readFileSync(path.join(root, 'mock', 'users.json')).toString('base64')
+const geminiBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'gemini-activity-sample.json'))
+  .toString('base64')
+const geminiTakeoutBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'gemini-takeout-sample.zip'))
+  .toString('base64')
 await evaluate(`(() => {
   const input = document.querySelector('input[type="file"][multiple]')
   const dt = new DataTransfer()
@@ -393,6 +399,13 @@ check(
   promptText.slice(0, 40)
 )
 
+const chatgptAttachmentText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'ChatGPT 附件元数据可导入',
+  chatgptAttachmentText.includes('ownership.pdf'),
+  chatgptAttachmentText.slice(0, 60)
+)
+
 // 组级附加信息（记忆 / 自定义指令）
 const groupMenuOpened = await evaluate(`(() => {
   const headers = [...document.querySelectorAll('div[class*="groupHeader"]')]
@@ -430,6 +443,8 @@ check(
     extrasText.includes('ChatGPT 记忆摘要') &&
     extrasText.includes('用户偏好简洁直接的回答') &&
     extrasText.includes('用户正在学习 Rust') &&
+    extrasText.includes('用户多次要求简短回答') &&
+    !extrasText.includes('summary-1') &&
     !extrasText.includes('PRIVATE_PROFILE_EMAIL') &&
     !extrasText.includes('PRIVATE_SETTING_THEME'),
   extrasText.slice(0, 60)
@@ -705,7 +720,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.7.10') &&
+  aboutText.includes('0.8.0') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
@@ -934,6 +949,59 @@ await evaluate(`(() => {
   return !!button
 })()`)
 await sleep(300)
+
+const beforeGemini = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+await evaluate(`(() => {
+  const input = document.querySelector('input[type="file"][multiple]')
+  const dt = new DataTransfer()
+  dt.items.add(
+    new File([Uint8Array.from(atob(${JSON.stringify(geminiBase64)}), (c) => c.charCodeAt(0))], 'gemini-activity-sample.json', { type: 'application/json' })
+  )
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+})()`)
+let afterGemini = beforeGemini
+for (let i = 0; i < 20; i++) {
+  await sleep(300)
+  afterGemini = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+  if (afterGemini === beforeGemini + 2) {
+    break
+  }
+}
+const hasGeminiTitle = await evaluate(
+  `[...document.querySelectorAll('div[class*="item-"]')].some((el) => el.textContent.includes('Gemini 第一轮'))`
+)
+check(
+  'Gemini Activity JSON 按会话聚合',
+  afterGemini === beforeGemini + 2 && hasGeminiTitle === true,
+  `${beforeGemini} -> ${afterGemini}`
+)
+
+const beforeGeminiZip = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+await evaluate(`(() => {
+  const input = document.querySelector('input[type="file"][multiple]')
+  const dt = new DataTransfer()
+  dt.items.add(
+    new File([Uint8Array.from(atob(${JSON.stringify(geminiTakeoutBase64)}), (c) => c.charCodeAt(0))], 'gemini-takeout-sample.zip', { type: 'application/zip' })
+  )
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+})()`)
+let afterGeminiZip = beforeGeminiZip
+for (let i = 0; i < 20; i++) {
+  await sleep(300)
+  afterGeminiZip = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+  if (afterGeminiZip === beforeGeminiZip + 2) {
+    break
+  }
+}
+check(
+  'Gemini Takeout ZIP 可直接导入',
+  afterGeminiZip === beforeGeminiZip + 2,
+  `${beforeGeminiZip} -> ${afterGeminiZip}`
+)
 
 if (APP_URL.includes('127.0.0.1:17890')) {
   const quitTab = await evaluate(

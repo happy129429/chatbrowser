@@ -2,6 +2,7 @@ import type { Session } from '../../types.js'
 import { BackupError } from '../errors.js'
 import { fromChatGpt } from './chatgpt.js'
 import { fromClaude } from './claude.js'
+import { fromGemini } from './gemini.js'
 import { record, toConversationList, type Loose } from './common.js'
 import { fromGeneric } from './generic.js'
 import { extrasFromJsonFile } from './extras.js'
@@ -34,6 +35,18 @@ const capabilities = {
     systemPrompt: true,
     projects: false,
     memories: true,
+    splitParts: false,
+  },
+  gemini: {
+    branches: false,
+    thinking: false,
+    citations: false,
+    tools: false,
+    attachmentsMetadata: true,
+    attachmentBytes: false,
+    systemPrompt: false,
+    projects: false,
+    memories: false,
     splitParts: false,
   },
   claude: {
@@ -106,6 +119,18 @@ const adapters: Adapter[] = [
     parse: (list, groupId) => fromClaude(list, groupId),
   },
   {
+    source: 'gemini',
+    detect: (list) => {
+      const sample = first(list)
+      return Boolean(
+        sample &&
+        (sample.header === 'Gemini Apps' ||
+          ('safeHtmlItem' in sample && 'details' in sample && 'title' in sample))
+      )
+    },
+    parse: (list, groupId) => fromGemini(list as Loose[], groupId),
+  },
+  {
     source: 'turns',
     detect: (list) => Array.isArray(first(list)?.turn_history),
     parse: (list, groupId) => fromTurns(list, groupId),
@@ -142,6 +167,12 @@ export const FORMAT_DESCRIPTORS: Record<ExternalSource, FormatDescriptor> = {
     id: 'claude',
     label: 'Claude',
     capabilities: capabilities.claude,
+    lossy: true,
+  },
+  gemini: {
+    id: 'gemini',
+    label: 'Gemini',
+    capabilities: capabilities.gemini,
     lossy: true,
   },
   openwebui: {

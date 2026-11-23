@@ -116,6 +116,9 @@ export const en = {
   avatarMenuSettingsDialogThemeSelectLightOption: 'Light',
   avatarMenuSettingsDialogThemeSelectDarkOption: 'Dark',
   avatarMenuSettingsDialogThemeSelectSystemOption: 'System',
+  localStorageBackupTitle: 'Local storage is not a backup',
+  localStorageBackupDescription:
+    'Chats and cached attachments live in this browser. Clearing site data, private windows or browser storage pressure can remove them permanently. Export a ZIP regularly; the app only requests persistent storage on a best-effort basis.',
   historyImport: 'Import chat history',
   historyImportDescription:
     'Import an AI-assistant history ZIP (e.g. DeepSeek) or a ChatGPT / Claude / z.ai JSON export as a new archive group. Existing chats are kept. Files are read locally and never uploaded.',
@@ -130,6 +133,7 @@ export const en = {
   importFormatDeepseek: 'DeepSeek',
   importFormatChatgpt: 'ChatGPT',
   importFormatClaude: 'Claude',
+  importFormatGemini: 'Gemini',
   importFormatOpenwebui: 'Open WebUI / z.ai',
   importFormatTurns: 'turn_history',
   importFormatGeneric: 'Generic JSON',

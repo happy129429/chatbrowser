@@ -1,7 +1,7 @@
 import type { Session } from '../../types.js'
 
 /** 外部归档来源；新增来源时同时更新格式描述和测试样例。 */
-export type ExternalSource = 'chatgpt' | 'claude' | 'generic' | 'openwebui' | 'turns'
+export type ExternalSource = 'chatgpt' | 'claude' | 'gemini' | 'generic' | 'openwebui' | 'turns'
 
 /** 导入结果里的格式标识，包含工具自有格式与隐私占位。 */
 export type ImportFormatId = ExternalSource | 'deepseek' | 'privacy'

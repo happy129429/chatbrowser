@@ -111,6 +111,9 @@ export const zh = {
   avatarMenuSettingsDialogThemeSelectLightOption: '浅色',
   avatarMenuSettingsDialogThemeSelectDarkOption: '深色',
   avatarMenuSettingsDialogThemeSelectSystemOption: '跟随系统',
+  localStorageBackupTitle: '浏览器存储不是备份',
+  localStorageBackupDescription:
+    '会话和已缓存附件保存在当前浏览器中。清理站点数据、无痕窗口或浏览器磁盘压力都可能永久删除它们；请定期导出 ZIP。应用会尽力申请持久存储，但不保证数据不被清理。',
   historyImport: '导入历史对话',
   historyImportDescription:
     '支持 AI 助手导出的历史对话 ZIP（如 DeepSeek），以及 ChatGPT / Claude / z.ai 导出的 JSON，导入为一个新的归档组，不影响已有对话。文件只在本机读取，不会上传。',
@@ -125,6 +128,7 @@ export const zh = {
   importFormatDeepseek: 'DeepSeek',
   importFormatChatgpt: 'ChatGPT',
   importFormatClaude: 'Claude',
+  importFormatGemini: 'Gemini',
   importFormatOpenwebui: 'Open WebUI / z.ai',
   importFormatTurns: 'turn_history',
   importFormatGeneric: '通用 JSON',

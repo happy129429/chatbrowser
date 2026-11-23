@@ -1,5 +1,7 @@
 # 格式适配与下一步方向
 
+> 各家格式的字段/附件/导出完整性见 `docs/format-completeness.md`。
+
 > 基于 v0.7.8 · 2026-11-23
 > 具体重构方案见 `docs/adapter-refactor-proposal.md`。
 
@@ -12,6 +14,7 @@
 - Claude ZIP/JSON：`chat_messages`、content 块、UUID/parent 前缀链、摘要、项目、记忆
 - Claude 分卷：多个 `conversations-* / projects-* / users-* / memories-* / light_metadata-*` 合并为一个组
 - z.ai / OpenWebUI：`chat.history.messages` 对象树 + `currentId`
+- Gemini Takeout：`MyActivity.json` 活动日志，按会话 URL 聚合；用户提示可能被标题截断
 - `turn_history`：未验证样本，仅 best-effort
 - 通用 `messages` / `chat_history` / `turns` / `records`
 

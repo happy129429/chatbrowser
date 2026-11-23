@@ -89,10 +89,13 @@ location /chatbrowser/ {
 | **DeepSeek export ZIP** (`deepseek_data-*.zip`) | **Most complete** (same origin as the upstream project) | Branch tree, reasoning, tool steps, web search sources, original images, token usage                                                                                                                                                                                                                                                               |
 | ChatGPT export (ZIP/JSON)                       | Compatibility import                                    | Active branch, system prompts, memory summaries (`conversation_summaries.json`); singular `user.json` / `user_settings.json` are treated as account data and skipped; no tool steps or original images                                                                                                                                             |
 | Claude export (ZIP/JSON)                        | Compatibility import                                    | Conversation summary, original message UUID/parent chain, thinking blocks (truncated/hidden/signature), citations, attachment filenames (no originals); top-level memory from `memories/<uuid>.json` becomes group notes without the UUID; memory file `path` is shown in the title; Claude plural `users.json` / `login_history.json` are ignored |
+| Gemini Takeout (`MyActivity.json`)              | Compatibility import                                    | Groups records by `details[].url` and orders turns by time; user prompts come from activity titles (truncation depends on the export); assistant HTML is converted to text; images keep filenames only                                                                                                                                             |
 | z.ai / OpenWebUI native exports                 | Compatibility import                                    | `chat.history.messages` object tree + `currentId`, imports the active branch; content may be missing in the vendor export                                                                                                                                                                                                                          |
 | `turn_history` envelopes (unverified sample)    | Best-effort import                                      | `session_metadata` / `global_context`; the sample may contain synthetic fields and is not treated as an official Claude format                                                                                                                                                                                                                     |
 
 DeepSeek is the upstream project's native format and the base for this app's archive and conversion pipeline, so it has the most complete support. Other formats aim to migrate without losing information where possible; depending on what each vendor exports, some fields can only be dropped or kept as metadata.
+
+See [`docs/format-completeness.md`](docs/format-completeness.md) for the full field/attachment/export loss matrix.
 
 > **For ChatGPT users:** if you only want to browse a single OpenAI export, the privacy export includes a bundled read-only viewer (open `index.html` after extracting). It supports ChatGPT/Codex, search, attachments and statistics, and also runs locally. It is usually more convenient for that single-export case; use this project when you need a cross-provider library, long-term groups, or format conversion.
 
@@ -129,13 +132,13 @@ DeepSeek is the upstream project's native format and the base for this app's arc
 
 - The desktop launchers are unsigned: SmartScreen/Defender may warn; use the portable build or unblock the ZIP before extracting
 - The launcher uses a fixed port; a newer build closes a stale older instance, the portable build asks you to close it first
-- No sync or built-in backup between entries/browsers — export a group ZIP before switching
+- No sync or built-in backup between entries/browsers — export a group ZIP before switching or clearing site data. Cached attachments consume browser quota; more attachments means more storage pressure
 - Vendor export formats may change; attach a sanitized sample when reporting import issues
 - z.ai's "export archived conversation" may only include the first user prompt; the remaining message bodies are missing from the export itself
 
 ## Privacy
 
-- Conversations, groups, attachments and settings stay in your browser (IndexedDB / localStorage). Nothing is uploaded; data is **not encrypted at rest**, and clearing browser data or uninstalling the app deletes it permanently
+- Conversations, groups, attachments and settings stay in your browser (IndexedDB / localStorage). Nothing is uploaded; data is **not encrypted at rest**. Clearing site data, private windows or browser storage pressure can delete it permanently. The app requests persistent storage on a best-effort basis, but **browser storage is not a backup** — export ZIPs regularly
 - No accounts, analytics, telemetry or ads; the app does not read data from other websites
 - There are only two kinds of network requests: source links you click, and the update check against `api.github.com`. For the latter GitHub can see your IP address, User-Agent and request time (standard HTTP logs); **no local conversation data is sent**. Successful results are cached for 30 minutes; manual checks bypass the cache
 - To delete local data use Settings → Data → Delete all conversations
