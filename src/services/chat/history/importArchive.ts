@@ -1,4 +1,5 @@
 import * as db from '../db.js'
+import type { Session } from '../types.js'
 import { createId } from '../../../utils/id.js'
 import { BackupError, fail } from './errors.js'
 import type { SessionIndexEntry } from './format.js'
@@ -22,12 +23,15 @@ import { checkManifest, readSessionFile, readSessionIndex } from './schema.js'
 import { toLocalSession } from './toLocal.js'
 import {
   ArchiveError,
+  countArchiveEntries,
   isZipFile,
   readArchive,
   readEntry,
   skipEntry,
   type ArchiveEntry,
 } from './zipReader.js'
+
+export type ImportProgressCallback = (processed: number, total: number) => void
 
 /** 从原件字节补充图片 MIME；无法识别时为空字符串，图片身份仍由归档的 is_image 决定。 */
 const imageType = (bytes: Uint8Array): string => {
@@ -91,13 +95,14 @@ export const checkArchiveFormat = async (file: File): Promise<void> => {
 /**
  * 流式导入：manifest → user（不导入）→ 全部会话 JSON → index → 全部图片。
  * 也支持会话与图片交错排列、index 位于末尾的条目顺序。
- * 会话读完立即暂存（打上目标组 ID），只保留图片路径映射；图片全部读完后逐会话回填 MIME，不改变图片身份。
+ * 会话分批暂存（打上目标组 ID）；图片全部读完后回填 MIME，不改变图片身份。
  * 写入导入暂存存储；调用方负责先清空暂存，成功后按组提交，失败时清理暂存。
  */
 export const importArchive = async (
   file: File,
   groupId: string,
-  extension?: ArchiveExtension | null
+  extension?: ArchiveExtension | null,
+  onProgress?: ImportProgressCallback
 ): Promise<void> => {
   if (!(await isZipFile(file))) {
     fail('backupUnrecognized')
@@ -112,6 +117,21 @@ export const importArchive = async (
   const prompts = sessionPrompts(extension ?? null)
   const summaries = sessionSummaries(extension ?? null)
   const messageExt = sessionMessages(extension ?? null)
+  let total = 0
+  let batch: Session[] = []
+  let batchBytes = 0
+  const maxBatchBytes = 2 * 1024 * 1024
+  const flushSessions = async () => {
+    if (batch.length === 0) {
+      return
+    }
+    await db.addStagingSessions(batch)
+    batch = []
+    batchBytes = 0
+    if (imported.size < total) {
+      onProgress?.(imported.size, total)
+    }
+  }
 
   const saveImage = async (entry: ArchiveEntry, id: string) => {
     if (stored.has(id)) {
@@ -125,6 +145,10 @@ export const importArchive = async (
   }
 
   try {
+    if (onProgress) {
+      total = await countArchiveEntries(file, (path) => parseSessionPath(path) !== null)
+      onProgress(0, total)
+    }
     for await (const entry of readArchive(file)) {
       const { path } = entry
       const sessionId = parseSessionPath(path)
@@ -138,6 +162,9 @@ export const importArchive = async (
         // 账号信息（已脱敏）不导入；文件可能缺失。
         await skipEntry(entry)
       } else if (sessionId !== null && !index) {
+        if (batchBytes + entry.size > maxBatchBytes) {
+          await flushSessions()
+        }
         const local = toLocalSession(readSessionFile(await readJson(entry)))
         local.session.groupId = groupId
         const systemPrompt = prompts.get(sessionId)
@@ -162,7 +189,11 @@ export const importArchive = async (
         for (const [imagePath, id] of local.images) {
           images.set(imagePath, id)
         }
-        await db.addStagingSession(local.session)
+        batch.push(local.session)
+        batchBytes += entry.size
+        if (batch.length >= 32 || batchBytes >= maxBatchBytes) {
+          await flushSessions()
+        }
       } else if (path === EXT_PATH) {
         // 旁路扩展数据已在外层预读；这里只需消费条目
         readExtension(await readJson(entry))
@@ -196,5 +227,7 @@ export const importArchive = async (
   ) {
     fail('backupIncomplete')
   }
+  await flushSessions()
   await db.updateStagingFileTypes(stored)
+  onProgress?.(imported.size, total)
 }

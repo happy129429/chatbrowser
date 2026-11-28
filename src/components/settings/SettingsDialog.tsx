@@ -697,9 +697,13 @@ const useHistoryImport = () => {
     }
     importing.current = true
     setBusy(true)
-    setStatus(null)
+    setStatus({ key: 'archiveImporting' })
     try {
-      const [outcome] = await importArchiveFiles([file])
+      const [outcome] = await importArchiveFiles([file], (_, processed, total) => {
+        if (total > 0) {
+          setStatus({ key: 'archiveImportProgress', params: { processed, total } })
+        }
+      })
       if (outcome?.error) {
         throw outcome.error
       }
@@ -712,13 +716,31 @@ const useHistoryImport = () => {
       const lossy = outcome?.warnings.some((warning) => warning.code === 'lossyImport')
         ? t('historyImportLossySuffix')
         : ''
+      const duplicate = outcome?.duplicateOf
       setStatus(
         format
           ? {
-              key: count === 1 ? 'historyImportedFormatOne' : 'historyImportedFormat',
-              params: { count, format, lossy },
+              key: duplicate
+                ? count === 1
+                  ? 'historyImportedFormatDuplicateOne'
+                  : 'historyImportedFormatDuplicate'
+                : count === 1
+                  ? 'historyImportedFormatOne'
+                  : 'historyImportedFormat',
+              params: duplicate
+                ? { count, format, lossy, group: duplicate }
+                : { count, format, lossy },
             }
-          : { key: count === 1 ? 'historyImportedOne' : 'historyImported', params: { count } }
+          : {
+              key: duplicate
+                ? count === 1
+                  ? 'historyImportedDuplicateOne'
+                  : 'historyImportedDuplicate'
+                : count === 1
+                  ? 'historyImportedOne'
+                  : 'historyImported',
+              params: duplicate ? { count, group: duplicate } : { count },
+            }
       )
     } catch (error) {
       setStatus(

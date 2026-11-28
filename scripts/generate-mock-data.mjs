@@ -681,6 +681,23 @@ const n3 = node(
   '所有权在编译期保证内存安全：每个值有唯一所有者，离开作用域自动释放。',
   2
 )
+n3.message.metadata = {
+  model_slug: 'gpt-test',
+  resolved_model_slug: 'gpt-test-routed',
+  search_result_groups: [
+    {
+      domain: 'example.com',
+      entries: [
+        {
+          attribution: 'Example',
+          snippet: 'ChatGPT 搜索结果摘要',
+          title: 'Example search result',
+          url: 'https://example.com/result',
+        },
+      ],
+    },
+  ],
+}
 const n4 = node('cg-n4', 'cg-n3', 'user', '那借用呢？', 3)
 const n5 = node(
   'cg-n5',
@@ -715,6 +732,193 @@ const chatgpt = [
   },
 ]
 writeFileSync(path.join(outDir, 'chatgpt-sample.json'), JSON.stringify(chatgpt, null, 2))
+const genuiMarkup =
+  '<grid><grid-item><title>交互卡片标题</title><text>这是静态说明文字。</text>' +
+  '<button onClick={() => GenUI.issueNewTurn("不要执行")}>试试看</button></grid-item></grid>'
+const chatgptGenui = [
+  {
+    id: 'genui-1',
+    title: 'ChatGPT 交互组件示例',
+    create_time: cgTime(0),
+    update_time: cgTime(60000),
+    current_node: 'genui-a',
+    mapping: {
+      'genui-u': {
+        id: 'genui-u',
+        parent: null,
+        children: ['genui-a'],
+        message: {
+          id: 'genui-u',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['生成一组卡片'] },
+          create_time: cgTime(1),
+        },
+      },
+      'genui-a': {
+        id: 'genui-a',
+        parent: 'genui-u',
+        children: [],
+        message: {
+          id: 'genui-a',
+          author: { role: 'assistant' },
+          content: { content_type: 'text', parts: [genuiMarkup] },
+          create_time: cgTime(2),
+        },
+      },
+    },
+  },
+]
+writeFileSync(path.join(outDir, 'chatgpt-genui-sample.json'), JSON.stringify(chatgptGenui, null, 2))
+const chatgptFork = [
+  {
+    id: 'fork-source-conversation',
+    title: 'Fork 源会话',
+    create_time: cgTime(0),
+    update_time: cgTime(60000),
+    current_node: 'fork-source-answer',
+    mapping: {
+      'fork-source-message': {
+        id: 'fork-source-message',
+        parent: null,
+        children: ['fork-source-answer'],
+        message: {
+          id: 'fork-source-message',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['源会话的问题'] },
+          create_time: cgTime(1),
+        },
+      },
+      'fork-source-answer': {
+        id: 'fork-source-answer',
+        parent: 'fork-source-message',
+        children: [],
+        message: {
+          id: 'fork-source-answer',
+          author: { role: 'assistant' },
+          content: { content_type: 'text', parts: ['源会话的回答'] },
+          create_time: cgTime(2),
+        },
+      },
+    },
+  },
+  {
+    id: 'fork-child-conversation',
+    title: 'Fork 子会话',
+    create_time: cgTime(120000),
+    update_time: cgTime(180000),
+    current_node: 'fork-child-message',
+    mapping: {
+      'fork-source-message': {
+        id: 'fork-source-message',
+        parent: null,
+        children: ['fork-source-answer'],
+        message: {
+          id: 'fork-source-message',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['源会话的问题'] },
+          create_time: cgTime(1),
+        },
+      },
+      'fork-source-answer': {
+        id: 'fork-source-answer',
+        parent: 'fork-source-message',
+        children: ['fork-child-message'],
+        message: {
+          id: 'fork-source-answer',
+          author: { role: 'assistant' },
+          content: { content_type: 'text', parts: ['源会话的回答'] },
+          create_time: cgTime(2),
+        },
+      },
+      'fork-child-message': {
+        id: 'fork-child-message',
+        parent: 'fork-source-answer',
+        children: [],
+        message: {
+          id: 'fork-child-message',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['从源会话接续的问题'] },
+          create_time: cgTime(3),
+        },
+      },
+    },
+  },
+]
+writeFileSync(path.join(outDir, 'chatgpt-fork-sample.json'), JSON.stringify(chatgptFork, null, 2))
+const chatgptForkTail = [
+  {
+    id: 'tail-source-conversation',
+    title: 'Tail 源会话',
+    create_time: cgTime(0),
+    update_time: cgTime(10),
+    current_node: 'tail-source-answer',
+    mapping: {
+      'tail-source-question': {
+        id: 'tail-source-question',
+        parent: null,
+        children: ['tail-source-answer'],
+        message: {
+          id: 'tail-source-question',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['Tail 源问题'] },
+          create_time: cgTime(1),
+        },
+      },
+      'tail-source-answer': {
+        id: 'tail-source-answer',
+        parent: 'tail-source-question',
+        children: [],
+        message: {
+          id: 'tail-source-answer',
+          author: { role: 'assistant' },
+          content: { content_type: 'text', parts: ['Tail 源回答'] },
+          create_time: cgTime(2),
+        },
+      },
+    },
+  },
+  {
+    id: 'tail-child-conversation',
+    title: 'Tail 子会话',
+    create_time: cgTime(100),
+    update_time: cgTime(200),
+    current_node: 'tail-child-question',
+    mapping: {
+      'tail-child-root': {
+        id: 'tail-child-root',
+        parent: null,
+        children: ['tail-source-answer'],
+        message: null,
+      },
+      'tail-source-answer': {
+        id: 'tail-source-answer',
+        parent: 'tail-child-root',
+        children: ['tail-child-question'],
+        message: {
+          id: 'tail-source-answer',
+          author: { role: 'assistant' },
+          content: { content_type: 'text', parts: ['Tail 源回答'] },
+          create_time: cgTime(2),
+        },
+      },
+      'tail-child-question': {
+        id: 'tail-child-question',
+        parent: 'tail-source-answer',
+        children: [],
+        message: {
+          id: 'tail-child-question',
+          author: { role: 'user' },
+          content: { content_type: 'text', parts: ['Tail 子问题'] },
+          create_time: cgTime(101),
+        },
+      },
+    },
+  },
+]
+writeFileSync(
+  path.join(outDir, 'chatgpt-fork-tail-sample.json'),
+  JSON.stringify(chatgptForkTail, null, 2)
+)
 // 单独导入时应提示“无内容”的账号个人数据文件
 writeFileSync(
   path.join(outDir, 'user.json'),
@@ -906,7 +1110,7 @@ const geminiActivity = [
       },
     ],
     activityControls: ['Gemini Apps Activity'],
-    safeHtmlItem: [{ html: '<p>第二轮回答。</p>' }],
+    safeHtmlItem: [{ html: '<p>.</p><p>第二轮回答。</p>' }],
   },
   {
     header: 'Gemini Apps',

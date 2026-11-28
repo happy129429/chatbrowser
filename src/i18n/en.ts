@@ -116,6 +116,12 @@ export const en = {
   avatarMenuSettingsDialogThemeSelectLightOption: 'Light',
   avatarMenuSettingsDialogThemeSelectDarkOption: 'Dark',
   avatarMenuSettingsDialogThemeSelectSystemOption: 'System',
+  fileSizeUnknown: 'Size unknown',
+  genuiStaticOnly:
+    'Interactive component: only static titles and descriptions are archived; buttons and events are not executed.',
+  geminiMissingContent:
+    'Google Takeout omitted this text: citation-bearing content was replaced with a placeholder.',
+  geminiMissingPlaceholder: '[content missing]',
   localStorageBackupTitle: 'Local storage is not a backup',
   localStorageBackupDescription:
     'Chats and cached attachments live in this browser. Clearing site data, private windows or browser storage pressure can remove them permanently. Export a ZIP regularly; the app only requests persistent storage on a best-effort basis.',
@@ -127,6 +133,13 @@ export const en = {
   historyImportEmpty: 'No importable content in this file',
   historyImportLossy: 'Imported with lossy fields',
   historyImportLossySuffix: ' (some fields are lossy)',
+  historyImportDuplicateSuffix: ' (possibly imported before: {group})',
+  historyImportedDuplicateOne: 'Imported 1 chat (possibly imported before: {group})',
+  historyImportedDuplicate: 'Imported {count} chats (possibly imported before: {group})',
+  historyImportedFormatDuplicateOne:
+    'Imported 1 chat from {format}{lossy} (possibly imported before: {group})',
+  historyImportedFormatDuplicate:
+    'Imported {count} chats from {format}{lossy} (possibly imported before: {group})',
   historyImportedFormatOne: 'Imported 1 chat from {format}{lossy}',
   historyImportedFormat: 'Imported {count} chats from {format}{lossy}',
   archiveNoContent: 'No importable content in the selected file(s)',
@@ -142,6 +155,7 @@ export const en = {
   archiveDropHint:
     'Drop an AI-assistant ZIP or ChatGPT / Claude / z.ai JSON here, or use the button below',
   archiveImporting: 'Importing…',
+  archiveImportProgress: 'Importing… ({processed}/{total} conversations)',
   archiveBatchMerged:
     'Detected split parts: merged {files} files into one archive group ({count} conversations)',
   archiveBatchMergedFormat:
@@ -202,6 +216,7 @@ export const en = {
   thinkingTruncated: 'Reasoning truncated',
   thinkingHidden: 'Reasoning hidden',
   sessionSummaryTitle: 'Conversation summary',
+  continuedFrom: 'Continued from {title}',
   systemPromptTitle: 'System prompt',
   groupExtrasMenu: 'Archive notes',
   groupExtrasTitle: 'Archive notes',

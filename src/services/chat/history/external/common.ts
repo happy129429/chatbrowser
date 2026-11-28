@@ -130,6 +130,13 @@ export type Round = {
   thinking?: string
   thinkingSeconds?: number
   files?: FileAttachment[]
+  questionExternalId?: string
+  answerExternalId?: string
+  answerNotice?: string
+  rawAnswer?: string
+  requestedModel?: string
+  resolvedModel?: string
+  extraBlocks?: AssistantMessage['blocks']
 }
 
 /** 把轮次数组转为线性消息链（提问 + 回答），供查看/导出/搜索复用。 */
@@ -143,7 +150,8 @@ export const toSession = (
   rounds: Round[]
 ): Session | null => {
   const usable = rounds.filter(
-    (round) => round.question.trim() || round.answer.trim() || round.thinking?.trim()
+    (round) =>
+      round.question.trim() || round.answer.trim() || round.thinking?.trim() || round.answerNotice
   )
   if (usable.length === 0) {
     return null
@@ -157,6 +165,7 @@ export const toSession = (
         id: `${rawId}-u${index}`,
         role: 'user',
         content: round.question.trim(),
+        ...(round.questionExternalId ? { externalId: round.questionExternalId } : {}),
         files: round.files ?? [],
         createdAt: roundAt,
         parentId,
@@ -180,9 +189,14 @@ export const toSession = (
         id: `${rawId}-a${index}`,
         role: 'assistant',
         createdAt: roundAt + 1,
+        ...(round.answerExternalId ? { externalId: round.answerExternalId } : {}),
         model: null,
+        ...(round.requestedModel ? { requestedModel: round.requestedModel } : {}),
+        ...(round.resolvedModel ? { resolvedModel: round.resolvedModel } : {}),
         status: 'done',
-        blocks,
+        blocks: [...blocks, ...(round.extraBlocks ?? [])],
+        ...(round.answerNotice ? { notice: round.answerNotice } : {}),
+        ...(round.rawAnswer ? { rawContent: round.rawAnswer } : {}),
         parentId,
       }
       messages.push(reply)

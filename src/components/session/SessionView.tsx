@@ -2,7 +2,11 @@ import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 import { useIsMobile } from '../../app/viewport.js'
 import { useTranslate } from '../../i18n/index.js'
-import { startShareSelect } from '../../services/chat/store.js'
+import {
+  openSessionExternalMessage,
+  startShareSelect,
+  useChatStore,
+} from '../../services/chat/store.js'
 import { getVisibleMessages } from '../../services/chat/branches.js'
 import type { Session } from '../../services/chat/types.js'
 import { MessageList } from '../messages/MessageList.js'
@@ -11,6 +15,7 @@ import { IconButton } from '../base/IconButton.js'
 import {
   IconChevronDownOutline14,
   IconChevronRightOutline14,
+  IconLinkOutline16,
   IconShareOutline16,
 } from '../base/icons.js'
 import { Markdown } from '../markdown/Markdown.js'
@@ -84,6 +89,10 @@ export const SessionView = ({
   const t = useTranslate()
   const isMobile = useIsMobile()
   const title = session.title || t('untitledChat')
+  const forkTarget = session.continuedFrom?.sessionId
+  const forkTargetExists = useChatStore((state) =>
+    forkTarget ? state.sessions.some((item) => item.id === forkTarget) : false
+  )
   const { rounds, tokens } = useMemo(() => {
     const visible = getVisibleMessages(session)
     let roundCount = 0
@@ -134,6 +143,25 @@ export const SessionView = ({
           </div>
         </div>
       )}
+      {session.continuedFrom ? (
+        forkTargetExists && forkTarget ? (
+          <button
+            type="button"
+            className={styles.continuedFrom}
+            onClick={() =>
+              void openSessionExternalMessage(forkTarget, session.continuedFrom?.sourceMessageId)
+            }
+          >
+            <IconLinkOutline16 />
+            <span>{t('continuedFrom', { title: session.continuedFrom.title })}</span>
+          </button>
+        ) : (
+          <div className={styles.continuedFrom}>
+            <IconLinkOutline16 />
+            <span>{t('continuedFrom', { title: session.continuedFrom.title })}</span>
+          </div>
+        )
+      ) : null}
       {session.summary ? <SessionSummaryPanel content={session.summary} /> : null}
       {session.systemPrompt ? <SystemPromptPanel content={session.systemPrompt} /> : null}
       <MessageList session={session} />

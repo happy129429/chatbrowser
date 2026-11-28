@@ -51,6 +51,11 @@ export const AssistantMessage = memo(function AssistantMessage({
   const responseText = [answer?.text, template].filter(Boolean).join('\n\n')
   const copyText = responseText || notice?.text
   const summaryEntry = `${message.id}-summary`
+  const modelText = message.requestedModel
+    ? message.resolvedModel && message.resolvedModel !== message.requestedModel
+      ? `${message.requestedModel} → ${message.resolvedModel}`
+      : message.requestedModel
+    : message.resolvedModel
   return (
     <div className={styles.message} data-message-id={message.id}>
       {refused ? (
@@ -158,12 +163,13 @@ export const AssistantMessage = memo(function AssistantMessage({
             />
           ) : null}
         </div>
-        {stats ? (
+        {modelText || stats ? (
           <span className={styles.roundStats}>
-            {t('roundPrefix', { round: stats.round })}
-            {stats.tokens !== null
+            {stats ? t('roundPrefix', { round: stats.round }) : ''}
+            {stats && stats.tokens !== null
               ? ` · ${t('tokensShort', { tokens: stats.tokens.toLocaleString('en-US') })}`
               : ''}
+            {modelText ? `${stats ? ' · ' : ''}${modelText}` : ''}
           </span>
         ) : null}
       </div>

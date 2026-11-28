@@ -25,6 +25,8 @@ type ItemState = {
   format?: ImportFormatId | null
   warnings: ImportWarning[]
   empty?: boolean
+  duplicateOf?: string
+  progress?: { processed: number; total: number }
   /** 失败原因；预期的导入错误为对应文案 key，其余为通用失败 */
   reason?: TranslationKey
 }
@@ -56,15 +58,21 @@ export const Welcome = () => {
         warnings: [],
       }))
     )
-    const outcomes = await importArchiveFiles(archives)
+    const outcomes = await importArchiveFiles(archives, (file, processed, total) => {
+      const index = archives.indexOf(file)
+      setItems((current) =>
+        current.map((item, i) => (i === index ? { ...item, progress: { processed, total } } : item))
+      )
+    })
     setItems(
-      outcomes.map(({ file, sessions, error, format, warnings, empty }) => ({
+      outcomes.map(({ file, sessions, error, format, warnings, empty, duplicateOf }) => ({
         name: file.name,
         status: error ? 'error' : empty ? 'empty' : warnings.length > 0 ? 'warning' : 'done',
         sessions,
         format,
         warnings,
         empty,
+        duplicateOf,
         reason:
           error instanceof BackupError ? error.key : error ? 'historyImportFailed' : undefined,
       }))
@@ -134,7 +142,9 @@ export const Welcome = () => {
                   {item.status === 'error'
                     ? t(item.reason ?? 'historyImportFailed')
                     : item.status === 'importing'
-                      ? t('archiveImporting')
+                       ? item.progress?.total
+                         ? t('archiveImportProgress', item.progress)
+                         : t('archiveImporting')
                       : [
                           item.format ? t(importFormatKey(item.format)) : '',
                           item.empty
@@ -144,6 +154,9 @@ export const Welcome = () => {
                               }) +
                               (item.warnings.some((warning) => warning.code === 'lossyImport')
                                 ? t('historyImportLossySuffix')
+                                : '') +
+                              (item.duplicateOf
+                                ? t('historyImportDuplicateSuffix', { group: item.duplicateOf })
                                 : ''),
                         ]
                           .filter(Boolean)

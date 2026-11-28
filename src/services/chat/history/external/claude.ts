@@ -154,7 +154,7 @@ const claudeFiles = (message: Loose): FileAttachment[] => {
     }
     seen.add(id)
     const type = getFileViewType(name)
-    files.push({ id, name, size: 0, isImage: isImage(type), mimeType: '' })
+    files.push({ id, name, size: 0, sizeKnown: false, isImage: isImage(type), mimeType: '' })
   }
   for (const key of ['files', 'attachments'] as const) {
     const list = Array.isArray(message[key]) ? message[key] : []

@@ -259,6 +259,8 @@ type ImportOperationResult = {
   warnings: ImportWarning[]
   extras: number
   empty?: boolean
+  /** 已存在相同 sourceName 的组名 */
+  duplicateOf?: string
 }
 
 const emptyImport = (warnings: ImportWarning[]): ImportOperationResult => ({
@@ -269,9 +271,17 @@ const emptyImport = (warnings: ImportWarning[]): ImportOperationResult => ({
   empty: true,
 })
 
+const duplicateGroupName = (sourceName: string): string | undefined => {
+  if (!sourceName) {
+    return undefined
+  }
+  return useChatStore.getState().groups.find((group) => group.sourceName === sourceName)?.name
+}
+
 const commitExternalGroup = async (
   group: SessionGroup,
-  external: ExternalZipResult
+  external: ExternalZipResult,
+  duplicateOf?: string
 ): Promise<ImportOperationResult> => {
   if (external.extras.length > 0) {
     group.extras = external.extras
@@ -286,12 +296,17 @@ const commitExternalGroup = async (
     format: external.format,
     warnings: external.warnings,
     extras: external.extras.length,
+    ...(duplicateOf ? { duplicateOf } : {}),
   }
 }
 
 /** 导入单个 ZIP 为一个新归档组；支持 DeepSeek 归档与「ZIP 包里装 JSON」的外部导出。 */
-export const importArchiveFile = (file: File): Promise<ImportOperationResult> =>
+export const importArchiveFile = (
+  file: File,
+  onProgress?: (processed: number, total: number) => void
+): Promise<ImportOperationResult> =>
   enqueueBackup(async () => {
+    const duplicateOf = duplicateGroupName(file.name)
     const group: SessionGroup = {
       id: createId(),
       name: groupName(file.name),
@@ -305,7 +320,7 @@ export const importArchiveFile = (file: File): Promise<ImportOperationResult> =>
       return emptyImport(external.warnings)
     }
     if (external && (external.sessions.length > 0 || external.extras.length > 0)) {
-      return commitExternalGroup(group, external)
+      return commitExternalGroup(group, external, duplicateOf)
     }
     const { readArchiveExtension } = await import('./history/extension.js')
     const extension = await readArchiveExtension(file)
@@ -322,12 +337,15 @@ export const importArchiveFile = (file: File): Promise<ImportOperationResult> =>
     }
     const { checkArchiveFormat, importArchive } = await import('./history/importArchive.js')
     await checkArchiveFormat(file)
-    const sessions = await addHistoryGroup(group, () => importArchive(file, group.id, extension))
+    const sessions = await addHistoryGroup(group, () =>
+      importArchive(file, group.id, extension, onProgress)
+    )
     return {
       sessions,
       format: 'deepseek',
       warnings: [],
       extras: group.extras?.length ?? 0,
+      ...(duplicateOf ? { duplicateOf } : {}),
     }
   })
 
@@ -348,6 +366,7 @@ export const importExternalFile = (file: File): Promise<ImportOperationResult> =
     } catch {
       throw new BackupError('backupInvalidJson')
     }
+    const duplicateOf = duplicateGroupName(file.name)
     const group: SessionGroup = {
       id: createId(),
       name: groupName(file.name.replace(/\.json$/i, '') || file.name),
@@ -356,15 +375,19 @@ export const importExternalFile = (file: File): Promise<ImportOperationResult> =
       createdAt: Date.now(),
     }
     const bundle = importExternalPayload(file.name, parsed, group.id)
-    return commitExternalGroup(group, {
-      sessions: bundle.sessions,
-      extras: bundle.extras,
-      warnings: bundle.warnings,
-      format:
-        bundle.format && bundle.format !== 'deepseek' && bundle.format !== 'privacy'
-          ? bundle.format
-          : null,
-    })
+    return commitExternalGroup(
+      group,
+      {
+        sessions: bundle.sessions,
+        extras: bundle.extras,
+        warnings: bundle.warnings,
+        format:
+          bundle.format && bundle.format !== 'deepseek' && bundle.format !== 'privacy'
+            ? bundle.format
+            : null,
+      },
+      duplicateOf
+    )
   })
 
 /** 当用户一次选中同一导出的多个分卷时，合并为一个组；其它情况一个文件一个组。 */
@@ -374,6 +397,7 @@ export const groupArchiveFiles = (files: File[]): File[][] =>
 /** 多个分卷导入为同一个归档组；会话按 ID 去重，附加信息合并。 */
 const importArchiveBatch = (batch: ArchiveBatch): Promise<ImportOperationResult> =>
   enqueueBackup(async () => {
+    const duplicateOf = duplicateGroupName(batch.context.sourceName)
     const group: SessionGroup = {
       id: createId(),
       name: batch.name ?? groupName(batch.files[0].name),
@@ -451,6 +475,7 @@ const importArchiveBatch = (batch: ArchiveBatch): Promise<ImportOperationResult>
       format: formats[0] ?? null,
       warnings: [...warnings.values()],
       extras: uniqueExtras.length,
+      ...(duplicateOf ? { duplicateOf } : {}),
     }
   })
 
@@ -462,7 +487,10 @@ export type ArchiveImportOutcome = ImportOperationResult & {
   batch?: File[]
 }
 
-export const importArchiveFiles = async (files: File[]): Promise<ArchiveImportOutcome[]> => {
+export const importArchiveFiles = async (
+  files: File[],
+  onProgress?: (file: File, processed: number, total: number) => void
+): Promise<ArchiveImportOutcome[]> => {
   const outcomes: ArchiveImportOutcome[] = []
   for (const batch of resolveArchiveBatches(files)) {
     if (batch.files.length > 1) {
@@ -489,7 +517,10 @@ export const importArchiveFiles = async (files: File[]): Promise<ArchiveImportOu
     try {
       const result = isExternalJson(file)
         ? await importExternalFile(file)
-        : await importArchiveFile(file)
+        : await importArchiveFile(
+            file,
+            onProgress && ((processed, total) => onProgress(file, processed, total))
+          )
       outcomes.push({ file, ...result })
     } catch (error) {
       outcomes.push({ file, sessions: 0, format: null, warnings: [], extras: 0, error })

@@ -358,6 +358,9 @@ export type ArchiveEntry = {
   stream: AsyncIterable<Uint8Array>
 }
 
+export const countArchiveEntries = async (file: File, matches: (path: string) => boolean) =>
+  (await readDirectory(file)).entries.filter((entry) => matches(entry.path)).length
+
 /**
  * 按条目在文件中的物理顺序逐条、逐块解压，跳过目录条目。
  * 调用方必须消费完当前条目的数据，再请求下一个条目。

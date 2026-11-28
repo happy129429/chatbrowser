@@ -16,6 +16,8 @@ export type FileAttachment = {
   id: string
   name: string
   size: number
+  /** false 表示导出只提供文件名、没有可用大小；UI 显示“大小未知”。 */
+  sizeKnown?: boolean
   /** 附件类别；导入时沿用归档的 is_image，不由 MIME 识别结果决定。 */
   isImage: boolean
   /** 具体 MIME；导入时没有原件或无法识别的为空字符串，不影响图片身份。 */
@@ -33,6 +35,8 @@ export type UserMessage = MessageBranch & {
   id: string
   role: 'user'
   content: string
+  /** 外部归档里的原始消息 ID；仅用于来源关联 */
+  externalId?: string
   /** 仅本应用展示的灰色提示，不进入正文、复制和导出 */
   notice?: string
   files: FileAttachment[]
@@ -78,8 +82,14 @@ export type AssistantMessage = MessageBranch & {
   id: string
   role: 'assistant'
   createdAt: number
+  /** 外部归档里的原始消息 ID；仅用于来源关联 */
+  externalId?: string
   /** 未记录模型时为 null。 */
   model: ChatModel | null
+  /** 外部归档记录的请求模型标签，例如 ChatGPT 的 model_slug。 */
+  requestedModel?: string
+  /** 外部归档记录的实际路由模型标签。 */
+  resolvedModel?: string
   /** 请求时是否开启深度思考 */
   thinking?: boolean
   /** 请求时是否声明 deepseek_web_search；关闭时仍声明 deepseek_read_url */
@@ -95,6 +105,8 @@ export type AssistantMessage = MessageBranch & {
   accumulatedTokens?: number
   /** 仅本应用展示的灰色提示，不进入正文、复制和导出 */
   notice?: string
+  /** 未识别的交互式富内容原始 payload；不进入正文、复制和导出 */
+  rawContent?: string
   /** 旧客户端留下的请求错误；归档导入的数据不含此字段 */
   error?: {
     kind: string
@@ -141,6 +153,15 @@ export type Session = {
   systemPrompt?: string
   /** 外部导出携带的会话摘要（Claude summary 等） */
   summary?: string
+  /** ChatGPT fork：当前会话从另一个导出会话接续 */
+  continuedFrom?: {
+    title: string
+    conversationId?: string
+    /** fork 的父消息原始 ID */
+    sourceMessageId?: string
+    /** 同一批导入中可解析出的本地 session ID；跨组导入时可能缺省 */
+    sessionId?: string
+  }
 }
 
 /** 会话列表元数据；消息只在打开会话时加载。 */

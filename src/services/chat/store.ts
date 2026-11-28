@@ -502,6 +502,27 @@ export const selectSession = (id: string) => {
   }
 }
 
+/** 打开另一个会话，并定位到外部归档里的原始消息 ID。 */
+export const openSessionExternalMessage = async (
+  sessionId: string,
+  externalId?: string
+): Promise<void> => {
+  if (!get().sessions.some((session) => session.id === sessionId)) {
+    return
+  }
+  if (!externalId) {
+    selectSession(sessionId)
+    return
+  }
+  const loaded = getSession(sessionId) ?? (await db.loadSession(sessionId))
+  const message = loaded?.messages.find((item) => item.externalId === externalId)
+  if (message) {
+    openSessionMessage(sessionId, message.id)
+  } else {
+    selectSession(sessionId)
+  }
+}
+
 /** 从搜索结果打开会话并定位到命中消息。 */
 export const openSessionMessage = (sessionId: string, messageId: string) => {
   if (get().importingHistory || !get().sessions.some((session) => session.id === sessionId)) {

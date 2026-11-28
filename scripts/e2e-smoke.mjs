@@ -193,6 +193,12 @@ const geminiBase64 = fs
 const geminiTakeoutBase64 = fs
   .readFileSync(path.join(root, 'mock', 'gemini-takeout-sample.zip'))
   .toString('base64')
+const chatgptGenuiBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'chatgpt-genui-sample.json'))
+  .toString('base64')
+const chatgptForkTailBase64 = fs
+  .readFileSync(path.join(root, 'mock', 'chatgpt-fork-tail-sample.json'))
+  .toString('base64')
 await evaluate(`(() => {
   const input = document.querySelector('input[type="file"][multiple]')
   const dt = new DataTransfer()
@@ -404,6 +410,11 @@ check(
   'ChatGPT 附件元数据可导入',
   chatgptAttachmentText.includes('ownership.pdf'),
   chatgptAttachmentText.slice(0, 60)
+)
+check(
+  'ChatGPT 模型路由信息可展示',
+  chatgptAttachmentText.includes('gpt-test') && chatgptAttachmentText.includes('gpt-test-routed'),
+  chatgptAttachmentText.slice(0, 80)
 )
 
 // 组级附加信息（记忆 / 自定义指令）
@@ -720,7 +731,7 @@ const aboutText = await evaluate(
 )
 const aboutOk =
   typeof aboutText === 'string' &&
-  aboutText.includes('0.8.0') &&
+  aboutText.includes('0.8.1') &&
   aboutText.includes('github.com/happy129429/chatbrowser') &&
   aboutText.includes('deepseek-ai/chat-demo') &&
   aboutText.includes('GPL-3.0-or-later') &&
@@ -1001,6 +1012,103 @@ check(
   'Gemini Takeout ZIP 可直接导入',
   afterGeminiZip === beforeGeminiZip + 2,
   `${beforeGeminiZip} -> ${afterGeminiZip}`
+)
+
+await clickByText('div[class*="item-"]', 'Gemini 第一轮')
+await sleep(700)
+const geminiNotice = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'Gemini 占位正文显示缺失提示',
+  typeof geminiNotice === 'string' &&
+    geminiNotice.includes('Google Takeout') &&
+    geminiNotice.includes('[正文缺失]'),
+  geminiNotice.slice(0, 80)
+)
+
+const beforeGenui = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+await evaluate(`(() => {
+  const input = document.querySelector('input[type="file"][multiple]')
+  const dt = new DataTransfer()
+  dt.items.add(
+    new File([Uint8Array.from(atob(${JSON.stringify(chatgptGenuiBase64)}), (c) => c.charCodeAt(0))], 'chatgpt-genui-sample.json', { type: 'application/json' })
+  )
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+})()`)
+let afterGenui = beforeGenui
+for (let i = 0; i < 20; i++) {
+  await sleep(300)
+  afterGenui = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+  if (afterGenui === beforeGenui + 1) {
+    break
+  }
+}
+await clickByText('div[class*="item-"]', 'ChatGPT 交互组件示例')
+await sleep(700)
+const genuiText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'ChatGPT GenUI 仅保留静态内容',
+  afterGenui === beforeGenui + 1 &&
+    genuiText.includes('交互卡片标题') &&
+    genuiText.includes('这是静态说明文字。') &&
+    genuiText.includes('交互组件') &&
+    !genuiText.includes('试试看'),
+  genuiText.slice(0, 100)
+)
+
+const beforeTail = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+await evaluate(`(() => {
+  const input = document.querySelector('input[type="file"][multiple]')
+  const dt = new DataTransfer()
+  dt.items.add(
+    new File([Uint8Array.from(atob(${JSON.stringify(chatgptForkTailBase64)}), (c) => c.charCodeAt(0))], 'chatgpt-fork-tail-sample.json', { type: 'application/json' })
+  )
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+})()`)
+let afterTail = beforeTail
+for (let i = 0; i < 20; i++) {
+  await sleep(300)
+  afterTail = await evaluate(`document.querySelectorAll('div[class*="item-"]').length`)
+  if (afterTail === beforeTail + 2) {
+    break
+  }
+}
+await clickByText('div[class*="item-"]', 'Tail 子会话')
+await sleep(700)
+const tailText = await evaluate(`document.querySelector('main')?.textContent ?? ''`)
+check(
+  'ChatGPT 源尾消息接续识别',
+  afterTail === beforeTail + 2 &&
+    typeof tailText === 'string' &&
+    tailText.includes('接续自') &&
+    tailText.includes('Tail 源会话') &&
+    !tailText.includes('Tail 源回答') &&
+    tailText.includes('Tail 子问题'),
+  tailText.slice(0, 120)
+)
+
+await evaluate(`(() => {
+  const input = document.querySelector('input[type="file"][multiple]')
+  const dt = new DataTransfer()
+  dt.items.add(
+    new File([Uint8Array.from(atob(${JSON.stringify(chatgptForkTailBase64)}), (c) => c.charCodeAt(0))], 'chatgpt-fork-tail-sample.json', { type: 'application/json' })
+  )
+  input.files = dt.files
+  input.dispatchEvent(new Event('change', { bubbles: true }))
+  return 'ok'
+})()`)
+await sleep(900)
+const duplicateToast = await evaluate(
+  `document.querySelector('[role="status"]')?.textContent ?? ''`
+)
+check(
+  '重复导入显示可能已导入提示',
+  typeof duplicateToast === 'string' &&
+    (duplicateToast.includes('可能已导入过') || duplicateToast.includes('possibly imported')),
+  duplicateToast
 )
 
 if (APP_URL.includes('127.0.0.1:17890')) {

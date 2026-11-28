@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useTranslate } from '../../i18n/index.js'
+import { useTranslate, type TranslationKey } from '../../i18n/index.js'
 import { groupArchiveFiles, importArchiveFiles } from '../../services/chat/backup.js'
 import { importFormatKey } from '../../services/chat/importFormat.js'
 import { showToast } from '../base/toastState.js'
@@ -55,39 +55,38 @@ export const ArchiveInputHost = () => {
               const lossy = outcomes.some((outcome) =>
                 outcome.warnings.some((warning) => warning.code === 'lossyImport')
               )
+              const duplicate = outcomes.find((outcome) => outcome.duplicateOf)?.duplicateOf
+              const duplicateSuffix = duplicate
+                ? t('historyImportDuplicateSuffix', { group: duplicate })
+                : ''
+              const notify = (key: TranslationKey, params?: Record<string, string | number>) => {
+                if (duplicate) {
+                  showToast(`${t(key, params)}${duplicateSuffix}`)
+                } else {
+                  showToast({ key, params })
+                }
+              }
               if (merged) {
-                showToast(
-                  format
-                    ? {
-                        key: 'archiveBatchMergedFormat',
-                        params: {
-                          files: merged.length,
-                          count: imported,
-                          format,
-                          lossy: lossy ? t('historyImportLossySuffix') : '',
-                        },
-                      }
-                    : {
-                        key: 'archiveBatchMerged',
-                        params: { files: merged.length, count: imported },
-                      }
-                )
+                if (format) {
+                  notify('archiveBatchMergedFormat', {
+                    files: merged.length,
+                    count: imported,
+                    format,
+                    lossy: lossy ? t('historyImportLossySuffix') : '',
+                  })
+                } else {
+                  notify('archiveBatchMerged', { files: merged.length, count: imported })
+                }
+              } else if (format) {
+                notify(imported === 1 ? 'historyImportedFormatOne' : 'historyImportedFormat', {
+                  count: imported,
+                  format,
+                  lossy: lossy ? t('historyImportLossySuffix') : '',
+                })
               } else {
-                showToast(
-                  format
-                    ? {
-                        key: imported === 1 ? 'historyImportedFormatOne' : 'historyImportedFormat',
-                        params: {
-                          count: imported,
-                          format,
-                          lossy: lossy ? t('historyImportLossySuffix') : '',
-                        },
-                      }
-                    : {
-                        key: imported === 1 ? 'historyImportedOne' : 'historyImported',
-                        params: { count: imported },
-                      }
-                )
+                notify(imported === 1 ? 'historyImportedOne' : 'historyImported', {
+                  count: imported,
+                })
               }
             } else {
               showToast({ key: 'archiveImportPartial', params: { failed, total: outcomes.length } })

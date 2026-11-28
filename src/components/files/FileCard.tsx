@@ -14,6 +14,7 @@ import styles from './FileCard.module.css'
 export const FileCard = ({
   name,
   size,
+  sizeKnown = true,
   status = 'done',
   error,
   onRetry,
@@ -22,6 +23,7 @@ export const FileCard = ({
 }: {
   name: string
   size: number
+  sizeKnown?: boolean
   status?: 'uploading' | 'done' | 'error'
   error?: string
   onRetry?: () => void
@@ -31,7 +33,9 @@ export const FileCard = ({
   const t = useTranslate()
   const ext = getExtension(name)
   let icon: ReactNode = <FileIcon ext={ext} />
-  let description = [ext, formatSize(size)].filter(Boolean).join(' ')
+  let description = [ext, sizeKnown ? formatSize(size) : t('fileSizeUnknown')]
+    .filter(Boolean)
+    .join(' ')
   if (status === 'uploading') {
     icon = <span className={styles.spinner} />
     description = t('uploadFileStatusUploading')

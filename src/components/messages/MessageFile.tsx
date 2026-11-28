@@ -38,5 +38,5 @@ export const MessageFile = ({ file }: { file: FileAttachment }) => {
     )
   }
 
-  return <FileCard name={file.name} size={file.size} link={link} />
+  return <FileCard name={file.name} size={file.size} sizeKnown={file.sizeKnown} link={link} />
 }

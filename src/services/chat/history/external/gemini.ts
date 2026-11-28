@@ -1,3 +1,4 @@
+import { translate } from '../../../../i18n/index.js'
 import { createId } from '../../../../utils/id.js'
 import type { FileAttachment, Session } from '../../types.js'
 import { record, safeId, toMs, toSession, type Loose, type Round } from './common.js'
@@ -28,16 +29,28 @@ const htmlToText = (value: string): string =>
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
-const activityText = (item: Loose): string => {
+const MISSING_HTML = /<(?:p|li)[^>]*>\s*[.…⋯·•-]?\s*<\/(?:p|li)>/i
+const MISSING_HTML_GLOBAL = /<(p|li)([^>]*)>\s*[.…⋯·•-]?\s*<\/\1>/gi
+
+const activityHtml = (item: Loose): string => {
   const htmlItems = Array.isArray(item.safeHtmlItem) ? item.safeHtmlItem : []
   return htmlItems
     .map((entry) => {
       const html = record(entry)?.html
-      return typeof html === 'string' ? htmlToText(html) : ''
+      return typeof html === 'string' ? html : ''
     })
     .filter(Boolean)
-    .join('\n\n')
+    .join('\n')
 }
+
+const activityText = (html: string): string =>
+  htmlToText(
+    html.replace(
+      MISSING_HTML_GLOBAL,
+      (_match, tag: string, attrs: string) =>
+        `<${tag}${attrs}>${translate('geminiMissingPlaceholder')}</${tag}>`
+    )
+  )
 
 const activityAttachments = (item: Loose): FileAttachment[] => {
   const names: string[] = []
@@ -55,6 +68,7 @@ const activityAttachments = (item: Loose): FileAttachment[] => {
     id: name,
     name,
     size: 0,
+    sizeKnown: false,
     isImage: /\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(name),
     mimeType: '',
   }))
@@ -96,8 +110,10 @@ export const fromGemini = (parsed: Loose[], groupId: string): Session[] => {
       const rawTitle =
         typeof item.title === 'string' ? item.title.replace(PROMPT_PREFIX, '').trim() : ''
       const question = rawTitle || ''
-      const answer = activityText(item)
-      if (!question && !answer) {
+      const html = activityHtml(item)
+      const answer = activityText(html)
+      const answerNotice = MISSING_HTML.test(html) ? translate('geminiMissingContent') : undefined
+      if (!question && !answer && !answerNotice) {
         continue
       }
       rounds.push({
@@ -105,6 +121,7 @@ export const fromGemini = (parsed: Loose[], groupId: string): Session[] => {
         answer,
         at: toMs(item.time, Date.now()),
         files: activityAttachments(item),
+        ...(answerNotice ? { answerNotice } : {}),
       })
     }
     if (rounds.length === 0) {

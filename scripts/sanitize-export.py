@@ -10,7 +10,7 @@
 
 Usage:
   python3 scripts/sanitize-export.py input.json [more.json ...] --out-dir sanitized \
-      [--map private-map.json] [--time-ref 1600000000]
+      [--map private-map.json] [--time-ref 1600000000] [--keep-ids]
 
 Keep the optional map file private; never upload it with the sanitized data.
 """
@@ -47,6 +47,12 @@ STRUCTURAL_KEYS = {
     "mime_type",
 }
 ID_KEYS = {
+    "parent",
+    "parent_id",
+    "current_node",
+    "current_message_id",
+    "library_file_id",
+    "asset_pointer",
     "id",
     "uuid",
     "conversation_id",
@@ -101,8 +107,9 @@ CJK_RE = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
 
 
 class Sanitizer:
-    def __init__(self, time_ref: int):
+    def __init__(self, time_ref: int, keep_ids: bool = False):
         self.time_ref = dt.datetime.fromtimestamp(time_ref, tz=dt.timezone.utc)
+        self.keep_ids = keep_ids
         self.text_map = {}
         self.id_map = {}
         self.file_count = 0
@@ -146,7 +153,7 @@ class Sanitizer:
             self.full_id_map[value] = self._synthetic_uuid(value)
 
     def ident(self, value: str) -> str:
-        if value == ROOT_UUID:
+        if self.keep_ids or value == ROOT_UUID:
             return value
         if value in self.id_map:
             return self.id_map[value]
@@ -253,6 +260,11 @@ def main():
     parser.add_argument("--map", type=Path, default=None)
     parser.add_argument("--time-ref", type=int, default=1600000000)
     parser.add_argument(
+        "--keep-ids",
+        action="store_true",
+        help="preserve opaque structural IDs (conversation/message/parent/library refs)",
+    )
+    parser.add_argument(
         "--drop-keys",
         nargs="*",
         default=[],
@@ -260,7 +272,7 @@ def main():
     )
     args = parser.parse_args()
 
-    sanitizer = Sanitizer(args.time_ref)
+    sanitizer = Sanitizer(args.time_ref, args.keep_ids)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     failed = False
     drop_keys = set(args.drop_keys)
